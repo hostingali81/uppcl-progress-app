@@ -1,102 +1,68 @@
-import Image from "next/image";
+// src/app/page.tsx
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge"; // --- यह लाइन जोड़ी गई है ---
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ArrowRight, GanttChartSquare } from "lucide-react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+export default async function LandingPage() {
+  // जांचें कि क्या उपयोगकर्ता पहले से लॉग इन है
+  const { client: supabase } = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // यदि लॉग इन है, तो उसे सीधे डैशबोर्ड पर भेजें
+  if (user) {
+    return redirect("/dashboard");
+  }
+
+  // यदि लॉग इन नहीं है, तो लैंडिंग पेज दिखाएं
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="flex flex-col min-h-screen bg-white">
+      {/* हेडर */}
+      <header className="flex items-center justify-between p-4 px-6 border-b">
+        <Link href="/" className="flex items-center gap-2 text-xl font-bold text-blue-600">
+          <GanttChartSquare className="h-7 w-7" />
+          <span>प्रगति</span>
+        </Link>
+        <nav className="flex items-center gap-4">
+          <Link href="/login">
+            <Button variant="outline">लॉग इन करें</Button>
+          </Link>
+        </nav>
+      </header>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+      {/* मुख्य सामग्री */}
+      <main className="flex-1 flex items-center justify-center">
+        <section className="text-center px-4 py-16">
+          <div className="max-w-3xl mx-auto">
+            <Badge variant="secondary" className="mb-4">
+              कार्य प्रबंधन, सरल और प्रभावी
+            </Badge>
+            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-gray-900">
+              अपने विभागीय कार्यों को एक ही स्थान पर प्रबंधित करें
+            </h1>
+            <p className="mt-6 text-lg md:text-xl text-gray-600">
+              "प्रगति" के साथ ज़मीनी स्तर के अपडेट से लेकर शीर्ष-स्तरीय विश्लेषण तक,
+              पूर्ण पारदर्शिता और वास्तविक समय में डेटा प्राप्त करें।
+            </p>
+            <div className="mt-10">
+              <Link href="/login">
+                <Button size="lg" className="group">
+                  शुरू करें
+                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      
+      {/* फुटर */}
+      <footer className="py-6 px-6 border-t bg-gray-50">
+        <p className="text-center text-sm text-gray-500">
+          © {new Date().getFullYear()} प्रगति प्लेटफॉर्म। सर्वाधिकार सुरक्षित।
+        </p>
       </footer>
     </div>
   );
