@@ -6,23 +6,64 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { ArrowLeft, FileText, MapPin } from "lucide-react";
+import { ArrowLeft, FileText, MapPin, DollarSign, Calendar, Users, AlertTriangle, CheckCircle, Clock, TrendingUp, Building2, MapPin as LocationIcon, FileText as DocumentIcon, DollarSign as MoneyIcon, Calendar as CalendarIcon, Users as TeamIcon, Settings } from "lucide-react";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
-import { UpdateProgressForm } from "./UpdateProgressForm"; // This component's internals would also be updated
-import { FileUploadManager } from "@/components/custom/FileUploadManager"; // Updated styling
-import { CommentsSection } from "@/components/custom/CommentsSection"; // Updated styling
-import { BlockerStatusManager } from "@/components/custom/BlockerStatusManager"; // Updated styling
-import { ProgressLogsSection } from "@/components/custom/ProgressLogsSection"; // New component for progress logs
+import { UpdateProgressForm } from "./UpdateProgressForm";
+import { FileUploadManager } from "@/components/custom/FileUploadManager";
+import { CommentsSection } from "@/components/custom/CommentsSection";
+import { BlockerStatusManager } from "@/components/custom/BlockerStatusManager";
+import { ProgressLogsSection } from "@/components/custom/ProgressLogsSection";
 
-// A simple helper component for displaying details in a list.
-// Styling is updated for better alignment and typography.
+// Enhanced detail row component with modern styling
 function DetailRow({ label, value }: { label: string; value: string | number | null | undefined }) {
     if (value === null || value === undefined || value === '') return null;
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-1 py-3 border-b border-slate-200 last:border-b-0">
-            <dt className="text-sm font-medium text-slate-600">{label}</dt>
-            <dd className="text-sm text-slate-900 md:col-span-2">{String(value)}</dd>
+        <div className="group flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 transition-colors duration-200 border-b border-slate-100 last:border-b-0">
+            <dt className="text-sm font-medium text-slate-600 flex-shrink-0 min-w-[140px]">{label}</dt>
+            <dd className="text-sm text-slate-900 font-medium text-right flex-1 ml-4">{String(value)}</dd>
         </div>
+    );
+}
+
+// Progress indicator component
+function ProgressIndicator({ progress }: { progress: number | null }) {
+    const percentage = progress || 0;
+    const getProgressColor = (p: number) => {
+        if (p >= 100) return 'bg-green-500';
+        if (p >= 75) return 'bg-blue-500';
+        if (p >= 50) return 'bg-yellow-500';
+        if (p >= 25) return 'bg-orange-500';
+        return 'bg-red-500';
+    };
+
+    return (
+        <div className="flex items-center space-x-3">
+            <div className="flex-1 bg-slate-200 rounded-full h-3 overflow-hidden">
+                <div 
+                    className={`h-3 rounded-full transition-all duration-1000 ease-out ${getProgressColor(percentage)}`}
+                    style={{ width: `${percentage}%` }}
+                />
+            </div>
+            <span className="text-sm font-semibold text-slate-700 min-w-[45px]">{percentage}%</span>
+        </div>
+    );
+}
+
+// Status badge component
+function StatusBadge({ status, type }: { status: string; type: 'success' | 'warning' | 'error' | 'info' }) {
+    const getStatusStyles = () => {
+        switch (type) {
+            case 'success': return 'bg-green-100 text-green-800 border-green-200';
+            case 'warning': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            case 'error': return 'bg-red-100 text-red-800 border-red-200';
+            default: return 'bg-blue-100 text-blue-800 border-blue-200';
+        }
+    };
+
+    return (
+        <Badge variant="outline" className={`${getStatusStyles()} font-medium px-3 py-1`}>
+            {status}
+        </Badge>
     );
 }
 
@@ -55,224 +96,278 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
     // --- END OF DATA FETCHING LOGIC ---
 
     return (
-        // Main container with consistent padding
-        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-            {/* Page Header section */}
-            <div className="flex items-center space-x-4">
-                <Link href="/dashboard">
-                    <EnhancedButton variant="outline" size="icon" aria-label="Back to Dashboard" className="border-slate-200 hover:bg-slate-50">
-                        <ArrowLeft className="h-4 w-4" />
-                    </EnhancedButton>
-                </Link>
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Work Details</h1>
-                    <p className="text-slate-600">Manage progress, files, and blockers for this work.</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+            {/* Compact Header */}
+            <div className="bg-white border-b border-slate-200 shadow-sm">
+                <div className="p-4 sm:p-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                            <Link href="/dashboard">
+                                <EnhancedButton 
+                                    variant="outline" 
+                                    size="icon" 
+                                    aria-label="Back to Dashboard" 
+                                    className="border-slate-200 hover:bg-slate-50"
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                </EnhancedButton>
+                            </Link>
+                            <div>
+                                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
+                                    {work.work_name || 'Work Details'}
+                                </h1>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                                        {work.work_category || 'N/A'}
+                                    </Badge>
+                                    <span className="text-slate-500 text-sm">WBS: {work.wbs_code || 'N/A'}</span>
+                                    {work.is_blocked && (
+                                        <StatusBadge status="Blocked" type="error" />
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Progress Summary */}
+                        <div className="flex items-center space-x-4">
+                            <div className="text-right">
+                                <div className="text-sm text-slate-600">Progress</div>
+                                <div className="text-lg font-bold text-slate-900">{work.progress_percentage || 0}%</div>
+                            </div>
+                            <div className="w-16 bg-slate-200 rounded-full h-2">
+                                <div 
+                                    className={`h-2 rounded-full transition-all duration-500 ${
+                                        (work.progress_percentage || 0) >= 100 ? 'bg-green-500' :
+                                        (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
+                                        (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
+                                        (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
+                                        'bg-red-500'
+                                    }`}
+                                    style={{ width: `${work.progress_percentage || 0}%` }}
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Top grid for interactive components */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                <div className="lg:col-span-2">
-                    <UpdateProgressForm
-                      workId={work.id}
-                      currentProgress={work.progress_percentage}
-                      currentRemark={work.remark}
-                    />
+            {/* Main Content */}
+            <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+
+                {/* Quick Actions Bar */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-semibold text-slate-900">Quick Actions</h3>
+                            <span className="text-sm text-slate-500">Manage your work efficiently</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <UpdateProgressForm
+                                workId={work.id}
+                                currentProgress={work.progress_percentage}
+                                currentRemark={work.remark}
+                            />
+                            <BlockerStatusManager
+                                workId={work.id}
+                                isBlocked={work.is_blocked}
+                                blockerRemark={work.blocker_remark}
+                            />
+                            <FileUploadManager 
+                                workId={work.id} 
+                                attachments={work.attachments} 
+                                currentUserId={user.id}
+                            />
+                        </div>
+                    </div>
                 </div>
-                <div className="lg:col-span-3">
-                     <BlockerStatusManager
-                        workId={work.id}
-                        isBlocked={work.is_blocked}
-                        blockerRemark={work.blocker_remark}
+
+                {/* Information Cards Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* General Information Card */}
+                    <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
+                        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <DocumentIcon className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-xl font-bold text-slate-900">General Information</CardTitle>
+                                    <CardDescription className="text-slate-600">Project details and specifications</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-slate-100">
+                                <DetailRow label="Scheme Name" value={work.scheme_name} />
+                                <DetailRow label="Scheme Sr. No." value={work.scheme_sr_no} />
+                                <DetailRow label="Work Category" value={work.work_category} />
+                                <DetailRow label="Work Name" value={work.work_name} />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Location Details Card */}
+                    <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
+                        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <LocationIcon className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-xl font-bold text-slate-900">Location Details</CardTitle>
+                                    <CardDescription className="text-slate-600">Geographical and administrative information</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-slate-100">
+                                <DetailRow label="Zone Name" value={work.zone_name} />
+                                <DetailRow label="Circle Name" value={work.circle_name} />
+                                <DetailRow label="Division Name" value={work.division_name} />
+                                <DetailRow label="Sub-Division Name" value={work.sub_division_name} />
+                                <DetailRow label="District Name" value={work.district_name} />
+                                <DetailRow label="JE Name" value={work.je_name} />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Financial & Timeline Cards */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Financial Details Card */}
+                    <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
+                        <CardHeader className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b border-slate-200">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <MoneyIcon className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-xl font-bold text-slate-900">Financial Details</CardTitle>
+                                    <CardDescription className="text-slate-600">Budget and cost information</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-slate-100">
+                                <DetailRow label="Amount as per BP (Lacs)" value={work.amount_as_per_bp_lacs} />
+                                <DetailRow label="BOQ Amount" value={work.boq_amount} />
+                                <DetailRow label="Agreement Amount" value={work.agreement_amount} />
+                                <DetailRow label="Rate as per Agreement" value={work.rate_as_per_ag} />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Timeline Information Card */}
+                    <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
+                        <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-slate-200">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <CalendarIcon className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-xl font-bold text-slate-900">Timeline Information</CardTitle>
+                                    <CardDescription className="text-slate-600">Project schedule and milestones</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-slate-100">
+                                <DetailRow label="Start Date" value={work.start_date} />
+                                <DetailRow label="Scheduled Completion Date" value={work.scheduled_completion_date} />
+                                <DetailRow label="Weightage" value={work.weightage} />
+                                <DetailRow label="Progress Percentage" value={`${work.progress_percentage || 0}%`} />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Tender & Contractor Cards */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Tender Information Card */}
+                    <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
+                        <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 border-b border-slate-200">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <DocumentIcon className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-xl font-bold text-slate-900">Tender Information</CardTitle>
+                                    <CardDescription className="text-slate-600">Procurement and bidding details</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-slate-100">
+                                <DetailRow label="Tender No." value={work.tender_no} />
+                                <DetailRow label="NIT Date" value={work.nit_date} />
+                                <DetailRow label="Part 1 Opening Date" value={work.part1_opening_date} />
+                                <DetailRow label="LOI No. and Date" value={work.loi_no_and_date} />
+                                <DetailRow label="Part 2 Opening Date" value={work.part2_opening_date} />
+                                <DetailRow label="Agreement No. and Date" value={work.agreement_no_and_date} />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Contractor Information Card */}
+                    <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
+                        <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-slate-200">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <TeamIcon className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-xl font-bold text-slate-900">Contractor Information</CardTitle>
+                                    <CardDescription className="text-slate-600">Contractor and firm details</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-slate-100">
+                                <DetailRow label="Firm Name and Contact" value={work.firm_name_and_contact} />
+                                <DetailRow label="Firm Contact No." value={work.firm_contact_no} />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Status Information Card */}
+                <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
+                    <CardHeader className="bg-gradient-to-r from-red-50 to-pink-50 border-b border-slate-200">
+                        <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                                <AlertTriangle className="h-5 w-5 text-white" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-xl font-bold text-slate-900">Status Information</CardTitle>
+                                <CardDescription className="text-slate-600">Project status and approvals</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="divide-y divide-slate-100">
+                            <DetailRow label="MB Status" value={work.mb_status} />
+                            <DetailRow label="TECO Status" value={work.teco_status} />
+                            <DetailRow label="FICO Status" value={work.fico_status} />
+                            <DetailRow label="Is Blocked" value={work.is_blocked ? 'Yes' : 'No'} />
+                            <DetailRow label="Blocker Remark" value={work.blocker_remark} />
+                            <DetailRow label="Remark" value={work.remark} />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Progress Logs & Comments Section */}
+                <div className="space-y-6">
+                    <ProgressLogsSection progressLogs={progressLogs || []} />
+                    
+                    <CommentsSection 
+                        workId={work.id} 
+                        comments={work.comments} 
+                        mentionUsers={usersForMentions}
+                        currentUserId={user.id}
+                        currentUserRole={currentUserRole}
                     />
                 </div>
             </div>
-            
-            <FileUploadManager 
-                workId={work.id} 
-                attachments={work.attachments} 
-                currentUserId={user.id}
-            />
-
-            {/* General Information Card */}
-            <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="border-b border-slate-200">
-                    <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <FileText className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                            <CardTitle className="text-xl font-semibold text-slate-900">{work.work_name}</CardTitle>
-                            <CardDescription className="flex items-center space-x-2 pt-1">
-                                <Badge variant="secondary" className="bg-slate-100 text-slate-700">{work.work_category || 'N/A'}</Badge>
-                                <span className="text-slate-400">•</span>
-                                <span className="text-slate-600">WBS Code: {work.wbs_code || 'N/A'}</span>
-                            </CardDescription>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                    <dl>
-                        <DetailRow label="Scheme Name" value={work.scheme_name} />
-                        <DetailRow label="Scheme Sr. No." value={work.scheme_sr_no} />
-                        <DetailRow label="Work Category" value={work.work_category} />
-                        <DetailRow label="Work Name" value={work.work_name} />
-                    </dl>
-                </CardContent>
-            </Card>
-
-            {/* Location Details Card */}
-            <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="border-b border-slate-200">
-                    <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 bg-green-100 rounded-lg flex items-center justify-center">
-                            <MapPin className="h-5 w-5 text-green-600" />
-                        </div>
-                        <CardTitle className="text-lg font-semibold text-slate-900">Location Details</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                    <dl>
-                        <DetailRow label="Zone Name" value={work.zone_name} />
-                        <DetailRow label="Circle Name" value={work.circle_name} />
-                        <DetailRow label="Division Name" value={work.division_name} />
-                        <DetailRow label="Sub-Division Name" value={work.sub_division_name} />
-                        <DetailRow label="District Name" value={work.district_name} />
-                        <DetailRow label="JE Name" value={work.je_name} />
-                    </dl>
-                </CardContent>
-            </Card>
-
-            {/* Financial Details Card */}
-            <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="border-b border-slate-200">
-                    <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                            <FileText className="h-5 w-5 text-yellow-600" />
-                        </div>
-                        <CardTitle className="text-lg font-semibold text-slate-900">Financial Details</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                    <dl>
-                        <DetailRow label="Amount as per BP (Lacs)" value={work.amount_as_per_bp_lacs} />
-                        <DetailRow label="BOQ Amount" value={work.boq_amount} />
-                        <DetailRow label="Agreement Amount" value={work.agreement_amount} />
-                        <DetailRow label="Rate as per Agreement" value={work.rate_as_per_ag} />
-                    </dl>
-                </CardContent>
-            </Card>
-
-            {/* Tender Information Card */}
-            <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="border-b border-slate-200">
-                    <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <FileText className="h-5 w-5 text-purple-600" />
-                        </div>
-                        <CardTitle className="text-lg font-semibold text-slate-900">Tender Information</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                    <dl>
-                        <DetailRow label="Tender No." value={work.tender_no} />
-                        <DetailRow label="NIT Date" value={work.nit_date} />
-                        <DetailRow label="Part 1 Opening Date" value={work.part1_opening_date} />
-                        <DetailRow label="LOI No. and Date" value={work.loi_no_and_date} />
-                        <DetailRow label="Part 2 Opening Date" value={work.part2_opening_date} />
-                        <DetailRow label="Agreement No. and Date" value={work.agreement_no_and_date} />
-                    </dl>
-                </CardContent>
-            </Card>
-
-            {/* Contractor Information Card */}
-            <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="border-b border-slate-200">
-                    <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                            <FileText className="h-5 w-5 text-indigo-600" />
-                        </div>
-                        <CardTitle className="text-lg font-semibold text-slate-900">Contractor Information</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                    <dl>
-                        <DetailRow label="Firm Name and Contact" value={work.firm_name_and_contact} />
-                        <DetailRow label="Firm Contact No." value={work.firm_contact_no} />
-                    </dl>
-                </CardContent>
-            </Card>
-
-            {/* Timeline Information Card */}
-            <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="border-b border-slate-200">
-                    <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 bg-teal-100 rounded-lg flex items-center justify-center">
-                            <FileText className="h-5 w-5 text-teal-600" />
-                        </div>
-                        <CardTitle className="text-lg font-semibold text-slate-900">Timeline Information</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                    <dl>
-                        <DetailRow label="Start Date" value={work.start_date} />
-                        <DetailRow label="Scheduled Completion Date" value={work.scheduled_completion_date} />
-                        <DetailRow label="Weightage" value={work.weightage} />
-                        <DetailRow label="Progress Percentage" value={`${work.progress_percentage || 0}%`} />
-                    </dl>
-                </CardContent>
-            </Card>
-
-            {/* Status Information Card */}
-            <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="border-b border-slate-200">
-                    <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 bg-red-100 rounded-lg flex items-center justify-center">
-                            <FileText className="h-5 w-5 text-red-600" />
-                        </div>
-                        <CardTitle className="text-lg font-semibold text-slate-900">Status Information</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                    <dl>
-                        <DetailRow label="MB Status" value={work.mb_status} />
-                        <DetailRow label="TECO Status" value={work.teco_status} />
-                        <DetailRow label="FICO Status" value={work.fico_status} />
-                        <DetailRow label="Is Blocked" value={work.is_blocked ? 'Yes' : 'No'} />
-                        <DetailRow label="Blocker Remark" value={work.blocker_remark} />
-                        <DetailRow label="Remark" value={work.remark} />
-                    </dl>
-                </CardContent>
-            </Card>
-
-            {/* System Information Card */}
-            <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="border-b border-slate-200">
-                    <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <FileText className="h-5 w-5 text-gray-600" />
-                        </div>
-                        <CardTitle className="text-lg font-semibold text-slate-900">System Information</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                    <dl>
-                        <DetailRow label="Created At" value={work.created_at} />
-                        <DetailRow label="Updated At" value={work.updated_at} />
-                    </dl>
-                </CardContent>
-            </Card>
-
-            {/* Progress Logs Section */}
-            <ProgressLogsSection progressLogs={progressLogs || []} />
-
-            <CommentsSection 
-                workId={work.id} 
-                comments={work.comments} 
-                mentionUsers={usersForMentions}
-                currentUserId={user.id}
-                currentUserRole={currentUserRole}
-            />
         </div>
     );
 }
