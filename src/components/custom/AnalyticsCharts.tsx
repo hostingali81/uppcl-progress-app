@@ -3,7 +3,7 @@
 
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart as PieChartIcon, BarChart3, TrendingUp, DollarSign, CheckCircle, Clock } from "lucide-react";
+import { PieChart as PieChartIcon, BarChart3, TrendingUp, DollarSign, CheckCircle, Clock, Play } from "lucide-react";
 
 // Step 1: Define the shape of the props this component will receive.
 type AnalyticsChartsProps = {
@@ -15,6 +15,7 @@ type AnalyticsChartsProps = {
   kpis: {
     totalWorks: number;
     completedWorks: number;
+    notStartedWorks: number;
     blockedWorks: number;
     totalAgreementValue: number;
     completedValue: number;
@@ -26,10 +27,11 @@ type AnalyticsChartsProps = {
     notStarted: string;
     barChart: string;
   };
-  onKPIClick?: (filterType: 'all' | 'completed' | 'in_progress' | 'blocked') => void;
+  onKPIClick?: (filterType: 'all' | 'completed' | 'in_progress' | 'not_started' | 'blocked') => void;
+  activeFilter?: string;
 };
 
-export function AnalyticsCharts({ statusData, financialData, districtData, monthlyData, chartTitle, kpis, colors, onKPIClick }: AnalyticsChartsProps) {
+export function AnalyticsCharts({ statusData, financialData, districtData, monthlyData, chartTitle, kpis, colors, onKPIClick, activeFilter }: AnalyticsChartsProps) {
   // Define the colors for the Pie chart based on the passed props.
   const pieChartColors = [colors.completed, colors.inProgress, colors.notStarted];
 
@@ -43,9 +45,9 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card 
-          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-blue-300' : ''}`}
+          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-blue-300' : ''} ${activeFilter === 'all' ? 'ring-2 ring-blue-500 border-blue-500' : ''}`}
           onClick={() => onKPIClick?.('all')}
         >
           <CardContent className="p-6">
@@ -62,7 +64,7 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
         </Card>
 
         <Card 
-          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-green-300' : ''}`}
+          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-green-300' : ''} ${activeFilter === 'completed' ? 'ring-2 ring-green-500 border-green-500' : ''}`}
           onClick={() => onKPIClick?.('completed')}
         >
           <CardContent className="p-6">
@@ -80,36 +82,54 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
         </Card>
 
         <Card 
-          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-purple-300' : ''}`}
+          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-purple-300' : ''} ${activeFilter === 'in_progress' ? 'ring-2 ring-purple-500 border-purple-500' : ''}`}
           onClick={() => onKPIClick?.('in_progress')}
         >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Financial Progress</p>
-                <p className="text-2xl font-bold text-purple-600">{formatCurrency(kpis.completedValue)}</p>
-                <p className="text-xs text-slate-500">of {formatCurrency(kpis.totalAgreementValue)}</p>
+                <p className="text-sm font-medium text-slate-600">In Progress</p>
+                <p className="text-2xl font-bold text-purple-600">{kpis.totalWorks - kpis.completedWorks - kpis.notStartedWorks}</p>
+                <p className="text-xs text-slate-500">{(((kpis.totalWorks - kpis.completedWorks - kpis.notStartedWorks) / kpis.totalWorks) * 100).toFixed(1)}%</p>
               </div>
               <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-purple-600" />
+                <Clock className="h-6 w-6 text-purple-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card 
-          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-orange-300' : ''}`}
+          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-gray-300' : ''} ${activeFilter === 'not_started' ? 'ring-2 ring-gray-500 border-gray-500' : ''}`}
+          onClick={() => onKPIClick?.('not_started')}
+        >
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Not Started</p>
+                <p className="text-2xl font-bold text-gray-600">{kpis.notStartedWorks}</p>
+                <p className="text-xs text-slate-500">{((kpis.notStartedWorks / kpis.totalWorks) * 100).toFixed(1)}%</p>
+              </div>
+              <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <Play className="h-6 w-6 text-gray-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-red-300' : ''} ${activeFilter === 'blocked' ? 'ring-2 ring-red-500 border-red-500' : ''}`}
           onClick={() => onKPIClick?.('blocked')}
         >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Avg Progress</p>
-                <p className="text-2xl font-bold text-orange-600">{kpis.averageProgress.toFixed(1)}%</p>
-                <p className="text-xs text-slate-500">Overall completion</p>
+                <p className="text-sm font-medium text-slate-600">Blocked</p>
+                <p className="text-2xl font-bold text-red-600">{kpis.blockedWorks}</p>
+                <p className="text-xs text-slate-500">{((kpis.blockedWorks / kpis.totalWorks) * 100).toFixed(1)}%</p>
               </div>
-              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Clock className="h-6 w-6 text-orange-600" />
+              <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-red-600" />
               </div>
             </div>
           </CardContent>

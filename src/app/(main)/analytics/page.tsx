@@ -56,15 +56,15 @@ export default async function AnalyticsPage() {
   }
   
   // Check cache for works data
-  const worksCacheKey = cacheKeys.userWorks(user.id, profile.role, profile.value);
+  const worksCacheKey = cacheKeys.userWorks(user.id, (profile as any).role, (profile as any).value);
   let works = cache.get(worksCacheKey);
   
   if (!works) {
     let worksQuery = supabase.from("works").select("id, scheme_sr_no, scheme_name, work_name, progress_percentage, division_name, sub_division_name, circle_name, zone_name, district_name, agreement_amount, is_blocked, created_at");
     
-    const filterColumn = roleToColumnMap[profile.role];
-    if (profile.role !== 'superadmin' && filterColumn && profile.value) {
-      worksQuery = worksQuery.eq(filterColumn, profile.value);
+    const filterColumn = roleToColumnMap[(profile as any).role];
+    if ((profile as any).role !== 'superadmin' && filterColumn && (profile as any).value) {
+      worksQuery = worksQuery.eq(filterColumn, (profile as any).value);
     }
 
     const { data: worksData, error } = await worksQuery;
@@ -78,7 +78,7 @@ export default async function AnalyticsPage() {
     cache.set(worksCacheKey, works, 5 * 60 * 1000);
   }
 
-  if (!works || works.length === 0) {
+  if (!works || (works as any).length === 0) {
      return (
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="flex items-center gap-3 mb-6">
@@ -102,7 +102,7 @@ export default async function AnalyticsPage() {
   }
   
   // Enhanced data aggregation for charts
-  const worksData = works as Work[];
+  const worksData = (works as Work[]) || [];
   
   // Status data
   const statusData = worksData.reduce(
@@ -168,6 +168,7 @@ export default async function AnalyticsPage() {
   // KPI calculations
   const totalWorks = worksData.length;
   const completedWorks = worksData.filter(w => (w.progress_percentage || 0) === 100).length;
+  const notStartedWorks = worksData.filter(w => (w.progress_percentage || 0) === 0).length;
   const blockedWorks = worksData.filter(w => w.is_blocked).length;
   const totalAgreementValue = worksData.reduce((sum, work) => sum + (work.agreement_amount || 0), 0);
   const completedValue = worksData.reduce((sum, work) => {
@@ -196,7 +197,7 @@ export default async function AnalyticsPage() {
     }
   };
   
-  const chartTitle = getChartTitle(profile.role);
+  const chartTitle = getChartTitle((profile as any).role);
   // --- END OF DATA LOGIC ---
 
   return (
@@ -224,6 +225,7 @@ export default async function AnalyticsPage() {
         kpis={{
           totalWorks,
           completedWorks,
+          notStartedWorks,
           blockedWorks,
           totalAgreementValue,
           completedValue,

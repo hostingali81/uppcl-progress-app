@@ -247,7 +247,7 @@ export async function getRoleValues(role: string) {
     }
     
     // Extract unique values
-    const uniqueValues = [...new Set(data.map(item => item[columnName]).filter(Boolean))];
+    const uniqueValues = [...new Set(data.map(item => (item as any)[columnName]).filter(Boolean))];
     
     return { values: uniqueValues };
   } catch (error) {

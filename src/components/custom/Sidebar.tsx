@@ -7,7 +7,7 @@ import { BarChart, LayoutDashboard, LogOut, Settings, User, Users } from "lucide
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
-import { signOut } from "@/app/actions";
+import { LogoutButton } from "./LogoutButton";
 
 type UserDetails = {
   email: string | undefined;
@@ -82,9 +82,10 @@ export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
               </Link>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={async () => await signOut()}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Log Out</span>
+            <DropdownMenuItem asChild>
+              <LogoutButton variant="ghost" className="w-full justify-start" showIcon={true}>
+                Log Out
+              </LogoutButton>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

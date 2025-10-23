@@ -5,7 +5,8 @@ import { AnalyticsCharts } from "./AnalyticsCharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Filter, X } from "lucide-react";
+import { Filter, X, Info } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface Work {
   id: string;
@@ -29,6 +30,7 @@ interface AnalyticsClientProps {
   kpis: {
     totalWorks: number;
     completedWorks: number;
+    notStartedWorks: number;
     blockedWorks: number;
     totalAgreementValue: number;
     completedValue: number;
@@ -55,7 +57,19 @@ export function AnalyticsClient({
   const [filteredWorks, setFilteredWorks] = useState<Work[]>(works);
   const [activeFilter, setActiveFilter] = useState<string>('all');
 
-  const handleKPIClick = (filterType: 'all' | 'completed' | 'in_progress' | 'blocked') => {
+  // Function to truncate work names
+  const truncateWorkName = (name: string | null, maxLength: number = 30): string => {
+    if (!name) return 'No name';
+    if (name.length <= maxLength) return name;
+    return name.substring(0, maxLength) + '...';
+  };
+
+  // Function to get responsive truncation length
+  const getTruncationLength = (isMobile: boolean = false): number => {
+    return isMobile ? 20 : 50;
+  };
+
+  const handleKPIClick = (filterType: 'all' | 'completed' | 'in_progress' | 'not_started' | 'blocked') => {
     let filtered: Work[] = [];
     
     switch (filterType) {
@@ -67,6 +81,9 @@ export function AnalyticsClient({
         break;
       case 'in_progress':
         filtered = works.filter(work => work.progress_percentage > 0 && work.progress_percentage < 100);
+        break;
+      case 'not_started':
+        filtered = works.filter(work => work.progress_percentage === 0);
         break;
       case 'blocked':
         filtered = works.filter(work => work.is_blocked);
@@ -87,6 +104,7 @@ export function AnalyticsClient({
       case 'all': return 'All Works';
       case 'completed': return 'Completed Works';
       case 'in_progress': return 'In Progress Works';
+      case 'not_started': return 'Not Started Works';
       case 'blocked': return 'Blocked Works';
       default: return 'All Works';
     }
@@ -134,6 +152,7 @@ export function AnalyticsClient({
         kpis={kpis}
         colors={colors}
         onKPIClick={handleKPIClick}
+        activeFilter={activeFilter}
       />
 
       {/* Filtered Works Table */}
@@ -176,8 +195,15 @@ export function AnalyticsClient({
                         {work.scheme_sr_no}
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-900">
-                        <div className="max-w-xs truncate" title={work.work_name}>
-                          {work.work_name}
+                        <div className="flex items-center gap-1">
+                          <span className="truncate flex-1 min-w-0" title={work.work_name}>
+                            {truncateWorkName(work.work_name, getTruncationLength(false))}
+                          </span>
+                          {(work.work_name && work.work_name.length > getTruncationLength(false)) && (
+                            <Tooltip content={work.work_name}>
+                              <Info className="h-4 w-4 text-slate-400 hover:text-slate-600 cursor-help flex-shrink-0" />
+                            </Tooltip>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-900">

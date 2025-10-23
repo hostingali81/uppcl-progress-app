@@ -11,7 +11,7 @@ import Link from "next/link";
 import { ExportToExcelButton } from "@/components/custom/ExportToExcelButton";
 import { DashboardFilters } from "@/components/custom/DashboardFilters";
 import { DateFilter } from "@/components/custom/DateFilter";
-import { AlertTriangle, TrendingUp, Clock, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertTriangle, TrendingUp, Clock, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown, Play, Info } from "lucide-react";
 
 // Define a type for the work object for better type safety.
 type Work = {
@@ -56,7 +56,20 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     direction: 'asc'
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeKPI, setActiveKPI] = useState<string>('all');
   const itemsPerPage = 20; // Show 20 items per page
+
+  // Function to truncate work names
+  const truncateWorkName = (name: string | null, maxLength: number = 30): string => {
+    if (!name) return 'No name';
+    if (name.length <= maxLength) return name;
+    return name.substring(0, maxLength) + '...';
+  };
+
+  // Function to get responsive truncation length
+  const getTruncationLength = (isMobile: boolean = false): number => {
+    return isMobile ? 20 : 120;
+  };
 
   // Calculate historical progress based on selected date
   const getHistoricalProgress = useMemo(() => {
@@ -171,10 +184,13 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
       <ArrowDown className="h-4 w-4 text-blue-600" />;
   };
 
-  const handleKPIClick = useCallback((type: 'completed' | 'in_progress' | 'not_started' | 'blocked') => {
+  const handleKPIClick = useCallback((type: 'completed' | 'in_progress' | 'not_started' | 'blocked' | 'all') => {
     let filtered: Work[] = [];
     
     switch (type) {
+      case 'all':
+        filtered = works;
+        break;
       case 'completed':
         filtered = works.filter(w => (w.progress_percentage || 0) === 100);
         break;
@@ -190,17 +206,19 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     }
     
     setFilteredWorks(filtered);
+    setActiveKPI(type);
   }, [works]);
 
-  // Calculate summary statistics based on filtered works - memoized for performance
+  // Calculate summary statistics based on original works dataset - memoized for performance
   const summaryStats = useMemo(() => {
-    const totalWorks = filteredWorks?.length || 0;
-    const completedWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) === 100).length || 0;
-    const inProgressWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100).length || 0;
-    const blockedWorks = filteredWorks?.filter(w => w.is_blocked).length || 0;
+    const totalWorks = works?.length || 0;
+    const completedWorks = works?.filter(w => (w.progress_percentage || 0) === 100).length || 0;
+    const inProgressWorks = works?.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100).length || 0;
+    const notStartedWorks = works?.filter(w => (w.progress_percentage || 0) === 0).length || 0;
+    const blockedWorks = works?.filter(w => w.is_blocked).length || 0;
     
-    return { totalWorks, completedWorks, inProgressWorks, blockedWorks };
-  }, [filteredWorks]);
+    return { totalWorks, completedWorks, inProgressWorks, notStartedWorks, blockedWorks };
+  }, [works]);
 
   // Calculate paginated data
   const paginatedData = useMemo(() => {
@@ -233,8 +251,8 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setFilteredWorks(works)}>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4">
+        <Card className={`border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${activeKPI === 'all' ? 'ring-2 ring-blue-500 border-blue-500' : ''}`} onClick={() => handleKPIClick('all')}>
           <CardContent className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -248,7 +266,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
           </CardContent>
         </Card>
         
-        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleKPIClick('completed')}>
+        <Card className={`border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${activeKPI === 'completed' ? 'ring-2 ring-green-500 border-green-500' : ''}`} onClick={() => handleKPIClick('completed')}>
           <CardContent className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -262,7 +280,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
           </CardContent>
         </Card>
         
-        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleKPIClick('in_progress')}>
+        <Card className={`border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${activeKPI === 'in_progress' ? 'ring-2 ring-orange-500 border-orange-500' : ''}`} onClick={() => handleKPIClick('in_progress')}>
           <CardContent className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -276,7 +294,21 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
           </CardContent>
         </Card>
         
-        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleKPIClick('blocked')}>
+        <Card className={`border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${activeKPI === 'not_started' ? 'ring-2 ring-gray-500 border-gray-500' : ''}`} onClick={() => handleKPIClick('not_started')}>
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm font-medium text-slate-600">Not Started</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-600">{summaryStats.notStartedWorks}</p>
+              </div>
+              <div className="h-8 w-8 sm:h-12 sm:w-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <Play className="h-4 w-4 sm:h-6 sm:w-6 text-gray-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className={`border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${activeKPI === 'blocked' ? 'ring-2 ring-red-500 border-red-500' : ''}`} onClick={() => handleKPIClick('blocked')}>
           <CardContent className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -335,7 +367,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
         <CardContent className="p-0">
           {/* Mobile-first responsive table */}
           <div className="overflow-x-auto">
-            <Table className="min-w-[500px] sm:min-w-[600px]">
+            <Table className="min-w-[300px] sm:min-w-[400px]">
               <TableHeader>
                 <TableRow className="border-slate-200">
                   <TableHead 
@@ -348,7 +380,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[100px] sm:min-w-[120px]"
+                    className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[35px] sm:min-w-[50px]"
                     onClick={() => handleSort('district_name')}
                   >
                     <div className="flex items-center gap-2">
@@ -357,7 +389,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="text-right font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[120px] sm:min-w-[150px]"
+                    className="text-right font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[50px] sm:min-w-[70px]"
                     onClick={() => handleSort('progress_percentage')}
                   >
                     <div className="flex items-center justify-end gap-2">
@@ -378,24 +410,35 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                               <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />
                             </span>
                           )}
-                          <Tooltip content={work.work_name || 'No name'}>
+                          <div className="flex items-center gap-1 flex-1 min-w-0">
                             <Link 
                               href={`/dashboard/work/${work.id}`} 
-                              className="hover:underline text-blue-600 hover:text-blue-700 font-medium truncate block text-xs sm:text-sm"
+                              className="hover:underline text-blue-600 hover:text-blue-700 font-medium text-xs sm:text-sm flex-1 min-w-0"
+                              title={work.work_name || 'No name'}
                             >
-                              {work.work_name || 'No name'}
+                              <span className="truncate block sm:hidden">
+                                {truncateWorkName(work.work_name, getTruncationLength(true))}
+                              </span>
+                              <span className="truncate block hidden sm:block">
+                                {truncateWorkName(work.work_name, getTruncationLength(false))}
+                              </span>
                             </Link>
-                          </Tooltip>
+                            {(work.work_name && work.work_name.length > getTruncationLength(false)) && (
+                              <Tooltip content={work.work_name}>
+                                <Info className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 hover:text-slate-600 cursor-help flex-shrink-0" />
+                              </Tooltip>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
-                      <TableCell className="min-w-[100px] sm:min-w-[120px]">
+                      <TableCell className="min-w-[35px] sm:min-w-[50px]">
                         <Tooltip content={work.district_name || 'No district'}>
                           <span className="text-slate-600 truncate block text-xs sm:text-sm">
                             {work.district_name || 'No district'}
                           </span>
                         </Tooltip>
                       </TableCell>
-                      <TableCell className="text-right min-w-[120px] sm:min-w-[150px]">
+                      <TableCell className="text-right min-w-[50px] sm:min-w-[70px]">
                         <div className="flex items-center justify-end gap-2">
                           <div className="w-12 sm:w-16 bg-slate-200 rounded-full h-2 relative overflow-hidden">
                             <div 

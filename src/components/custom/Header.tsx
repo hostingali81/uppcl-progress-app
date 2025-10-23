@@ -8,7 +8,7 @@ import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { signOut } from "@/app/actions";
+import { LogoutButton } from "./LogoutButton";
 
 type UserDetails = {
   email: string | undefined;
@@ -77,10 +77,13 @@ export function Header({ userDetails }: { userDetails: UserDetails }) {
                       <p className="text-sm font-medium text-slate-800">{userDetails.fullName}</p>
                       <p className="text-xs text-slate-500 capitalize">{userDetails.role.replace('_', ' ')}</p>
                   </div>
-                  <EnhancedButton variant="outline" className="w-full border-slate-200 hover:bg-slate-50 bg-white" onClick={async () => { setIsOpen(false); await signOut(); }}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Log Out
-                  </EnhancedButton>
+                  <LogoutButton 
+                    variant="outline" 
+                    className="w-full border-slate-200 hover:bg-slate-50 bg-white"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Log Out
+                  </LogoutButton>
                </div>
             </SheetFooter>
           </SheetContent>

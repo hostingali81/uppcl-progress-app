@@ -9,6 +9,29 @@ import { cache, cacheKeys } from "@/lib/cache";
 import { PerformanceMonitor } from "@/lib/performance";
 
 // Types are used in DashboardClient component
+type Work = {
+  id: number;
+  work_name: string | null;
+  district_name: string | null;
+  progress_percentage: number | null;
+  wbs_code: string;
+  is_blocked: boolean;
+  zone_name: string | null;
+  circle_name: string | null;
+  division_name: string | null;
+  sub_division_name: string | null;
+  je_name: string | null;
+};
+
+type ProgressLog = {
+  id: number;
+  work_id: number;
+  user_email: string | null;
+  previous_progress: number | null;
+  new_progress: number;
+  remark: string | null;
+  created_at: string;
+};
 
 // Map roles to database columns for filtering. This remains unchanged.
 const roleToColumnMap: { [key: string]: string } = {
@@ -43,19 +66,19 @@ async function DashboardContent() {
     }
 
     // Check cache for works data
-    const worksCacheKey = cacheKeys.userWorks(user.id, profile.role, profile.value);
+    const worksCacheKey = cacheKeys.userWorks(user.id, (profile as any).role, (profile as any).value);
     let works = cache.get(worksCacheKey);
     
     if (!works) {
-      // Fetch works with more columns for filtering - LIMIT for better performance
+      // Fetch works with more columns for filtering
       let worksQuery = supabase.from("works").select(`
         id, work_name, district_name, progress_percentage, wbs_code, is_blocked,
         zone_name, circle_name, division_name, sub_division_name, je_name
-      `).limit(100); // Limit to 100 works for better performance
+      `);
       
-      const filterColumn = roleToColumnMap[profile.role];
-      if (profile.role !== 'superadmin' && filterColumn && profile.value) {
-        worksQuery = worksQuery.eq(filterColumn, profile.value);
+      const filterColumn = roleToColumnMap[(profile as any).role];
+      if ((profile as any).role !== 'superadmin' && filterColumn && (profile as any).value) {
+        worksQuery = worksQuery.eq(filterColumn, (profile as any).value);
       }
       
       const { data: worksData, error: worksError } = await worksQuery;
@@ -94,9 +117,9 @@ async function DashboardContent() {
 
     return (
       <DashboardClient 
-        works={works || []} 
-        profile={profile}
-        progressLogs={progressLogs || []}
+        works={(works as Work[]) || []} 
+        profile={profile as any}
+        progressLogs={(progressLogs as ProgressLog[]) || []}
       />
     );
   });

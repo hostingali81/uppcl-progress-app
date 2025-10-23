@@ -52,7 +52,7 @@ export default function Login() {
                   type="email" 
                   placeholder="name@example.com" 
                   required 
-                  className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 h-11"
+                  className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 h-11 placeholder:text-slate-400"
                 />
               </div>
               <div className="space-y-2">
@@ -61,8 +61,9 @@ export default function Login() {
                   id="password" 
                   name="password" 
                   type="password" 
+                  placeholder="Enter your password"
                   required 
-                  className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 h-11"
+                  className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 h-11 placeholder:text-slate-400"
                 />
               </div>
               <EnhancedButton type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 text-base font-medium">
