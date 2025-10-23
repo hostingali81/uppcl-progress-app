@@ -1,9 +1,10 @@
 // src/app/admin/settings/SyncButton.tsx
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { useState, useTransition } from "react";
 import { syncWithGoogleSheet } from "./actions";
+import { FileSpreadsheet, RefreshCw } from "lucide-react";
 
 export function SyncButton() {
   const [isPending, startTransition] = useTransition();
@@ -23,9 +24,16 @@ export function SyncButton() {
 
   return (
     <div className="flex flex-col items-start space-y-4">
-      <Button onClick={handleClick} disabled={isPending}>
-        {isPending ? "Syncing..." : "Sync with Google Sheet Now"}
-      </Button>
+      <EnhancedButton 
+        onClick={handleClick} 
+        loading={isPending}
+        loadingText="Syncing with Google Sheet..."
+        className="google-sheet-button"
+      >
+        <FileSpreadsheet className="google-icon mr-2 h-4 w-4" />
+        <RefreshCw className="mr-2 h-4 w-4" />
+        Sync with Google Sheet Now
+      </EnhancedButton>
       {message && (
         <p className={`text-sm ${message.startsWith('Error:') ? 'text-red-600' : 'text-green-600'}`}>
           {message}

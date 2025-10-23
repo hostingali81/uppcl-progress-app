@@ -1,0 +1,204 @@
+/* src/styles/button-animations.css */
+/* Global button animations and feedback */
+
+/* Button press animation */
+@keyframes buttonPress {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Ripple effect animation */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Enhanced button styles */
+.enhanced-button {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.15s ease-in-out;
+}
+
+.enhanced-button:active {
+  transform: scale(0.95);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.enhanced-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.enhanced-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+/* Ripple effect */
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+}
+
+/* Loading state */
+.button-loading {
+  position: relative;
+  /* pointer-events: none; - Removed to allow button interaction */
+}
+
+.button-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Pulse effect for important buttons */
+.button-pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Success feedback */
+.button-success {
+  background-color: #10b981 !important;
+  color: white !important;
+  animation: successPulse 0.6s ease-out;
+}
+
+@keyframes successPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Error feedback */
+.button-error {
+  background-color: #ef4444 !important;
+  color: white !important;
+  animation: errorShake 0.5s ease-in-out;
+}
+
+@keyframes errorShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+/* Clicked state - brief visual feedback only */
+.button-clicked {
+  opacity: 0.9;
+  transform: scale(0.98);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  animation: clickedPulse 0.15s ease-out;
+}
+
+@keyframes clickedPulse {
+  0% {
+    transform: scale(0.98);
+  }
+  50% {
+    transform: scale(1.01);
+  }
+  100% {
+    transform: scale(0.98);
+  }
+}
+
+/* Google Sheet button special styling */
+.google-sheet-button {
+  background: linear-gradient(135deg, #4285f4 0%, #34a853 25%, #fbbc05 50%, #ea4335 75%, #4285f4 100%) !important;
+  background-size: 200% 200% !important;
+  animation: googleGradient 3s ease infinite !important;
+  color: white !important;
+  border: none !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.google-sheet-button:hover {
+  background-position: 100% 0 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 25px rgba(66, 133, 244, 0.3) !important;
+}
+
+.google-sheet-button:active {
+  transform: translateY(0) scale(0.98) !important;
+}
+
+@keyframes googleGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Google icon animation */
+.google-icon {
+  animation: googleSpin 2s linear infinite;
+}
+
+@keyframes googleSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

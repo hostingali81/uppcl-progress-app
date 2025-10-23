@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { BarChart, LayoutDashboard, LogOut, Settings, User, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { signOut } from "@/app/actions";
 
 type UserDetails = {
@@ -52,7 +52,7 @@ export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
       <div className="mt-auto p-4 border-t border-slate-200">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="w-full justify-start text-left h-auto py-2 hover:bg-slate-50">
+            <EnhancedButton variant="ghost" className="w-full justify-start text-left h-auto py-2 hover:bg-slate-50">
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
                   <User className="h-5 w-5 text-white" />
@@ -62,7 +62,7 @@ export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
                   <span className="text-xs text-slate-500 capitalize">{userDetails.role.replace('_', ' ')}</span>
                 </div>
               </div>
-            </Button>
+            </EnhancedButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">

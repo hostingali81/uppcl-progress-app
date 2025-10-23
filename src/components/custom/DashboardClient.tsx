@@ -1,11 +1,12 @@
 // src/components/custom/DashboardClient.tsx
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip } from "@/components/ui/tooltip";
+import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
 import { ExportToExcelButton } from "@/components/custom/ExportToExcelButton";
 import { DashboardFilters } from "@/components/custom/DashboardFilters";
@@ -54,6 +55,8 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     column: '',
     direction: 'asc'
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20; // Show 20 items per page
 
   // Calculate historical progress based on selected date
   const getHistoricalProgress = useMemo(() => {
@@ -99,15 +102,15 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     return historicalWorks;
   }, [works, progressLogs, selectedDate]);
 
-  const handleFilterChange = (filtered: Work[]) => {
+  const handleFilterChange = useCallback((filtered: Work[]) => {
     setFilteredWorks(filtered);
-  };
+  }, []);
 
-  const handleSortChange = (sorted: Work[]) => {
+  const handleSortChange = useCallback((sorted: Work[]) => {
     setFilteredWorks(sorted);
-  };
+  }, []);
 
-  const handleDateChange = (date: string | null) => {
+  const handleDateChange = useCallback((date: string | null) => {
     setSelectedDate(date);
     
     // Validate date if provided
@@ -121,14 +124,14 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
         return;
       }
     }
-  };
+  }, []);
 
   // Update filtered works whenever historical progress changes
   useEffect(() => {
     setFilteredWorks(getHistoricalProgress);
   }, [getHistoricalProgress]);
 
-  const handleSort = (column: string) => {
+  const handleSort = useCallback((column: string) => {
     let newDirection: 'asc' | 'desc' = 'asc';
     
     if (sort.column === column && sort.direction === 'asc') {
@@ -157,7 +160,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     });
     
     setFilteredWorks(sortedWorks);
-  };
+  }, [sort.column, sort.direction, filteredWorks]);
 
   const getSortIcon = (column: string) => {
     if (sort.column !== column) {
@@ -168,7 +171,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
       <ArrowDown className="h-4 w-4 text-blue-600" />;
   };
 
-  const handleKPIClick = (type: 'completed' | 'in_progress' | 'not_started' | 'blocked') => {
+  const handleKPIClick = useCallback((type: 'completed' | 'in_progress' | 'not_started' | 'blocked') => {
     let filtered: Work[] = [];
     
     switch (type) {
@@ -187,13 +190,32 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     }
     
     setFilteredWorks(filtered);
-  };
+  }, [works]);
 
-  // Calculate summary statistics based on filtered works
-  const totalWorks = filteredWorks?.length || 0;
-  const completedWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) === 100).length || 0;
-  const inProgressWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100).length || 0;
-  const blockedWorks = filteredWorks?.filter(w => w.is_blocked).length || 0;
+  // Calculate summary statistics based on filtered works - memoized for performance
+  const summaryStats = useMemo(() => {
+    const totalWorks = filteredWorks?.length || 0;
+    const completedWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) === 100).length || 0;
+    const inProgressWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100).length || 0;
+    const blockedWorks = filteredWorks?.filter(w => w.is_blocked).length || 0;
+    
+    return { totalWorks, completedWorks, inProgressWorks, blockedWorks };
+  }, [filteredWorks]);
+
+  // Calculate paginated data
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredWorks.slice(startIndex, endIndex);
+  }, [filteredWorks, currentPage, itemsPerPage]);
+
+  // Calculate total pages
+  const totalPages = Math.ceil(filteredWorks.length / itemsPerPage);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredWorks]);
 
   return (
     <div className="p-2 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
@@ -217,7 +239,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm font-medium text-slate-600">Total Works</p>
-                <p className="text-lg sm:text-2xl font-bold text-slate-900">{totalWorks}</p>
+                <p className="text-lg sm:text-2xl font-bold text-slate-900">{summaryStats.totalWorks}</p>
               </div>
               <div className="h-8 w-8 sm:h-12 sm:w-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-blue-600" />
@@ -231,7 +253,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm font-medium text-slate-600">Completed</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-600">{completedWorks}</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600">{summaryStats.completedWorks}</p>
               </div>
               <div className="h-8 w-8 sm:h-12 sm:w-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <CheckCircle className="h-4 w-4 sm:h-6 sm:w-6 text-green-600" />
@@ -245,7 +267,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm font-medium text-slate-600">In Progress</p>
-                <p className="text-lg sm:text-2xl font-bold text-orange-600">{inProgressWorks}</p>
+                <p className="text-lg sm:text-2xl font-bold text-orange-600">{summaryStats.inProgressWorks}</p>
               </div>
               <div className="h-8 w-8 sm:h-12 sm:w-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <Clock className="h-4 w-4 sm:h-6 sm:w-6 text-orange-600" />
@@ -259,7 +281,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm font-medium text-slate-600">Blocked</p>
-                <p className="text-lg sm:text-2xl font-bold text-red-600">{blockedWorks}</p>
+                <p className="text-lg sm:text-2xl font-bold text-red-600">{summaryStats.blockedWorks}</p>
               </div>
               <div className="h-8 w-8 sm:h-12 sm:w-12 bg-red-100 rounded-lg flex items-center justify-center">
                 <AlertTriangle className="h-4 w-4 sm:h-6 sm:w-6 text-red-600" />
@@ -303,6 +325,11 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
               `Historical view as of ${new Date(selectedDate).toLocaleDateString('en-IN')} (${filteredWorks.length} of ${getHistoricalProgress.length} works shown)` :
               `Detailed list of all works assigned to you (${filteredWorks.length} of ${works.length} works shown)`
             }
+            {totalPages > 1 && (
+              <span className="ml-2 text-slate-500">
+                • Page {currentPage} of {totalPages}
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -341,8 +368,8 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredWorks && filteredWorks.length > 0 ? (
-                  filteredWorks.map((work: Work) => (
+                {paginatedData && paginatedData.length > 0 ? (
+                  paginatedData.map((work: Work) => (
                     <TableRow key={work.id} className="hover:bg-slate-50 transition-colors">
                       <TableCell className="min-w-[180px] sm:min-w-[200px]">
                         <div className="flex items-center gap-2">
@@ -403,6 +430,20 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
               </TableBody>
             </Table>
           </div>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t border-slate-200">
+              <div className="text-sm text-slate-600">
+                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredWorks.length)} of {filteredWorks.length} works
+              </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

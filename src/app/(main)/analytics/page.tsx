@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { AnalyticsClient } from "@/components/custom/AnalyticsClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { BarChart3, PieChart } from "lucide-react";
+import { cache, cacheKeys } from "@/lib/cache";
 
 // Type definition for a single work record for analytics purposes.
 type Work = {
@@ -33,29 +34,48 @@ const roleToColumnMap: { [key:string]: string } = {
 };
 
 export default async function AnalyticsPage() {
-  // --- DATA FETCHING AND PROCESSING LOGIC IS UNCHANGED ---
+  // --- DATA FETCHING AND PROCESSING LOGIC WITH CACHING ---
   const { client: supabase } = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return redirect("/login");
   }
   
-  const { data: profile } = await supabase.from("profiles").select("role, value").eq("id", user.id).single();
+  // Check cache for user profile
+  const profileCacheKey = cacheKeys.userProfile(user.id);
+  let profile = cache.get(profileCacheKey);
+  
   if (!profile) {
-    return <p className="p-8 text-red-500">Could not find your profile.</p>;
+    const { data: profileData } = await supabase.from("profiles").select("role, value").eq("id", user.id).single();
+    if (!profileData) {
+      return <p className="p-8 text-red-500">Could not find your profile.</p>;
+    }
+    profile = profileData;
+    // Cache profile for 10 minutes
+    cache.set(profileCacheKey, profile, 10 * 60 * 1000);
   }
   
-  let worksQuery = supabase.from("works").select("id, scheme_sr_no, scheme_name, work_name, progress_percentage, division_name, sub_division_name, circle_name, zone_name, district_name, agreement_amount, is_blocked, created_at");
+  // Check cache for works data
+  const worksCacheKey = cacheKeys.userWorks(user.id, profile.role, profile.value);
+  let works = cache.get(worksCacheKey);
   
-  const filterColumn = roleToColumnMap[profile.role];
-  if (profile.role !== 'superadmin' && filterColumn && profile.value) {
-    worksQuery = worksQuery.eq(filterColumn, profile.value);
-  }
+  if (!works) {
+    let worksQuery = supabase.from("works").select("id, scheme_sr_no, scheme_name, work_name, progress_percentage, division_name, sub_division_name, circle_name, zone_name, district_name, agreement_amount, is_blocked, created_at");
+    
+    const filterColumn = roleToColumnMap[profile.role];
+    if (profile.role !== 'superadmin' && filterColumn && profile.value) {
+      worksQuery = worksQuery.eq(filterColumn, profile.value);
+    }
 
-  const { data: works, error } = await worksQuery;
+    const { data: worksData, error } = await worksQuery;
 
-  if (error) {
-    return <p className="p-8 text-red-500">Failed to fetch analytics data: {error.message}</p>;
+    if (error) {
+      return <p className="p-8 text-red-500">Failed to fetch analytics data: {error.message}</p>;
+    }
+
+    works = worksData || [];
+    // Cache works for 5 minutes
+    cache.set(worksCacheKey, works, 5 * 60 * 1000);
   }
 
   if (!works || works.length === 0) {

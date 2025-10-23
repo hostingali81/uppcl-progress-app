@@ -32,7 +32,13 @@ export function ExportToExcelButton() {
 
   return (
     <div className="flex flex-col items-start">
-        <Button onClick={handleExport} disabled={isPending} variant="outline" size="sm" className="border-slate-200 hover:bg-slate-50">
+        <Button 
+          onClick={handleExport} 
+          disabled={isPending} 
+          variant="outline" 
+          size="sm" 
+          className="border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
             {isPending ? "Exporting..." : "Export to Excel"}
         </Button>

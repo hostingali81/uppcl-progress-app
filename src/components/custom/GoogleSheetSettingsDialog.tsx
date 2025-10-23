@@ -1,7 +1,7 @@
 // src/components/custom/GoogleSheetSettingsDialog.tsx
 "use client";
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +33,9 @@ export function GoogleSheetSettingsDialog({ settings }: { settings: Settings }) 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button>Update Google Sheet Settings</Button>
+                <EnhancedButton className="google-sheet-button">
+                    Update Google Sheet Settings
+                </EnhancedButton>
             </DialogTrigger>
             {/* --- Main changes made here --- */}
             <DialogContent className="flex flex-col max-h-[90vh]">
@@ -60,7 +62,14 @@ export function GoogleSheetSettingsDialog({ settings }: { settings: Settings }) 
                     </div>
                     {/* --- Footer is now outside scroll area --- */}
                     <DialogFooter className="pt-4 mt-4 border-t">
-                        <Button type="submit" disabled={isPending}>{isPending ? "Saving..." : "Save Settings"}</Button>
+                        <EnhancedButton 
+                            type="submit" 
+                            loading={isPending}
+                            loadingText="Saving Google Sheet Settings..."
+                            className="google-sheet-button"
+                        >
+                            Save Settings
+                        </EnhancedButton>
                     </DialogFooter>
                     {message && <p className={`mt-2 text-sm ${message.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>{message}</p>}
                 </form>

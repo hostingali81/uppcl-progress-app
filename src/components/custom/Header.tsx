@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { BarChart, LayoutDashboard, LogOut, Menu, Settings, User, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -49,14 +49,14 @@ export function Header({ userDetails }: { userDetails: UserDetails }) {
       <div className="flex md:hidden mobile-menu-trigger">
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
-            <Button 
+            <EnhancedButton 
               variant="outline" 
               size="icon" 
               className="border-slate-200 hover:bg-slate-50 h-10 w-10"
               aria-label="Toggle navigation menu"
             >
               <Menu className="h-5 w-5 text-slate-700" />
-            </Button>
+            </EnhancedButton>
           </SheetTrigger>
           <SheetContent side="right" className="flex flex-col w-80 bg-white border-l border-slate-200 z-[60]">
             <SheetHeader className="border-b border-slate-200 px-6 py-4 bg-slate-50">
@@ -77,10 +77,10 @@ export function Header({ userDetails }: { userDetails: UserDetails }) {
                       <p className="text-sm font-medium text-slate-800">{userDetails.fullName}</p>
                       <p className="text-xs text-slate-500 capitalize">{userDetails.role.replace('_', ' ')}</p>
                   </div>
-                  <Button variant="outline" className="w-full border-slate-200 hover:bg-slate-50 bg-white" onClick={async () => { setIsOpen(false); await signOut(); }}>
+                  <EnhancedButton variant="outline" className="w-full border-slate-200 hover:bg-slate-50 bg-white" onClick={async () => { setIsOpen(false); await signOut(); }}>
                       <LogOut className="mr-2 h-4 w-4" />
                       Log Out
-                  </Button>
+                  </EnhancedButton>
                </div>
             </SheetFooter>
           </SheetContent>

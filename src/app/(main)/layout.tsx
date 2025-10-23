@@ -2,6 +2,7 @@
 
 import { Header } from "@/components/custom/Header";
 import { Sidebar } from "@/components/custom/Sidebar";
+import { ErrorBoundary } from "@/components/custom/ErrorBoundary";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -43,9 +44,11 @@ export default async function MainLayout({
         {/* Header always visible for mobile navigation */}
         <Header userDetails={userDetails} />
         
-        {/* Updated: main tag made scrollable */}
+        {/* Updated: main tag made scrollable with error boundary */}
         <main className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50/50 to-blue-50/50">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
       </div>
     </div>

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Filter, X } from "lucide-react";
+import { useDebounce } from "@/hooks/useDebounce";
 
 type FilterState = {
   zone: string;
@@ -44,6 +45,14 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
     status: 'all',
     search: ''
   });
+
+  // Debounce search input to avoid excessive filtering
+  const debouncedSearch = useDebounce(filters.search, 300);
+
+  // Apply filters when debounced search changes
+  useEffect(() => {
+    handleFilterChange('search', debouncedSearch);
+  }, [debouncedSearch]);
 
   // Removed unused sort state
 
@@ -164,8 +173,8 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
       }
     }
     
-    if (newFilters.search) {
-      const searchLower = newFilters.search.toLowerCase();
+    if (debouncedSearch) {
+      const searchLower = debouncedSearch.toLowerCase();
       filteredWorks = filteredWorks.filter(w => 
         w.work_name?.toLowerCase().includes(searchLower) ||
         w.wbs_code?.toLowerCase().includes(searchLower) ||
@@ -193,12 +202,12 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
           <Input
             placeholder="Search by work name, WBS code, or district..."
             value={filters.search}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
+            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
             className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
           />
         </div>
         {activeFiltersCount > 0 && (
-          <Button
+          <EnhancedButton
             variant="outline"
             size="sm"
             onClick={clearFilters}
@@ -206,7 +215,7 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
           >
             <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
             Clear ({activeFiltersCount})
-          </Button>
+          </EnhancedButton>
         )}
       </div>
 

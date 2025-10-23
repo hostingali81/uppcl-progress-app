@@ -2,6 +2,7 @@
 
 import { EditUserDialog } from "@/components/custom/EditUserDialog";
 import { AddUserDialog } from "@/components/custom/AddUserDialog";
+import { DeleteUserDialog } from "@/components/custom/DeleteUserDialog";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -34,12 +35,15 @@ export default async function UsersPage() {
   // Data fetching logic remains identical.
   const { admin: supabaseAdmin, client: supabaseClient } = await createSupabaseServerClient();
   
+  // Get current user to prevent self-deletion
+  const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
+  
   const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
   if (authError) {
     return <p className="p-4 text-red-500">Failed to fetch users.</p>;
   }
 
-  const { data: profiles, error: profileError } = await supabaseClient.from("profiles").select("*");
+  const { data: profiles, error: profileError } = await supabaseAdmin.from("profiles").select("*");
   if (profileError) {
     return <p className="p-4 text-red-500">Failed to fetch profiles: {profileError.message}</p>;
   }
@@ -112,12 +116,21 @@ export default async function UsersPage() {
                     </TableCell>
                     <TableCell className="text-slate-600">{profile?.value || 'N/A'}</TableCell>
                     <TableCell className="text-right">
-                      {/* The EditUserDialog would also be restyled internally to match the new design. */}
-                      <EditUserDialog user={{
-                        id: auth.id,
-                        email: auth.email,
-                        profile: profile
-                      }} />
+                      <div className="flex items-center justify-end gap-2">
+                        <EditUserDialog user={{
+                          id: auth.id,
+                          email: auth.email,
+                          profile: profile
+                        }} />
+                        {/* Only show delete button if not current user */}
+                        {currentUser && currentUser.id !== auth.id && (
+                          <DeleteUserDialog user={{
+                            id: auth.id,
+                            email: auth.email,
+                            profile: profile
+                          }} />
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

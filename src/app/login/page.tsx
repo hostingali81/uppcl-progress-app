@@ -1,7 +1,7 @@
 // src/app/login/page.tsx
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -65,10 +65,10 @@ export default function Login() {
                   className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 h-11"
                 />
               </div>
-              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 text-base font-medium">
+              <EnhancedButton type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 text-base font-medium">
                 <LogIn className="h-4 w-4 mr-2" />
                 Sign In
-              </Button>
+              </EnhancedButton>
             </form>
           </CardContent>
         </Card>

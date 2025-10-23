@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { ArrowLeft, FileText, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { UpdateProgressForm } from "./UpdateProgressForm"; // This component's internals would also be updated
 import { FileUploadManager } from "@/components/custom/FileUploadManager"; // Updated styling
 import { CommentsSection } from "@/components/custom/CommentsSection"; // Updated styling
@@ -60,9 +60,9 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
             {/* Page Header section */}
             <div className="flex items-center space-x-4">
                 <Link href="/dashboard">
-                    <Button variant="outline" size="icon" aria-label="Back to Dashboard" className="border-slate-200 hover:bg-slate-50">
+                    <EnhancedButton variant="outline" size="icon" aria-label="Back to Dashboard" className="border-slate-200 hover:bg-slate-50">
                         <ArrowLeft className="h-4 w-4" />
-                    </Button>
+                    </EnhancedButton>
                 </Link>
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900">Work Details</h1>

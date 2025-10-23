@@ -1,5 +1,5 @@
 // src/app/page.tsx
-import { Button } from "@/components/ui/button";
+import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Badge } from "@/components/ui/badge"; // --- This line was added ---
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ArrowRight, GanttChartSquare, Shield, BarChart3, Users, FileText } from "lucide-react";
@@ -28,10 +28,10 @@ export default async function LandingPage() {
         </Link>
         <nav className="flex items-center gap-2 sm:gap-4">
           <Link href="/login">
-            <Button variant="outline" size="sm" className="border-slate-200 hover:bg-slate-50 text-sm sm:text-base px-3 sm:px-4">
+            <EnhancedButton variant="outline" size="sm" className="border-slate-200 hover:bg-slate-50 text-sm sm:text-base px-3 sm:px-4">
               <span className="hidden sm:inline">Sign In</span>
               <span className="sm:hidden">Login</span>
-            </Button>
+            </EnhancedButton>
           </Link>
         </nav>
       </header>
@@ -55,10 +55,10 @@ export default async function LandingPage() {
             </p>
             <div className="mt-6 sm:mt-10">
               <Link href="/login">
-                <Button size="lg" className="group bg-blue-600 hover:bg-blue-700 text-white px-6 sm:px-8 py-2 sm:py-3 text-base sm:text-lg w-full sm:w-auto">
+                <EnhancedButton size="lg" className="group bg-blue-600 hover:bg-blue-700 text-white px-6 sm:px-8 py-2 sm:py-3 text-base sm:text-lg w-full sm:w-auto">
                   Get Started
                   <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-1" />
-                </Button>
+                </EnhancedButton>
               </Link>
             </div>
           </div>
