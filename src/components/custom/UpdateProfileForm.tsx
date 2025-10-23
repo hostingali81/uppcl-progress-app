@@ -1,6 +1,6 @@
 // src/components/custom/UpdateProfileForm.tsx
 "use client";
-import { updateUserProfile } from "@/app/(main)/profile/actions";
+import { updateProfile } from "@/app/(main)/profile/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,10 +15,11 @@ export function UpdateProfileForm({ fullName }: { fullName: string }) {
     event.preventDefault();
     setMessage(null);
     const formData = new FormData(event.currentTarget);
+    const fullName = formData.get("fullName") as string;
+    
     startTransition(async () => {
-      const result = await updateUserProfile(formData);
-      // --- Updated here ---
-      setMessage(result.error || result.success || null);
+      const result = await updateProfile(fullName);
+      setMessage(result.error || (result.success ? "Profile updated successfully!" : null));
     });
   };
 

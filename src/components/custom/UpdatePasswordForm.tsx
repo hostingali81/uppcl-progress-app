@@ -1,6 +1,6 @@
 // src/components/custom/UpdatePasswordForm.tsx
 "use client";
-import { updateUserPassword } from "@/app/(main)/profile/actions";
+import { updatePassword } from "@/app/(main)/profile/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,10 +16,12 @@ export function UpdatePasswordForm() {
     event.preventDefault();
     setMessage(null);
     const formData = new FormData(event.currentTarget);
+    const currentPassword = formData.get("currentPassword") as string;
+    const newPassword = formData.get("newPassword") as string;
+    
     startTransition(async () => {
-      const result = await updateUserPassword(formData);
-      // --- Updated here ---
-      setMessage(result.error || result.success || null);
+      const result = await updatePassword(currentPassword, newPassword);
+      setMessage(result.error || (result.success ? "Password updated successfully!" : null));
       if (result.success) {
         formRef.current?.reset();
       }
@@ -28,6 +30,16 @@ export function UpdatePasswordForm() {
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="currentPassword" className="text-sm font-medium text-slate-700">Current Password</Label>
+        <Input 
+          id="currentPassword" 
+          name="currentPassword" 
+          type="password" 
+          required 
+          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+        />
+      </div>
       <div className="space-y-2">
         <Label htmlFor="newPassword" className="text-sm font-medium text-slate-700">New Password</Label>
         <Input 
