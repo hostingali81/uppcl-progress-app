@@ -1,9 +1,9 @@
 // src/components/custom/AnalyticsCharts.tsx
 "use client";
 
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart as PieChartIcon, BarChart3, TrendingUp, DollarSign, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { PieChart as PieChartIcon, BarChart3, TrendingUp, DollarSign, CheckCircle, Clock } from "lucide-react";
 
 // Step 1: Define the shape of the props this component will receive.
 type AnalyticsChartsProps = {

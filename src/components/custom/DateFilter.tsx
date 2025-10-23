@@ -1,7 +1,6 @@
 // src/components/custom/DateFilter.tsx
 "use client";
 
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -155,7 +154,7 @@ export function DateFilter({ onDateChange, selectedDate }: DateFilterProps) {
             <TrendingUp className="h-3 w-3 text-blue-600 mt-0.5 flex-shrink-0" />
             <div className="text-xs text-blue-800">
               <p className="font-medium mb-1">How it works:</p>
-              <p>Select any date to see progress as it was on that day. "Live" shows current progress.</p>
+              <p>Select any date to see progress as it was on that day. &quot;Live&quot; shows current progress.</p>
             </div>
           </div>
         </div>

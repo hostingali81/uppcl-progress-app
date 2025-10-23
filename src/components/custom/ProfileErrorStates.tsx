@@ -9,7 +9,7 @@ interface ProfileErrorProps {
   errorMessage?: string;
 }
 
-export function ProfileError({ userEmail, userId, errorMessage }: ProfileErrorProps) {
+export function ProfileError({ errorMessage }: ProfileErrorProps) {
   return (
     <div className="p-8">
       <div className="max-w-md mx-auto text-center">
@@ -45,7 +45,7 @@ export function ProfileNotFound({ userEmail, userId }: ProfileNotFoundProps) {
         </div>
         <h2 className="text-xl font-semibold text-slate-900 mb-2">Profile Setup Required</h2>
         <p className="text-slate-600 mb-4">
-          Your profile hasn't been set up yet. Please contact your administrator to create your profile.
+          Your profile hasn&apos;t been set up yet. Please contact your administrator to create your profile.
         </p>
         <div className="space-y-2 text-sm text-slate-500">
           <p>User ID: {userId}</p>

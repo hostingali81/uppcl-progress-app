@@ -5,7 +5,6 @@ import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { ExportToExcelButton } from "@/components/custom/ExportToExcelButton";
@@ -139,21 +138,21 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     setSort({ column, direction: newDirection });
     
     const sortedWorks = [...filteredWorks].sort((a, b) => {
-      let aVal = a[column];
-      let bVal = b[column];
+      let aVal = a[column as keyof Work];
+      let bVal = b[column as keyof Work];
       
       // Handle different data types
       if (typeof aVal === 'string') {
-        aVal = aVal?.toLowerCase() || '';
-        bVal = bVal?.toLowerCase() || '';
+        aVal = (aVal as string)?.toLowerCase() || '';
+        bVal = (bVal as string)?.toLowerCase() || '';
       }
       
       if (typeof aVal === 'number') {
-        return newDirection === 'asc' ? (aVal - bVal) : (bVal - aVal);
+        return newDirection === 'asc' ? ((aVal as number) - (bVal as number)) : ((bVal as number) - (aVal as number));
       }
       
-      if (aVal < bVal) return newDirection === 'asc' ? -1 : 1;
-      if (aVal > bVal) return newDirection === 'asc' ? 1 : -1;
+      if (aVal && bVal && aVal < bVal) return newDirection === 'asc' ? -1 : 1;
+      if (aVal && bVal && aVal > bVal) return newDirection === 'asc' ? 1 : -1;
       return 0;
     });
     

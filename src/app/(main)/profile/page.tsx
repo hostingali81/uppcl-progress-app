@@ -2,7 +2,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProfileClient } from "@/components/custom/ProfileClient";
 import { ProfileError, ProfileNotFound } from "@/components/custom/ProfileErrorStates";
@@ -117,7 +116,7 @@ export default async function ProfilePage() {
                                 <span className="text-sm font-medium">Role</span>
                             </div>
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                {profile.role.replace('_', ' ')}
+                                {profile?.role?.replace('_', ' ') || 'Not assigned'}
                             </Badge>
                         </div>
                         
@@ -126,7 +125,7 @@ export default async function ProfilePage() {
                                 <MapPin className="h-4 w-4" />
                                 <span className="text-sm font-medium">Assignment</span>
                             </div>
-                            <p className="text-slate-900 font-medium">{profile.value || 'N/A'}</p>
+                                <p className="text-slate-900 font-medium">{profile?.value || 'N/A'}</p>
                         </div>
                         
                         <div className="space-y-2">
@@ -163,10 +162,10 @@ export default async function ProfilePage() {
                         <div className="space-y-4">
                             <div>
                                 <p className="text-sm text-slate-600 mb-2">Current Name:</p>
-                                <p className="text-slate-900 font-medium">{profile.full_name || 'Not set'}</p>
+                                <p className="text-slate-900 font-medium">{profile?.full_name || 'Not set'}</p>
                             </div>
                             <ProfileClient 
-                                fullName={profile.full_name || ''} 
+                                fullName={profile?.full_name || ''} 
                                 type="profile"
                             />
                         </div>

@@ -4,30 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { DashboardClient } from "@/components/custom/DashboardClient";
 
-// Define a type for the work object for better type safety.
-type Work = {
-  id: number;
-  work_name: string | null;
-  district_name: string | null;
-  progress_percentage: number | null;
-  wbs_code: string;
-  is_blocked: boolean;
-  zone_name: string | null;
-  circle_name: string | null;
-  division_name: string | null;
-  je_name: string | null;
-};
-
-// Define a type for progress logs
-type ProgressLog = {
-  id: number;
-  work_id: number;
-  user_email: string | null;
-  previous_progress: number | null;
-  new_progress: number;
-  remark: string | null;
-  created_at: string;
-};
+// Types are used in DashboardClient component
 
 // Map roles to database columns for filtering. This remains unchanged.
 const roleToColumnMap: { [key: string]: string } = {

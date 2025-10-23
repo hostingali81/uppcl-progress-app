@@ -12,13 +12,13 @@ type Work = {
   scheme_sr_no: string;
   scheme_name: string;
   work_name: string;
-  progress_percentage: number | null;
+  progress_percentage: number;
   division_name: string | null;
   sub_division_name: string | null;
   circle_name: string | null;
   zone_name: string | null;
-  district_name: string | null;
-  agreement_amount: number | null;
+  district_name: string;
+  agreement_amount: number;
   is_blocked: boolean;
   created_at: string;
 };

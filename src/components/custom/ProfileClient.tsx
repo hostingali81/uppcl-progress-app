@@ -47,7 +47,7 @@ export function ProfileClient({ fullName, type }: ProfileClientProps) {
       } else {
         toast.error(result.error || "Failed to update profile");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred while updating profile");
     } finally {
       setIsLoading(false);
@@ -81,7 +81,7 @@ export function ProfileClient({ fullName, type }: ProfileClientProps) {
       } else {
         toast.error(result.error || "Failed to update password");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred while updating password");
     } finally {
       setIsLoading(false);

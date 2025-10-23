@@ -84,7 +84,7 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
       </CardHeader>
       <CardContent className="p-6">
         <div className="space-y-4">
-          {progressLogs.map((log, index) => (
+          {progressLogs.map((log) => (
             <div key={log.id} className="border border-slate-200 rounded-lg p-4 bg-white hover:shadow-sm transition-shadow">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">

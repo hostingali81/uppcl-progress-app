@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Filter, X, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Filter, X } from "lucide-react";
 
 type FilterState = {
   zone: string;
@@ -14,19 +14,30 @@ type FilterState = {
   search: string;
 };
 
-type SortState = {
-  column: string;
-  direction: 'asc' | 'desc';
-};
+// Removed unused SortState type
 
 interface DashboardFiltersProps {
-  works: any[];
+  works: Work[];
   userRole: string;
-  onFilterChange: (filteredWorks: any[]) => void;
-  onSortChange: (sortedWorks: any[]) => void;
+  onFilterChange: (filteredWorks: Work[]) => void;
+  onSortChange: (sortedWorks: Work[]) => void;
 }
 
-export function DashboardFilters({ works, userRole, onFilterChange, onSortChange }: DashboardFiltersProps) {
+type Work = {
+  id: number;
+  work_name: string | null;
+  district_name: string | null;
+  progress_percentage: number | null;
+  wbs_code: string;
+  is_blocked: boolean;
+  zone_name: string | null;
+  circle_name: string | null;
+  division_name: string | null;
+  sub_division_name: string | null;
+  je_name: string | null;
+};
+
+export function DashboardFilters({ works, userRole, onFilterChange }: DashboardFiltersProps) {
   const [filters, setFilters] = useState<FilterState>({
     zone: 'all',
     circle: 'all',
@@ -34,10 +45,7 @@ export function DashboardFilters({ works, userRole, onFilterChange, onSortChange
     search: ''
   });
 
-  const [sort, setSort] = useState<SortState>({
-    column: '',
-    direction: 'asc'
-  });
+  // Removed unused sort state
 
   // Get unique values for filter options based on user role
   const getFilterOptions = () => {
@@ -168,50 +176,12 @@ export function DashboardFilters({ works, userRole, onFilterChange, onSortChange
     onFilterChange(filteredWorks);
   };
 
-  const handleSort = (column: string) => {
-    let newDirection: 'asc' | 'desc' = 'asc';
-    
-    if (sort.column === column && sort.direction === 'asc') {
-      newDirection = 'desc';
-    }
-    
-    setSort({ column, direction: newDirection });
-    
-    const sortedWorks = [...works].sort((a, b) => {
-      let aVal = a[column];
-      let bVal = b[column];
-      
-      // Handle different data types
-      if (typeof aVal === 'string') {
-        aVal = aVal.toLowerCase();
-        bVal = bVal?.toLowerCase() || '';
-      }
-      
-      if (typeof aVal === 'number') {
-        return newDirection === 'asc' ? (aVal - bVal) : (bVal - aVal);
-      }
-      
-      if (aVal < bVal) return newDirection === 'asc' ? -1 : 1;
-      if (aVal > bVal) return newDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-    
-    onSortChange(sortedWorks);
-  };
-
   const clearFilters = () => {
     setFilters({ zone: 'all', circle: 'all', status: 'all', search: '' });
     onFilterChange(works);
   };
 
-  const getSortIcon = (column: string) => {
-    if (sort.column !== column) {
-      return <ArrowUpDown className="h-4 w-4 text-slate-400" />;
-    }
-    return sort.direction === 'asc' ? 
-      <ArrowUp className="h-4 w-4 text-blue-600" /> : 
-      <ArrowDown className="h-4 w-4 text-blue-600" />;
-  };
+  // Unused functions removed
 
   const activeFiltersCount = Object.values(filters).filter(value => value && value !== 'all').length;
 
@@ -255,7 +225,7 @@ export function DashboardFilters({ works, userRole, onFilterChange, onSortChange
             <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
               <SelectItem value="all" className="bg-white hover:bg-slate-50">All Zones</SelectItem>
               {filterOptions.zones.map(zone => (
-                <SelectItem key={zone} value={zone} className="bg-white hover:bg-slate-50">{zone}</SelectItem>
+                <SelectItem key={zone} value={zone || ''} className="bg-white hover:bg-slate-50">{zone || 'Unknown'}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -269,7 +239,7 @@ export function DashboardFilters({ works, userRole, onFilterChange, onSortChange
             <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
               <SelectItem value="all" className="bg-white hover:bg-slate-50">All Circles</SelectItem>
               {filterOptions.circles.map(circle => (
-                <SelectItem key={circle} value={circle} className="bg-white hover:bg-slate-50">{circle}</SelectItem>
+                <SelectItem key={circle} value={circle || ''} className="bg-white hover:bg-slate-50">{circle || 'Unknown'}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -283,7 +253,7 @@ export function DashboardFilters({ works, userRole, onFilterChange, onSortChange
             <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
               <SelectItem value="all" className="bg-white hover:bg-slate-50">All Divisions</SelectItem>
               {filterOptions.divisions.map(division => (
-                <SelectItem key={division} value={division} className="bg-white hover:bg-slate-50">{division}</SelectItem>
+                <SelectItem key={division} value={division || ''} className="bg-white hover:bg-slate-50">{division || 'Unknown'}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -297,7 +267,7 @@ export function DashboardFilters({ works, userRole, onFilterChange, onSortChange
             <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
               <SelectItem value="all" className="bg-white hover:bg-slate-50">All Sub-Divisions</SelectItem>
               {filterOptions.subDivisions.map(subDivision => (
-                <SelectItem key={subDivision} value={subDivision} className="bg-white hover:bg-slate-50">{subDivision}</SelectItem>
+                <SelectItem key={subDivision} value={subDivision || ''} className="bg-white hover:bg-slate-50">{subDivision || 'Unknown'}</SelectItem>
               ))}
             </SelectContent>
           </Select>
