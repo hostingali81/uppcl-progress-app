@@ -71,6 +71,14 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     return isMobile ? 20 : 120;
   };
 
+  // Helper function to check if tooltip should be shown
+  const shouldShowTooltip = (workName: string | null) => {
+    if (!workName) return false;
+    // Show tooltip if text is longer than mobile truncation length (20 chars)
+    // Mobile mein tooltip show karna chahiye jab text 20+ characters ho
+    return workName.length > getTruncationLength(true);
+  };
+
   // Calculate historical progress based on selected date
   const getHistoricalProgress = useMemo(() => {
     if (!selectedDate) return works; // Return current works if no date selected
@@ -332,12 +340,6 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
 
       {/* Filters and Sorting */}
       <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="border-b border-slate-200 p-3 sm:p-6">
-          <CardTitle className="text-base sm:text-lg font-semibold text-slate-900">Filter & Sort Works</CardTitle>
-          <CardDescription className="text-sm text-slate-600">
-            Use filters to find specific works and sort by any column
-          </CardDescription>
-        </CardHeader>
         <CardContent className="p-3 sm:p-6">
           <DashboardFilters 
             works={getHistoricalProgress}
@@ -423,8 +425,8 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                                 {truncateWorkName(work.work_name, getTruncationLength(false))}
                               </span>
                             </Link>
-                            {(work.work_name && work.work_name.length > getTruncationLength(false)) && (
-                              <Tooltip content={work.work_name}>
+                            {shouldShowTooltip(work.work_name) && work.work_name && (
+                              <Tooltip content={work.work_name} className="tooltip-mobile">
                                 <Info className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 hover:text-slate-600 cursor-help flex-shrink-0" />
                               </Tooltip>
                             )}
@@ -432,11 +434,9 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                         </div>
                       </TableCell>
                       <TableCell className="min-w-[35px] sm:min-w-[50px]">
-                        <Tooltip content={work.district_name || 'No district'}>
-                          <span className="text-slate-600 truncate block text-xs sm:text-sm">
-                            {work.district_name || 'No district'}
-                          </span>
-                        </Tooltip>
+                        <span className="text-slate-600 truncate block text-xs sm:text-sm">
+                          {work.district_name || 'No district'}
+                        </span>
                       </TableCell>
                       <TableCell className="text-right min-w-[50px] sm:min-w-[70px]">
                         <div className="flex items-center justify-end gap-2">
@@ -476,15 +476,17 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
           
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between p-4 border-t border-slate-200">
-              <div className="text-sm text-slate-600">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border-t border-slate-200 gap-3 sm:gap-0">
+              <div className="text-xs sm:text-sm text-slate-600 text-center sm:text-left">
                 Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredWorks.length)} of {filteredWorks.length} works
               </div>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
+              <div className="flex justify-center">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
             </div>
           )}
         </CardContent>

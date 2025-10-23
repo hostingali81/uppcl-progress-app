@@ -158,6 +158,64 @@
       min-width: 44px;
     }
     
+    /* Disable tooltips on mobile to prevent click issues */
+    .pointer-events-none {
+      pointer-events: none !important;
+    }
+    
+    /* Mobile tooltip improvements */
+    .tooltip-mobile {
+      max-width: 320px !important;
+      font-size: 14px !important;
+      line-height: 1.5 !important;
+      padding: 12px 16px !important;
+      word-wrap: break-word !important;
+      white-space: normal !important;
+      text-align: left !important;
+    }
+    
+    /* Better mobile tooltip support */
+    @media (max-width: 640px) {
+      /* Ensure tooltips work on mobile */
+      [data-tooltip] {
+        position: relative;
+        cursor: pointer;
+      }
+      
+      /* Mobile tooltip styling */
+      .mobile-tooltip {
+        position: absolute !important;
+        bottom: 100% !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        background: #1e293b !important;
+        color: white !important;
+        padding: 12px 16px !important;
+        border-radius: 8px !important;
+        font-size: 14px !important;
+        line-height: 1.5 !important;
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        max-width: 320px !important;
+        width: max-content !important;
+        z-index: 1000 !important;
+        margin-bottom: 12px !important;
+        box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.2) !important;
+        pointer-events: none !important;
+      }
+      
+      /* Better touch interaction for mobile */
+      [data-tooltip]:active {
+        opacity: 0.8;
+      }
+      
+      /* Ensure tooltip doesn't go off screen */
+      .mobile-tooltip {
+        max-height: 200px;
+        overflow-y: auto;
+      }
+    }
+    
     /* Ensure mobile menu is visible only on mobile */
     .mobile-menu-trigger {
       display: flex !important;
@@ -324,10 +382,98 @@
     to { transform: rotate(360deg); }
   }
   
+  /* Enhanced button loading states */
+  .btn-loading {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .btn-loading::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer 1.5s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+  
+  /* Disabled state improvements */
+  .disabled-state {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  
+  /* Smooth transitions for form elements */
+  input:disabled,
+  button:disabled {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  
+  input:disabled {
+    background-color: #f8fafc;
+    color: #64748b;
+  }
+  
+  button:disabled {
+    transform: scale(0.98);
+  }
+  
   /* Enhanced modal/dialog styling */
   .modal-backdrop {
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+  }
+  
+  /* Better mobile pagination */
+  .pagination-mobile {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 8px;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  
+  .pagination-mobile button {
+    min-width: 28px;
+    height: 28px;
+    font-size: 12px;
+    padding: 4px 6px;
+    flex-shrink: 0;
+  }
+  
+  /* Mobile pagination container */
+  @media (max-width: 640px) {
+    .pagination-container {
+      padding: 12px 8px;
+      border-top: 1px solid #e2e8f0;
+    }
+    
+    .pagination-info {
+      text-align: center;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .pagination-controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      max-width: 100%;
+    }
   }
   
   /* Better error states */

@@ -28,7 +28,10 @@ export function LogoutButton({
   const handleLogout = async () => {
     try {
       setIsLoading(true);
-      onClick?.(); // Call the onClick prop if provided
+      // Call the onClick prop if provided and it's a function
+      if (typeof onClick === 'function') {
+        onClick();
+      }
       const supabase = createSupabaseClient();
       await supabase.auth.signOut();
       router.push("/login");

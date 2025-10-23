@@ -11,6 +11,8 @@ import { useDebounce } from "@/hooks/useDebounce";
 type FilterState = {
   zone: string;
   circle: string;
+  division: string;
+  subDivision: string;
   status: string;
   search: string;
 };
@@ -42,6 +44,8 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
   const [filters, setFilters] = useState<FilterState>({
     zone: 'all',
     circle: 'all',
+    division: 'all',
+    subDivision: 'all',
     status: 'all',
     search: ''
   });
@@ -156,6 +160,14 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
       filteredWorks = filteredWorks.filter(w => w.circle_name === newFilters.circle);
     }
     
+    if (newFilters.division && newFilters.division !== 'all') {
+      filteredWorks = filteredWorks.filter(w => w.division_name === newFilters.division);
+    }
+    
+    if (newFilters.subDivision && newFilters.subDivision !== 'all') {
+      filteredWorks = filteredWorks.filter(w => w.sub_division_name === newFilters.subDivision);
+    }
+    
     if (newFilters.status && newFilters.status !== 'all') {
       switch (newFilters.status) {
         case 'completed':
@@ -186,7 +198,7 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
   };
 
   const clearFilters = () => {
-    setFilters({ zone: 'all', circle: 'all', status: 'all', search: '' });
+    setFilters({ zone: 'all', circle: 'all', division: 'all', subDivision: 'all', status: 'all', search: '' });
     onFilterChange(works);
   };
 
@@ -255,7 +267,7 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
         )}
 
         {filterOptions.showDivision && (
-          <Select value={filters.zone} onValueChange={(value) => handleFilterChange('zone', value)}>
+          <Select value={filters.division} onValueChange={(value) => handleFilterChange('division', value)}>
             <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
               <SelectValue placeholder="All Divisions" />
             </SelectTrigger>
@@ -269,7 +281,7 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
         )}
 
         {filterOptions.showSubDivision && (
-          <Select value={filters.circle} onValueChange={(value) => handleFilterChange('circle', value)}>
+          <Select value={filters.subDivision} onValueChange={(value) => handleFilterChange('subDivision', value)}>
             <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
               <SelectValue placeholder="All Sub-Divisions" />
             </SelectTrigger>
@@ -308,6 +320,16 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
           {filters.circle && filters.circle !== 'all' && (
             <Badge variant="secondary" className="bg-green-100 text-green-700">
               Circle: {filters.circle}
+            </Badge>
+          )}
+          {filters.division && filters.division !== 'all' && (
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+              Division: {filters.division}
+            </Badge>
+          )}
+          {filters.subDivision && filters.subDivision !== 'all' && (
+            <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">
+              Sub-Division: {filters.subDivision}
             </Badge>
           )}
           {filters.status && filters.status !== 'all' && (

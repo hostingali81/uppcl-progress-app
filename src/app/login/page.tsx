@@ -1,24 +1,46 @@
 // src/app/login/page.tsx
+"use client";
+
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { LogIn, Shield } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
+import { LogIn, Shield, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export default function Login() {
-  const signIn = async (formData: FormData) => {
-    "use server";
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
-    const { client: supabase } = await createSupabaseServerClient(); // Use await
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      return redirect("/login?message=Could not authenticate user");
+    try {
+      const supabase = createSupabaseClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) {
+        toast.error("Invalid email or password. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+      
+      toast.success("Login successful! Redirecting...");
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error("An error occurred. Please try again.");
+      setIsLoading(false);
     }
-    return redirect("/");
   };
 
   return (
@@ -43,7 +65,7 @@ export default function Login() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={signIn} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium text-slate-700">Email Address</Label>
                 <Input 
@@ -52,7 +74,8 @@ export default function Login() {
                   type="email" 
                   placeholder="name@example.com" 
                   required 
-                  className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 h-11 placeholder:text-slate-400"
+                  disabled={isLoading}
+                  className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 h-11 placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
               <div className="space-y-2">
@@ -63,12 +86,26 @@ export default function Login() {
                   type="password" 
                   placeholder="Enter your password"
                   required 
-                  className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 h-11 placeholder:text-slate-400"
+                  disabled={isLoading}
+                  className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 h-11 placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
-              <EnhancedButton type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 text-base font-medium">
-                <LogIn className="h-4 w-4 mr-2" />
-                Sign In
+              <EnhancedButton 
+                type="submit" 
+                disabled={isLoading}
+                className={`w-full bg-blue-600 hover:bg-blue-700 text-white h-11 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ${isLoading ? 'btn-loading' : ''}`}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Signing In...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Sign In
+                  </>
+                )}
               </EnhancedButton>
             </form>
           </CardContent>

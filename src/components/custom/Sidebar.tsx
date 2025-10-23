@@ -82,11 +82,9 @@ export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
               </Link>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <LogoutButton variant="ghost" className="w-full justify-start" showIcon={true}>
-                Log Out
-              </LogoutButton>
-            </DropdownMenuItem>
+            <LogoutButton variant="ghost" className="w-full justify-start" showIcon={true}>
+              Log Out
+            </LogoutButton>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
