@@ -11,5 +11,5 @@ export default function LogoutButton() {
     return redirect("/login");
   };
 
-  return <form action={signOut}><Button type="submit">लॉगआउट</Button></form>;
+  return <form action={signOut}><Button type="submit">Logout</Button></form>;
 }

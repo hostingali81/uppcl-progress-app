@@ -1,7 +1,9 @@
 // src/app/admin/users/page.tsx
+
 import { EditUserDialog } from "@/components/custom/EditUserDialog";
 import { AddUserDialog } from "@/components/custom/AddUserDialog";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -12,8 +14,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { User } from "@supabase/supabase-js";
+import { Users, Shield } from "lucide-react";
 
-// Profile के लिए टाइप परिभाषा
+// Define a clear type for a user's profile data.
 type Profile = {
   id: string;
   full_name: string | null;
@@ -21,36 +24,28 @@ type Profile = {
   value: string | null;
 };
 
-// दोनों को मिलाकर एक नया टाइप बनाएं
+// Combine Auth and Profile data into a single type for convenience.
 type UserWithProfile = {
   auth: User;
   profile: Profile | null;
 };
 
 export default async function UsersPage() {
-  // createSupabaseServerClient को await करें और फिर client/admin को डिस्ट्रक्चर करें
+  // Data fetching logic remains identical.
   const { admin: supabaseAdmin, client: supabaseClient } = await createSupabaseServerClient();
   
-  // एडमिन क्लाइंट का उपयोग करके सभी यूज़र्स को लाएं
   const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
-  
   if (authError) {
-    console.error("Error fetching users:", authError);
-    return <p className="p-4 text-red-500">यूज़र्स को लाने में असमर्थ।</p>;
+    return <p className="p-4 text-red-500">Failed to fetch users.</p>;
   }
 
-  // सामान्य क्लाइंट का उपयोग करके सभी प्रोफाइल लाएं
-  const { data: profiles, error: profileError } = await supabaseClient
-    .from("profiles")
-    .select("*");
-  
+  const { data: profiles, error: profileError } = await supabaseClient.from("profiles").select("*");
   if (profileError) {
-    console.error("Error fetching profiles:", profileError);
-    return <p className="p-4 text-red-500">प्रोफाइल लाने में असमर्थ: {profileError.message}</p>;
+    return <p className="p-4 text-red-500">Failed to fetch profiles: {profileError.message}</p>;
   }
 
-  // यूज़र्स और प्रोफाइल को उनकी ID के आधार पर मिलाएं
-  const usersWithProfiles: UserWithProfile[] = users.map((user: User) => { // user का टाइप यहाँ स्पष्ट करें
+  // Join users and profiles based on their ID.
+  const usersWithProfiles: UserWithProfile[] = users.map((user: User) => {
     const profile = profiles.find((p: Profile) => p.id === user.id) || null;
     return {
       auth: user,
@@ -59,48 +54,78 @@ export default async function UsersPage() {
   });
 
   return (
-    <div className="p-4 md:p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">यूज़र मैनेजमेंट</h1>
-        <AddUserDialog />
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+          <Users className="h-6 w-6 text-blue-600" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">User Management</h1>
+          <p className="text-slate-600">Create, view, and manage all user accounts in the system</p>
+        </div>
       </div>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ईमेल</TableHead>
-              <TableHead>पूरा नाम</TableHead>
-              <TableHead>भूमिका (Role)</TableHead>
-              <TableHead>मान (Value)</TableHead>
-              <TableHead className="text-right">एक्शन</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {usersWithProfiles.map(({ auth, profile }) => (
-              <TableRow key={auth.id}>
-                <TableCell>{auth.email}</TableCell>
-                <TableCell>{profile?.full_name || 'N/A'}</TableCell>
-                <TableCell>
-                  {profile?.role && (
-                    <Badge variant={profile.role === 'superadmin' ? 'destructive' : 'secondary'}>
-                      {profile.role}
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell>{profile?.value || 'N/A'}</TableCell>
-                <TableCell className="text-right">
-                  <EditUserDialog user={{
-                    id: auth.id,
-                    email: auth.email,
-                    profile: profile
-                  }} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader className="border-b border-slate-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-xl font-semibold text-slate-900">All Users</CardTitle>
+              <CardDescription className="mt-1 text-slate-600">
+                Manage user accounts, roles, and permissions
+              </CardDescription>
+            </div>
+            <div className="mt-4 sm:mt-0">
+              {/* The "Add User" dialog trigger is styled as a primary action button. */}
+              <AddUserDialog />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-slate-200">
+                  <TableHead className="font-semibold text-slate-900">Email</TableHead>
+                  <TableHead className="font-semibold text-slate-900">Full Name</TableHead>
+                  <TableHead className="font-semibold text-slate-900">Role</TableHead>
+                  <TableHead className="font-semibold text-slate-900">Value</TableHead>
+                  <TableHead className="text-right font-semibold text-slate-900">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {usersWithProfiles.map(({ auth, profile }) => (
+                  <TableRow key={auth.id} className="hover:bg-slate-50 transition-colors">
+                    <TableCell className="font-mono text-sm text-slate-700">{auth.email}</TableCell>
+                    <TableCell className="text-slate-700">{profile?.full_name || 'N/A'}</TableCell>
+                    <TableCell>
+                      {profile?.role && (
+                        // Use a destructive badge for the high-privilege superadmin role.
+                        <Badge 
+                          variant={profile.role === 'superadmin' ? 'destructive' : 'secondary'}
+                          className={profile.role === 'superadmin' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}
+                        >
+                          {profile.role === 'superadmin' && <Shield className="h-3 w-3 mr-1" />}
+                          {profile.role}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-slate-600">{profile?.value || 'N/A'}</TableCell>
+                    <TableCell className="text-right">
+                      {/* The EditUserDialog would also be restyled internally to match the new design. */}
+                      <EditUserDialog user={{
+                        id: auth.id,
+                        email: auth.email,
+                        profile: profile
+                      }} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

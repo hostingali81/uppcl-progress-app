@@ -1,69 +1,91 @@
 // src/app/(main)/analytics/page.tsx
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { AnalyticsCharts } from "@/components/custom/AnalyticsCharts";
+import { AnalyticsClient } from "@/components/custom/AnalyticsClient";
+import { Card, CardContent } from "@/components/ui/card";
+import { BarChart3, PieChart } from "lucide-react";
 
+// Type definition for a single work record for analytics purposes.
 type Work = {
+  id: string;
+  scheme_sr_no: string;
+  scheme_name: string;
+  work_name: string;
   progress_percentage: number | null;
   division_name: string | null;
+  sub_division_name: string | null;
+  circle_name: string | null;
+  zone_name: string | null;
+  district_name: string | null;
+  agreement_amount: number | null;
+  is_blocked: boolean;
+  created_at: string;
 };
 
-// --- बदलाव यहाँ है ---
-// यह मैप हमें बताएगा कि किस भूमिका के लिए किस कॉलम को फ़िल्टर करना है
-const roleToColumnMap: { [key: string]: string } = {
+// This mapping logic remains unchanged.
+const roleToColumnMap: { [key:string]: string } = {
   'je': 'je_name',
+  'sub_division_head': 'sub_division_name',
   'division_head': 'division_name',
   'circle_head': 'circle_name',
   'zone_head': 'zone_name',
 };
-// --- बदलाव समाप्त ---
 
 export default async function AnalyticsPage() {
+  // --- DATA FETCHING AND PROCESSING LOGIC IS UNCHANGED ---
   const { client: supabase } = await createSupabaseServerClient();
-
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return redirect("/login");
   }
   
-  // --- बदलाव यहाँ है ---
-  // अब हम 'value' भी प्राप्त करेंगे
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, value") 
-    .eq("id", user.id)
-    .single();
-
+  const { data: profile } = await supabase.from("profiles").select("role, value").eq("id", user.id).single();
   if (!profile) {
-    return <p className="p-8 text-red-500">आपकी प्रोफाइल नहीं मिली।</p>;
+    return <p className="p-8 text-red-500">Could not find your profile.</p>;
   }
   
-  // डेटाबेस क्वेरी तैयार करें
-  let worksQuery = supabase.from("works").select("progress_percentage, division_name");
+  let worksQuery = supabase.from("works").select("id, scheme_sr_no, scheme_name, work_name, progress_percentage, division_name, sub_division_name, circle_name, zone_name, district_name, agreement_amount, is_blocked, created_at");
   
-  // यदि उपयोगकर्ता सुपर एडमिन नहीं है, तो क्वेरी को फ़िल्टर करें
   const filterColumn = roleToColumnMap[profile.role];
   if (profile.role !== 'superadmin' && filterColumn && profile.value) {
     worksQuery = worksQuery.eq(filterColumn, profile.value);
   }
 
   const { data: works, error } = await worksQuery;
-  // --- बदलाव समाप्त ---
 
   if (error) {
-    return <p className="p-8 text-red-500">एनालिटिक्स डेटा लाने में असमर्थ: {error.message}</p>;
+    return <p className="p-8 text-red-500">Failed to fetch analytics data: {error.message}</p>;
   }
 
   if (!works || works.length === 0) {
      return (
-        <div className="p-4 md:p-8">
-            <h1 className="text-3xl font-bold mb-6">एनालिटिक्स डैशबोर्ड</h1>
-            <p>विश्लेषण के लिए कोई डेटा उपलब्ध नहीं है।</p>
+        <div className="p-4 sm:p-6 lg:p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900">Analytics Dashboard</h1>
+                <p className="text-slate-600">Visual insights into your project data</p>
+              </div>
+            </div>
+            <Card className="border-slate-200">
+              <CardContent className="p-12 text-center">
+                <PieChart className="h-16 w-16 text-slate-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">No Data Available</h3>
+                <p className="text-slate-600">No data is available for analysis at this time.</p>
+              </CardContent>
+            </Card>
         </div>
      );
   }
   
-  const statusData = (works as Work[]).reduce(
+  // Enhanced data aggregation for charts
+  const worksData = works as Work[];
+  
+  // Status data
+  const statusData = worksData.reduce(
     (acc, work) => {
       const progress = work.progress_percentage || 0;
       if (progress === 100) acc[0].value += 1;
@@ -72,27 +94,127 @@ export default async function AnalyticsPage() {
       return acc;
     },
     [
-      { name: 'पूरे हो चुके', value: 0 },
-      { name: 'चल रहे', value: 0 },
-      { name: 'शुरू नहीं हुए', value: 0 },
+      { name: 'Completed', value: 0 },
+      { name: 'In Progress', value: 0 },
+      { name: 'Not Started', value: 0 },
     ]
   );
-  
-  const divisionCounts = (works as Work[]).reduce((acc, work) => {
-    const division = work.division_name || 'N/A';
-    if (!acc[division]) acc[division] = 0;
-    acc[division]++;
+
+  // Financial progress data (agreement_amount * progress_percentage)
+  const financialData = worksData.reduce((acc, work) => {
+    const progress = work.progress_percentage || 0;
+    const agreementAmount = work.agreement_amount || 0;
+    const financialProgress = (agreementAmount * progress) / 100;
+    
+    if (progress === 100) acc[0].value += financialProgress;
+    else if (progress > 0) acc[1].value += financialProgress;
+    else acc[2].value += financialProgress;
+    
+    return acc;
+  }, [
+    { name: 'Completed', value: 0 },
+    { name: 'In Progress', value: 0 },
+    { name: 'Not Started', value: 0 },
+  ]);
+
+  // District-wise data
+  const districtCounts = worksData.reduce((acc, work) => {
+    const district = work.district_name || 'N/A';
+    if (!acc[district]) acc[district] = 0;
+    acc[district]++;
     return acc;
   }, {} as Record<string, number>);
 
-  const divisionData = Object.keys(divisionCounts).map(name => ({ name, total: divisionCounts[name] }));
+  const districtData = Object.keys(districtCounts).map(name => ({ name, total: districtCounts[name] }));
+
+  // Monthly progress trend (last 6 months)
+  const monthlyTrend = worksData.reduce((acc, work) => {
+    if (work.created_at) {
+      const month = new Date(work.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      if (!acc[month]) acc[month] = { total: 0, completed: 0 };
+      acc[month].total++;
+      if ((work.progress_percentage || 0) === 100) acc[month].completed++;
+    }
+    return acc;
+  }, {} as Record<string, { total: number; completed: number }>);
+
+  const monthlyData = Object.keys(monthlyTrend).map(month => ({
+    month,
+    total: monthlyTrend[month].total,
+    completed: monthlyTrend[month].completed,
+    completionRate: monthlyTrend[month].total > 0 ? (monthlyTrend[month].completed / monthlyTrend[month].total) * 100 : 0
+  })).slice(-6); // Last 6 months
+
+  // KPI calculations
+  const totalWorks = worksData.length;
+  const completedWorks = worksData.filter(w => (w.progress_percentage || 0) === 100).length;
+  const blockedWorks = worksData.filter(w => w.is_blocked).length;
+  const totalAgreementValue = worksData.reduce((sum, work) => sum + (work.agreement_amount || 0), 0);
+  const completedValue = worksData.reduce((sum, work) => {
+    const progress = work.progress_percentage || 0;
+    return sum + ((work.agreement_amount || 0) * progress) / 100;
+  }, 0);
+  const averageProgress = worksData.length > 0 ? worksData.reduce((sum, work) => sum + (work.progress_percentage || 0), 0) / worksData.length : 0;
+  
+  // Generate chart title based on user role
+  const getChartTitle = (role: string) => {
+    switch (role) {
+      case 'je':
+        return 'Works by District';
+      case 'sub_division_head':
+        return 'Works by District';
+      case 'division_head':
+        return 'Works by Sub-Division';
+      case 'circle_head':
+        return 'Works by Division';
+      case 'zone_head':
+        return 'Works by Circle';
+      case 'superadmin':
+        return 'Works by Division';
+      default:
+        return 'Works by Division';
+    }
+  };
+  
+  const chartTitle = getChartTitle(profile.role);
+  // --- END OF DATA LOGIC ---
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
-       <h1 className="text-3xl font-bold">एनालिटिक्स डैशबोर्ड</h1>
-      <AnalyticsCharts 
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+       <div className="flex items-center gap-3">
+          <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <BarChart3 className="h-6 w-6 text-blue-600" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Analytics Dashboard</h1>
+            <p className="text-slate-600">
+              Visual overview of the works within your jurisdiction
+            </p>
+          </div>
+       </div>
+
+      {/* The AnalyticsClient component handles both charts and filtering functionality */}
+      <AnalyticsClient 
+        works={worksData}
         statusData={statusData}
-        divisionData={divisionData}
+        financialData={financialData}
+        districtData={districtData}
+        monthlyData={monthlyData}
+        chartTitle={chartTitle}
+        kpis={{
+          totalWorks,
+          completedWorks,
+          blockedWorks,
+          totalAgreementValue,
+          completedValue,
+          averageProgress
+        }}
+        colors={{
+          completed: '#16A34A', // Green-600
+          inProgress: '#2563EB', // Blue-600
+          notStarted: '#9CA3AF', // Slate-400
+          barChart: '#2563EB' // Blue-600 for the bar chart
+        }}
       />
     </div>
   );

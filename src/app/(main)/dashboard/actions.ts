@@ -4,7 +4,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import * as XLSX from "xlsx";
 
-// यह मैप हमें बताएगा कि किस भूमिका के लिए किस कॉलम को फ़िल्टर करना है
+// This map tells us which column to filter for which role
 const roleToColumnMap: { [key: string]: string } = {
   'je': 'je_name',
   'division_head': 'division_name',
@@ -26,8 +26,8 @@ export async function exportToExcel() {
 
     if (!profile) { throw new Error("Profile not found."); }
 
-    // डैशबोर्ड के समान ही डेटाबेस क्वेरी तैयार करें
-    let worksQuery = supabase.from("works").select("*"); // सभी कॉलम चुनें
+    // Prepare database query same as dashboard
+    let worksQuery = supabase.from("works").select("*"); // Select all columns
 
     const filterColumn = roleToColumnMap[profile.role];
     if (profile.role !== 'superadmin' && filterColumn && profile.value) {
@@ -37,24 +37,24 @@ export async function exportToExcel() {
     const { data: works, error } = await worksQuery;
     if (error) { throw new Error(`Database error: ${error.message}`); }
     if (!works || works.length === 0) {
-      return { error: "निर्यात करने के लिए कोई डेटा नहीं है।" };
+      return { error: "No data available for export." };
     }
 
-    // एक्सेल वर्कबुक बनाएँ
+    // Create Excel workbook
     const worksheet = XLSX.utils.json_to_sheet(works);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Works");
 
-    // फाइल को बफर में लिखें और फिर Base64 स्ट्रिंग में बदलें
+    // Write file to buffer and then convert to Base64 string
     const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
     const base64Data = buffer.toString("base64");
     
-    // फाइल का नाम बनाएँ
+    // Create file name
     const fileName = `Pragati-Works-Export-${new Date().toISOString().split('T')[0]}.xlsx`;
 
     return { success: { data: base64Data, fileName: fileName } };
 
-  } catch (error: any) {
-    return { error: error.message };
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error occurred' };
   }
 }

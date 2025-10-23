@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // यूज़र सेशन को रिफ्रेश करना
+  // Refresh user session
   await supabase.auth.getUser()
 
   return response
@@ -64,7 +64,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * उन सभी रिक्वेस्ट पाथ्स से मैच करें सिवाय उन पाथ्स के जो इनसे शुरू होते हैं:
+     * Match all request paths except for the ones starting with:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)

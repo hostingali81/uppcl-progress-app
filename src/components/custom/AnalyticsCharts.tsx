@@ -1,66 +1,304 @@
 // src/components/custom/AnalyticsCharts.tsx
 "use client";
 
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { PieChart as PieChartIcon, BarChart3, TrendingUp, DollarSign, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 
-// Props के लिए टाइप परिभाषा
-interface AnalyticsChartsProps {
-  statusData: { name: string; value: number }[];
-  divisionData: { name: string; total: number }[];
-}
+// Step 1: Define the shape of the props this component will receive.
+type AnalyticsChartsProps = {
+  statusData: { name: string; value: number; }[];
+  financialData: { name: string; value: number; }[];
+  districtData: { name: string; total: number; }[];
+  monthlyData: { month: string; total: number; completed: number; completionRate: number; }[];
+  chartTitle: string;
+  kpis: {
+    totalWorks: number;
+    completedWorks: number;
+    blockedWorks: number;
+    totalAgreementValue: number;
+    completedValue: number;
+    averageProgress: number;
+  };
+  colors: {
+    completed: string;
+    inProgress: string;
+    notStarted: string;
+    barChart: string;
+  };
+  onKPIClick?: (filterType: 'all' | 'completed' | 'in_progress' | 'blocked') => void;
+};
 
-// पाई चार्ट के लिए रंग
-const COLORS = ['#16a34a', '#f97316', '#dc2626']; // हरा, नारंगी, लाल
+export function AnalyticsCharts({ statusData, financialData, districtData, monthlyData, chartTitle, kpis, colors, onKPIClick }: AnalyticsChartsProps) {
+  // Define the colors for the Pie chart based on the passed props.
+  const pieChartColors = [colors.completed, colors.inProgress, colors.notStarted];
 
-export function AnalyticsCharts({ statusData, divisionData }: AnalyticsChartsProps) {
+  // Format currency
+  const formatCurrency = (value: number) => {
+    if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
+    if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
+    return `₹${value.toLocaleString()}`;
+  };
+
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>कार्यों की स्थिति (Status)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={statusData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-                nameKey="name"
-                // --- यहाँ बदलाव किया गया है ---
-                label={({ name, percent }) => `${name} ${((percent as number) * 100).toFixed(0)}%`}
-              >
-                {statusData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => `${value} कार्य`} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>डिवीजन-वार कार्यों की संख्या</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={divisionData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" interval={0} height={80} />
-              <YAxis allowDecimals={false} />
-              <Tooltip formatter={(value) => `${value} कार्य`} />
-              <Bar dataKey="total" fill="#3b82f6" name="कुल कार्य" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card 
+          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-blue-300' : ''}`}
+          onClick={() => onKPIClick?.('all')}
+        >
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Total Works</p>
+                <p className="text-2xl font-bold text-slate-900">{kpis.totalWorks}</p>
+              </div>
+              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-green-300' : ''}`}
+          onClick={() => onKPIClick?.('completed')}
+        >
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Completed</p>
+                <p className="text-2xl font-bold text-green-600">{kpis.completedWorks}</p>
+                <p className="text-xs text-slate-500">{((kpis.completedWorks / kpis.totalWorks) * 100).toFixed(1)}%</p>
+              </div>
+              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-purple-300' : ''}`}
+          onClick={() => onKPIClick?.('in_progress')}
+        >
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Financial Progress</p>
+                <p className="text-2xl font-bold text-purple-600">{formatCurrency(kpis.completedValue)}</p>
+                <p className="text-xs text-slate-500">of {formatCurrency(kpis.totalAgreementValue)}</p>
+              </div>
+              <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <DollarSign className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-orange-300' : ''}`}
+          onClick={() => onKPIClick?.('blocked')}
+        >
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Avg Progress</p>
+                <p className="text-2xl font-bold text-orange-600">{kpis.averageProgress.toFixed(1)}%</p>
+                <p className="text-xs text-slate-500">Overall completion</p>
+              </div>
+              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Clock className="h-6 w-6 text-orange-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Work Status Distribution */}
+        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 bg-green-100 rounded-lg flex items-center justify-center">
+                <PieChartIcon className="h-5 w-5 text-green-600" />
+              </div>
+              <CardTitle className="text-lg font-semibold text-slate-900">Work Status Distribution</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                  strokeWidth={2}
+                  stroke="#fff"
+                >
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={pieChartColors[index % pieChartColors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Financial Progress */}
+        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                <DollarSign className="h-5 w-5 text-purple-600" />
+              </div>
+              <CardTitle className="text-lg font-semibold text-slate-900">Financial Progress</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={financialData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                  strokeWidth={2}
+                  stroke="#fff"
+                >
+                  {financialData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={pieChartColors[index % pieChartColors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value) => [formatCurrency(value as number), 'Value']}
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* District-wise Works */}
+        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+              </div>
+              <CardTitle className="text-lg font-semibold text-slate-900">{chartTitle}</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={districtData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  tickLine={{ stroke: '#e2e8f0' }}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  tickLine={{ stroke: '#e2e8f0' }}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+                <Legend />
+                <Bar 
+                  dataKey="total" 
+                  fill={colors.barChart} 
+                  name="Total Works"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Monthly Progress Trend */}
+        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-orange-600" />
+              </div>
+              <CardTitle className="text-lg font-semibold text-slate-900">Monthly Progress Trend</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <XAxis 
+                  dataKey="month" 
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  tickLine={{ stroke: '#e2e8f0' }}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  tickLine={{ stroke: '#e2e8f0' }}
+                  tickFormatter={(value) => `${Math.round(value)}%`}
+                />
+                <Tooltip 
+                  formatter={(value, name) => [
+                    `${Math.round(value as number)}%`, 
+                    name === 'completionRate' ? 'Completion Rate (%)' : name
+                  ]}
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+                <Legend />
+                <Area 
+                  type="monotone" 
+                  dataKey="completionRate" 
+                  stroke={colors.barChart} 
+                  fill={`${colors.barChart}20`}
+                  name="Completion Rate (%)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

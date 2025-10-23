@@ -8,7 +8,7 @@ import { Download, Loader2 } from "lucide-react";
 
 export function ExportToExcelButton() {
   const [isPending, startTransition] = useTransition();
-  // --- यहाँ बदलाव किया गया है ---
+  // --- Updated here ---
   const [message, setMessage] = useState<string | null>(null);
 
   const handleExport = () => {
@@ -18,7 +18,7 @@ export function ExportToExcelButton() {
       if (result.error) {
         setMessage(`Error: ${result.error}`);
       } else if (result.success) {
-        // Base64 डेटा से डाउनलोड लिंक बनाएँ और क्लिक करें
+        // Create download link from Base64 data and click it
         const link = document.createElement("a");
         link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${result.success.data}`;
         link.download = result.success.fileName;
@@ -32,11 +32,19 @@ export function ExportToExcelButton() {
 
   return (
     <div className="flex flex-col items-start">
-        <Button onClick={handleExport} disabled={isPending} variant="outline" size="sm">
+        <Button onClick={handleExport} disabled={isPending} variant="outline" size="sm" className="border-slate-200 hover:bg-slate-50">
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-            {isPending ? "निर्यात हो रहा है..." : "एक्सेल में निर्यात करें"}
+            {isPending ? "Exporting..." : "Export to Excel"}
         </Button>
-        {message && <p className={`mt-2 text-xs ${message.startsWith('Error') ? 'text-red-500' : 'text-green-500'}`}>{message}</p>}
+        {message && (
+          <div className={`mt-2 text-xs p-2 rounded border ${
+            message.startsWith('Error') 
+              ? 'text-red-700 bg-red-50 border-red-200' 
+              : 'text-green-700 bg-green-50 border-green-200'
+          }`}>
+            {message}
+          </div>
+        )}
     </div>
   );
 }

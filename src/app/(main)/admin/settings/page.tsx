@@ -5,17 +5,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CloudflareSettingsDialog } from "@/components/custom/CloudflareSettingsDialog";
 import { GoogleSheetSettingsDialog } from "@/components/custom/GoogleSheetSettingsDialog";
 import { SyncButton } from "./SyncButton";
+import { Settings, Cloud, FileSpreadsheet } from "lucide-react";
 
 export default async function SettingsPage() {
   const { client: supabase } = await createSupabaseServerClient();
   const settings = await getSettings(supabase);
 
-  // --- यहाँ बदलाव किया गया है ---
-  // अब हम केवल सीक्रेट की को हटाएंगे, गूगल क्रेडेंशियल्स को नहीं
+  // --- Updated here ---
+  // Now we will only remove the secret key, not the Google credentials
   const clientSafeSettings = { ...settings };
   delete clientSafeSettings.cloudflare_secret_access_key;
 
-  // Google Sheet क्रेडेंशियल्स को अब पास किया जाएगा
+  // Google Sheet credentials will now be passed
   const googleSheetSettings = {
     google_sheet_id: settings.google_sheet_id || '',
     google_sheet_name: settings.google_sheet_name || '',
@@ -23,42 +24,61 @@ export default async function SettingsPage() {
   };
   
   return (
-    <div className="p-4 md:p-8 space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">सिस्टम सेटिंग्स</h1>
-        <p className="text-gray-500">
-          यहाँ से एप्लिकेशन की मुख्य बाहरी सेवाओं को कॉन्फ़िगर करें।
-        </p>
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+          <Settings className="h-6 w-6 text-blue-600" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">System Settings</h1>
+          <p className="text-slate-600">
+            Configure the main external services for the application here.
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Cloudflare R2 सेटिंग्स</CardTitle>
-            <CardDescription>
-              यह एप्लिकेशन में फाइल अपलोड (तस्वीरें, PDF) को सक्षम बनाता है।
-              सभी फ़ील्ड्स को सही ढंग से भरना आवश्यक है।
-            </CardDescription>
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader className="border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Cloud className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-semibold text-slate-900">Cloudflare R2 Settings</CardTitle>
+                <CardDescription className="text-slate-600">
+                  This enables file uploads (photos, PDFs) in the application.
+                  All fields must be filled correctly.
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <CloudflareSettingsDialog settings={clientSafeSettings} />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Google Sheet सेटिंग्स</CardTitle>
-            <CardDescription>
-              यह एप्लिकेशन को Google Sheet से डेटा सिंक करने और वापस अपडेट भेजने की अनुमति देता है।
-            </CardDescription>
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader className="border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 bg-green-100 rounded-lg flex items-center justify-center">
+                <FileSpreadsheet className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-semibold text-slate-900">Google Sheet Settings</CardTitle>
+                <CardDescription className="text-slate-600">
+                  This allows the application to sync data from Google Sheets and send updates back.
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* --- यहाँ बदलाव किया गया है --- */}
+          <CardContent className="p-6 space-y-4">
+            {/* --- Updated here --- */}
             <GoogleSheetSettingsDialog settings={googleSheetSettings} />
-            <div className="border-t pt-4">
-              <h3 className="font-medium mb-2">डेटा सिंक करें</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                सेटिंग्स सेव करने के बाद, आप यहाँ से डेटा को मैन्युअल रूप से सिंक कर सकते हैं।
+            <div className="border-t border-slate-200 pt-4">
+              <h3 className="font-semibold text-slate-900 mb-2">Sync Data</h3>
+              <p className="text-sm text-slate-600 mb-4">
+                After saving settings, you can manually sync data from here.
               </p>
               <SyncButton />
             </div>

@@ -10,7 +10,7 @@ export function SyncButton() {
   const [message, setMessage] = useState<string | null>(null);
 
   const handleClick = () => {
-    setMessage(null); // पुराने मैसेज को हटाएं
+    setMessage(null); // Remove old message
     startTransition(async () => {
       const result = await syncWithGoogleSheet();
       if (result?.error) {
@@ -24,7 +24,7 @@ export function SyncButton() {
   return (
     <div className="flex flex-col items-start space-y-4">
       <Button onClick={handleClick} disabled={isPending}>
-        {isPending ? "सिंक हो रहा है..." : "Google Sheet से अभी सिंक करें"}
+        {isPending ? "Syncing..." : "Sync with Google Sheet Now"}
       </Button>
       {message && (
         <p className={`text-sm ${message.startsWith('Error:') ? 'text-red-600' : 'text-green-600'}`}>

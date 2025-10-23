@@ -2,7 +2,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-export const createSupabaseServerClient = async () => { // <-- 'export' कीवर्ड यहाँ है
+export const createSupabaseServerClient = async () => { // <-- 'export' keyword is here
   const cookieStore = await cookies();
 
   const getCookies = {
@@ -12,12 +12,12 @@ export const createSupabaseServerClient = async () => { // <-- 'export' की�
     set(name: string, value: string, options: CookieOptions) {
       try {
         cookieStore.set({ name, value, ...options });
-      } catch (error) {}
+      } catch (_error) {}
     },
     remove(name: string, options: CookieOptions) {
       try {
         cookieStore.set({ name, value: "", ...options });
-      } catch (error) {}
+      } catch (_error) {}
     },
   };
 

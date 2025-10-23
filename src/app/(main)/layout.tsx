@@ -1,4 +1,5 @@
 // src/app/(main)/layout.tsx
+
 import { Header } from "@/components/custom/Header";
 import { Sidebar } from "@/components/custom/Sidebar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -9,6 +10,7 @@ export default async function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // --- Data fetching logic remains unchanged ---
   const { client: supabase } = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -27,13 +29,22 @@ export default async function MainLayout({
     role: profile?.role || 'user',
     fullName: profile?.full_name || user.email,
   };
+  // --- End of data fetching logic ---
 
   return (
-    <div className="flex min-h-screen w-full bg-gray-50">
+    // Updated: Take full screen height and hide overflow
+    <div className="flex h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
+      {/* Sidebar is now part of this flex container */}
       <Sidebar userDetails={userDetails} />
-      <div className="flex flex-1 flex-col">
+      
+      {/* Updated: This container now handles header and scrollable content */}
+      <div className="flex flex-1 flex-col min-w-0">
+        
+        {/* Header always visible for mobile navigation */}
         <Header userDetails={userDetails} />
-        <main className="flex-1 overflow-y-auto">
+        
+        {/* Updated: main tag made scrollable */}
+        <main className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50/50 to-blue-50/50">
           {children}
         </main>
       </div>

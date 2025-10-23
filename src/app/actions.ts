@@ -1,7 +1,7 @@
 // src/app/actions.ts
 "use server";
 
-// --- यहाँ बदलाव किया गया है ---
+// --- Changes made here ---
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 

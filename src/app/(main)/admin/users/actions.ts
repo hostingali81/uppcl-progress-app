@@ -13,11 +13,11 @@ export async function addUser(formData: FormData) {
   const role = formData.get("role") as string;
   const value = formData.get("value") as string;
 
-  // 1. Supabase Auth में नया यूज़र बनाना
+  // 1. Create new user in Supabase Auth
   const { data: { user }, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
-    email_confirm: true, // यूज़र को ईमेल कन्फर्म करने की ज़रूरत नहीं है
+    email_confirm: true, // User doesn't need to confirm email
   });
 
   if (authError) {
@@ -29,31 +29,32 @@ export async function addUser(formData: FormData) {
     return { error: "Could not create user." };
   }
 
-  // 2. profiles टेबल में यूज़र की प्रोफाइल अपडेट करना
+  // 2. Insert or update user's profile in profiles table
   const { error: profileError } = await supabaseAdmin
     .from("profiles")
-    .update({
+    .upsert({
+      id: user.id,
       full_name: fullName,
       role: role,
       value: value,
-    })
-    .eq("id", user.id);
+      updated_at: new Date().toISOString(),
+    });
   
   if (profileError) {
-    console.error("Error updating profile:", profileError.message);
-    // यहाँ हम बने हुए auth यूज़र को डिलीट कर सकते हैं ताकि सिस्टम साफ रहे
+    console.error("Error upserting profile:", profileError.message);
+    // Here we can delete the created auth user to keep system clean
     await supabaseAdmin.auth.admin.deleteUser(user.id);
     return { error: `Profile Error: ${profileError.message}` };
   }
 
-  // यूज़र पेज के कैश को रीफ्रेश करें ताकि नई लिस्ट दिखे
+  // Refresh user page cache so new list shows
   revalidatePath("/admin/users");
 
   return { error: null };
 }
 // src/app/admin/users/actions.ts
 
-// ... (addUser फंक्शन के बाद)
+// ... (after addUser function)
 
 export async function updateUser(formData: FormData) {
   const { admin: supabaseAdmin } = await createSupabaseServerClient();

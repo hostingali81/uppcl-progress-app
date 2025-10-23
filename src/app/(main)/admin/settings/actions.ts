@@ -5,7 +5,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { google } from "googleapis";
 
-// यह फंक्शन डेटाबेस से सभी सेटिंग्स लाता है (अपरिवर्तित)
+// This function fetches all settings from database (unchanged)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getSettings(supabase: any) {
   const { data, error } = await supabase.from("settings").select("key, value");
   if (error) throw new Error("Could not fetch settings from database.");
@@ -18,7 +19,7 @@ export async function getSettings(supabase: any) {
   }, {});
 }
 
-// नया एक्शन 1: केवल Cloudflare सेटिंग्स को अपडेट करने के लिए
+// New action 1: To update only Cloudflare settings
 export async function updateCloudflareSettings(formData: FormData) {
   const { client: supabase } = await createSupabaseServerClient();
   const secretAccessKey = formData.get('cloudflare_secret_access_key') as string;
@@ -30,8 +31,8 @@ export async function updateCloudflareSettings(formData: FormData) {
     { key: 'cloudflare_public_r2_url', value: formData.get('cloudflare_public_r2_url') as string },
   ];
   
-  // --- सबसे महत्वपूर्ण बदलाव ---
-  // सीक्रेट की को केवल तभी अपडेट करें जब उपयोगकर्ता ने कोई नया मान दर्ज किया हो
+  // --- Most important change ---
+  // Only update the secret key when user has entered a new value
   if (secretAccessKey && secretAccessKey.trim() !== '') {
     settingsToUpdate.push({ key: 'cloudflare_secret_access_key', value: secretAccessKey });
   }
@@ -44,7 +45,7 @@ export async function updateCloudflareSettings(formData: FormData) {
   return { success: "Cloudflare settings updated successfully!" };
 }
 
-// नया एक्शन 2: केवल Google Sheet सेटिंग्स को अपडेट करने के लिए
+// New action 2: To update only Google Sheet settings
 export async function updateGoogleSheetSettings(formData: FormData) {
   const { client: supabase } = await createSupabaseServerClient();
   
@@ -62,8 +63,8 @@ export async function updateGoogleSheetSettings(formData: FormData) {
   return { success: "Google Sheet settings updated successfully!" };
 }
 
-// गूगल शीट डेटा को हमारे डेटाबेस कॉलम नामों से मैप करना (अपरिवर्तित)
-function mapRowToWork(row: any[], headers: string[]) {
+// Mapping Google Sheet data to our database column names (unchanged)
+function mapRowToWork(row: (string | number)[], headers: string[]) {
   const headerMap: { [key: string]: string } = {
     'S.N.': 'scheme_sr_no',
     'Sr. No. OF SCEME': 'scheme_sr_no',
@@ -80,7 +81,7 @@ function mapRowToWork(row: any[], headers: string[]) {
     'Tender No.': 'tender_no',
     'BoQ Amount': 'boq_amount',
     'Date of NIT': 'nit_date',
-    'Date of  Part-I Opening': 'part1_opening_date',
+    'Date of Part-I Opening': 'part1_opening_date',
     'LoI No. & Date': 'loi_no_and_date',
     'Date of Part-II Opening': 'part2_opening_date',
     'Rate as per Ag. (% above/ below)': 'rate_as_per_ag',
@@ -93,46 +94,102 @@ function mapRowToWork(row: any[], headers: string[]) {
     'Weightage': 'weightage',
     'Present Progress in %': 'progress_percentage',
     'Remark': 'remark',
-    'WBS CODE': 'wbs_code', // यह सही होना चाहिए
+    'WBS CODE': 'wbs_code', // This should be correct
     'MB Status': 'mb_status',
     'TECO': 'teco_status',
     'FICO': 'fico_status',
   };
 
-  let workObject: { [key: string]: any } = {};
+  const workObject: { [key: string]: string | number | null } = {};
   headers.forEach((header, index) => {
     const dbColumn = headerMap[header];
     if (dbColumn) {
-      let value: any = row[index] || null;
+      let value: string | number | null = row[index] || null;
       if (value !== null && typeof value === 'string') {
         value = value.trim();
         if (value === '') value = null;
       }
       if (value !== null) {
+        // Handle numeric fields
         if (['amount_as_per_bp_lacs', 'boq_amount', 'agreement_amount'].includes(dbColumn)) {
           value = parseFloat(String(value).replace(/,/g, '')) || null;
         }
+        // Handle percentage fields
         if (['weightage', 'progress_percentage'].includes(dbColumn)) {
           value = parseInt(String(value).replace('%', ''), 10);
           if (isNaN(value)) value = null;
         }
-        if (['nit_date', 'part2_opening_date', 'start_date', 'scheduled_completion_date'].includes(dbColumn)) {
-          if (typeof value === 'string' && value.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-            const parts = value.split('/');
-            const day = parts[0].padStart(2, '0');
-            const month = parts[1].padStart(2, '0');
-            const year = parts[2];
-            value = `${year}-${month}-${day}`;
-          } else { value = null; }
+        // Handle date fields with multiple format support
+        if (['nit_date', 'part1_opening_date', 'part2_opening_date', 'start_date', 'scheduled_completion_date'].includes(dbColumn)) {
+          if (typeof value === 'string') {
+            // Try multiple date formats
+            const dateFormats = [
+              /^\d{1,2}\/\d{1,2}\/\d{4}$/,  // DD/MM/YYYY
+              /^\d{4}-\d{1,2}-\d{1,2}$/,   // YYYY-MM-DD
+              /^\d{1,2}-\d{1,2}-\d{4}$/,   // DD-MM-YYYY
+              /^\d{1,2}\.\d{1,2}\.\d{4}$/, // DD.MM.YYYY
+            ];
+            
+            let dateProcessed = false;
+            for (const format of dateFormats) {
+              if (value.match(format)) {
+                if (format.source === '^\\d{1,2}\\/\\d{1,2}\\/\\d{4}$') {
+                  // DD/MM/YYYY format
+                  const parts = value.split('/');
+                  const day = parts[0].padStart(2, '0');
+                  const month = parts[1].padStart(2, '0');
+                  const year = parts[2];
+                  value = `${year}-${month}-${day}`;
+                } else if (format.source === '^\\d{1,2}-\\d{1,2}-\\d{4}$') {
+                  // DD-MM-YYYY format
+                  const parts = value.split('-');
+                  const day = parts[0].padStart(2, '0');
+                  const month = parts[1].padStart(2, '0');
+                  const year = parts[2];
+                  value = `${year}-${month}-${day}`;
+                } else if (format.source === '^\\d{1,2}\\.\\d{1,2}\\.\\d{4}$') {
+                  // DD.MM.YYYY format
+                  const parts = value.split('.');
+                  const day = parts[0].padStart(2, '0');
+                  const month = parts[1].padStart(2, '0');
+                  const year = parts[2];
+                  value = `${year}-${month}-${day}`;
+                }
+                // YYYY-MM-DD format is already correct
+                dateProcessed = true;
+                break;
+              }
+            }
+            
+            if (!dateProcessed) {
+              console.warn(`Date format not recognized for ${dbColumn}: "${value}"`);
+              value = null;
+            }
+          } else { 
+            value = null; 
+          }
         }
       }
       workObject[dbColumn] = value;
+    } else {
+      console.warn(`No mapping found for header: "${header}"`);
     }
   });
+  
+  // Add debugging for important fields
+  if (workObject.scheme_sr_no) {
+    console.log(`Processing work ${workObject.scheme_sr_no}:`, {
+      work_name: workObject.work_name,
+      progress_percentage: workObject.progress_percentage,
+      agreement_amount: workObject.agreement_amount,
+      district_name: workObject.district_name
+    });
+  }
+  
   return workObject;
 }
 
-// syncWithGoogleSheet फंक्शन (अपरिवर्तित)
+// syncWithGoogleSheet function (unchanged)
 export async function syncWithGoogleSheet() {
   try {
     const { client: supabase } = await createSupabaseServerClient();
@@ -155,6 +212,9 @@ export async function syncWithGoogleSheet() {
     if (!rows || rows.length < 2) { throw new Error("No data found in the specified sheet."); }
 
     const headers = rows[0];
+    console.log("Google Sheet Headers:", headers);
+    console.log("First few rows:", rows.slice(0, 3));
+    
     const uniqueIdColumnName = 'Sr. No. OF SCEME';
     const srNoIndex = headers.indexOf(uniqueIdColumnName);
     if (srNoIndex === -1) { throw new Error(`The required column '${uniqueIdColumnName}' was not found.`); }
@@ -175,16 +235,23 @@ export async function syncWithGoogleSheet() {
         .map(row => mapRowToWork(row, headers))
         .filter(work => work.scheme_sr_no && String(work.scheme_sr_no).trim() !== '');
 
+    console.log(`Total rows processed: ${rows.length - 1}`);
+    console.log(`Valid works to upsert: ${dataToUpsert.length}`);
+    console.log("Sample work data:", dataToUpsert.slice(0, 2));
+
     if (dataToUpsert.length > 0) {
         const { error: upsertError } = await supabase.from('works').upsert(dataToUpsert, { onConflict: 'scheme_sr_no' });
-        if (upsertError) { throw new Error(`Supabase Upsert Error: ${upsertError.message}`); }
+        if (upsertError) { 
+          console.error("Upsert Error Details:", upsertError);
+          throw new Error(`Supabase Upsert Error: ${upsertError.message}`); 
+        }
     }
     
     revalidatePath("/(main)/admin/settings");
     revalidatePath("/dashboard");
     return { success: `Sync complete. Upserted: ${dataToUpsert.length}, Deleted: ${srNosToDelete.length}.` };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("SYNC FAILED:", error);
-    return { error: error.message };
+    return { error: error instanceof Error ? error.message : 'Unknown error occurred' };
   }
 }

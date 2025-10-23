@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTransition, useState, useRef } from "react";
+import { Key } from "lucide-react";
 
 export function UpdatePasswordForm() {
   const [isPending, startTransition] = useTransition();
@@ -17,7 +18,7 @@ export function UpdatePasswordForm() {
     const formData = new FormData(event.currentTarget);
     startTransition(async () => {
       const result = await updateUserPassword(formData);
-      // --- यहाँ बदलाव किया गया है ---
+      // --- Updated here ---
       setMessage(result.error || result.success || null);
       if (result.success) {
         formRef.current?.reset();
@@ -28,13 +29,28 @@ export function UpdatePasswordForm() {
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="newPassword">नया पासवर्ड</Label>
-        <Input id="newPassword" name="newPassword" type="password" required />
+        <Label htmlFor="newPassword" className="text-sm font-medium text-slate-700">New Password</Label>
+        <Input 
+          id="newPassword" 
+          name="newPassword" 
+          type="password" 
+          required 
+          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+        />
       </div>
-      <Button type="submit" disabled={isPending}>
-        {isPending ? "अपडेट हो रहा है..." : "पासワード बदलें"}
+      <Button type="submit" disabled={isPending} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+        <Key className="h-4 w-4 mr-2" />
+        {isPending ? "Updating..." : "Change Password"}
       </Button>
-      {message && <p className={`text-sm mt-2 ${message.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>{message}</p>}
+      {message && (
+        <div className={`text-sm p-3 rounded-lg border ${
+          message.includes('successfully') 
+            ? 'text-green-700 bg-green-50 border-green-200' 
+            : 'text-red-700 bg-red-50 border-red-200'
+        }`}>
+          {message}
+        </div>
+      )}
     </form>
   );
 }

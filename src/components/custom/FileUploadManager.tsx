@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { addAttachmentToWork, generateUploadUrl, deleteAttachment } from "@/app/(main)/dashboard/work/[id]/actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, ImageIcon, Trash2, User, Loader2 } from "lucide-react";
+import { FileText, ImageIcon, Trash2, User, Loader2, Upload } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-// अटैचमेंट के लिए टाइप परिभाषा
+// Type definition for attachments
 type Attachment = {
   id: number;
   file_url: string;
@@ -27,7 +27,7 @@ interface FileUploadManagerProps {
   currentUserId: string;
 }
 
-// फाइल के प्रकार का पता लगाने के लिए हेल्पर फंक्शन
+// Helper function to detect file type
 const getFileType = (url: string) => {
   const extension = url.split('.').pop()?.toLowerCase() || '';
   if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) return 'image';
@@ -51,7 +51,7 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
     setMessage(null);
 
     if (files.length === 0) {
-      setMessage("कृपया अपलोड करने के लिए कम से कम एक फाइल चुनें।");
+      setMessage("Please select at least one file to upload.");
       return;
     }
 
@@ -78,7 +78,7 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
         uploadCount++;
       }
       
-      setMessage(`${uploadCount} फाइल(ें) सफलतापूर्वक अपलोड हो गईं!`);
+      setMessage(`${uploadCount} file(s) uploaded successfully!`);
       setFiles([]);
       const form = event.target as HTMLFormElement;
       form.reset();
@@ -86,64 +86,86 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
   };
 
   const handleDelete = (attachmentId: number) => {
-    if (window.confirm("क्या आप वाकई इस फाइल को हटाना चाहते हैं?")) {
+    if (window.confirm("Are you sure you want to delete this file?")) {
       startTransition(async () => {
         const result = await deleteAttachment(attachmentId, workId);
-        // --- यहाँ पहला बदलाव किया गया है (TypeScript एरर फिक्स) ---
+        // --- Updated here (TypeScript error fix) ---
         setMessage(result.error || result.success || null);
       });
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>फाइल मैनेजमेंट</CardTitle>
-        <CardDescription>कार्य से संबंधित तस्वीरें या PDF दस्तावेज़ अपलोड करें।</CardDescription>
+    <Card className="border-slate-200 shadow-sm">
+      <CardHeader className="border-b border-slate-200">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
+            <Upload className="h-5 w-5 text-blue-600" />
+          </div>
+          <div>
+            <CardTitle className="text-lg font-semibold text-slate-900">File Management</CardTitle>
+            <CardDescription className="text-slate-600">Upload photos or PDF documents related to this work.</CardDescription>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="file-upload">फाइलें चुनें</Label>
-            <Input id="file-upload" type="file" multiple onChange={handleFileChange} disabled={isPending} />
+            <Label htmlFor="file-upload" className="text-sm font-medium text-slate-700">Select Files</Label>
+            <Input 
+              id="file-upload" 
+              type="file" 
+              multiple 
+              onChange={handleFileChange} 
+              disabled={isPending} 
+              className="border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+            />
           </div>
-          <Button type="submit" disabled={isPending || files.length === 0}>
-            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {isPending ? "अपलोड हो रहा है..." : `${files.length} फाइल(ें) अपलोड करें`}
+          <Button type="submit" disabled={isPending || files.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white">
+            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+            {isPending ? "Uploading..." : `Upload ${files.length} file(s)`}
           </Button>
-          {message && <p className={`text-sm mt-2 ${message.includes('successfully') || message.includes('सफलतापूर्वक') ? 'text-green-600' : 'text-red-600'}`}>{message}</p>}
+          {message && (
+            <div className={`text-sm p-3 rounded-lg border ${
+              message.includes('successfully') 
+                ? 'text-green-700 bg-green-50 border-green-200' 
+                : 'text-red-700 bg-red-50 border-red-200'
+            }`}>
+              {message}
+            </div>
+          )}
         </form>
         
         <div className="mt-6">
-          <h3 className="text-lg font-medium mb-4">अपलोड की गई फाइलें</h3>
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Uploaded Files</h3>
           {!attachments || attachments.length === 0 ? (
-            <p className="text-sm text-gray-500">कोई फाइल अपलोड नहीं की गई है।</p>
+            <p className="text-sm text-slate-500">No files uploaded yet.</p>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {attachments.map((att) => (
-                <div key={att.id} className="relative group border rounded-lg p-2 flex flex-col justify-between bg-white">
-                  {/* --- यहाँ दूसरा बदलाव किया गया है (Tailwind सुझाव) --- */}
+                <div key={att.id} className="relative group border border-slate-200 rounded-lg p-2 flex flex-col justify-between bg-white hover:shadow-md transition-shadow">
+                  {/* --- Updated here (Tailwind suggestion) --- */}
                   <Link href={att.file_url} target="_blank" rel="noopener noreferrer" className="grow">
-                    <div className="relative aspect-square w-full overflow-hidden flex items-center justify-center bg-gray-100 rounded-md mb-2">
+                    <div className="relative aspect-square w-full overflow-hidden flex items-center justify-center bg-slate-100 rounded-md mb-2">
                        {getFileType(att.file_url) === 'image' ? (
                          <Image src={att.file_url} alt={att.file_name || 'Uploaded image'} fill className="object-cover" sizes="(max-width: 768px) 50vw, 20vw" />
                        ) : (
                          <div className="text-center p-2">
-                           {getFileType(att.file_url) === 'pdf' ? <FileText className="h-8 w-8 mx-auto text-red-500" /> : <ImageIcon className="h-8 w-8 mx-auto text-gray-500" />}
+                           {getFileType(att.file_url) === 'pdf' ? <FileText className="h-8 w-8 mx-auto text-red-500" /> : <ImageIcon className="h-8 w-8 mx-auto text-slate-500" />}
                          </div>
                        )}
                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all" />
                     </div>
                   </Link>
                   <div className="text-xs mt-auto">
-                    <p className="font-medium truncate">{att.file_name || "Untitled"}</p>
-                    <p className="text-gray-500 flex items-center gap-1"><User size={12} /> {att.uploader_full_name?.split(' ')[0] || 'N/A'}</p>
+                    <p className="font-medium truncate text-slate-900">{att.file_name || "Untitled"}</p>
+                    <p className="text-slate-500 flex items-center gap-1"><User size={12} /> {att.uploader_full_name?.split(' ')[0] || 'N/A'}</p>
                   </div>
                   {(currentUserId === att.uploader_id) && (
                     <Button
                       variant="destructive"
                       size="icon"
-                      className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity bg-red-600 hover:bg-red-700"
                       onClick={() => handleDelete(att.id)}
                       disabled={isPending}
                       aria-label="Delete file"

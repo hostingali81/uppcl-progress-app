@@ -10,7 +10,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
 
 // ====================================================================
-// ये फंक्शन अपरिवर्तित हैं
+// These functions remain unchanged
 // ====================================================================
 
 function toColumnName(num: number): string {
@@ -50,24 +50,53 @@ async function updateGoogleSheet(workSrNo: string, newProgress: number, newRemar
         await sheets.spreadsheets.values.update({ spreadsheetId: sheetId, range: `${sheetName}!${progressColumnLetter}${rowNumber}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[`${newProgress}%`]] } });
         await sheets.spreadsheets.values.update({ spreadsheetId: sheetId, range: `${sheetName}!${remarkColumnLetter}${rowNumber}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[newRemark]] } });
         console.log(`Google Sheet updated for Sr. No. ${workSrNo}`);
-    } catch (error: any) {
-        console.error("CRITICAL: Failed to update Google Sheet:", error.message);
+    } catch (error: unknown) {
+        console.error("CRITICAL: Failed to update Google Sheet:", error instanceof Error ? error.message : 'Unknown error');
     }
 }
 
 export async function updateWorkProgress(formData: FormData) {
-    const { admin: supabaseAdmin, client: supabaseUserClient } = await createSupabaseServerClient();
+    const { admin: supabaseAdmin, client: supabase } = await createSupabaseServerClient();
     const workId = formData.get("workId") as string;
     const progress = formData.get("progress") as string;
     const remark = formData.get("remark") as string;
-    const { data: { user } } = await supabaseUserClient.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!workId || !user) return { error: "Work ID or User is missing." };
-    const { data: currentWork, error: fetchError } = await supabaseUserClient.from("works").select("progress_percentage, scheme_sr_no").eq("id", workId).single();
+    
+    const workIdNumber = parseInt(workId, 10);
+    const progressNumber = parseInt(progress, 10);
+    
+    const { data: currentWork, error: fetchError } = await supabase.from("works").select("progress_percentage, scheme_sr_no").eq("id", workIdNumber).single();
     if (fetchError || !currentWork) return { error: "Could not fetch current work details." };
-    const { error: updateError } = await supabaseUserClient.from("works").update({ progress_percentage: parseInt(progress, 10), remark: remark }).eq("id", workId);
+    
+    const { error: updateError } = await supabase.from("works").update({ progress_percentage: progressNumber, remark: remark }).eq("id", workIdNumber);
     if (updateError) return { error: `Database Error: ${updateError.message}` };
-    await supabaseAdmin.from("progress_logs").insert({ work_id: workId, user_id: user.id, user_email: user.email, previous_progress: currentWork.progress_percentage, new_progress: parseInt(progress, 10), remark: remark });
-    if (currentWork.scheme_sr_no) { await updateGoogleSheet(currentWork.scheme_sr_no, parseInt(progress, 10), remark); }
+    
+    // Get user's full name from profile using admin client to bypass RLS
+    const { data: profile } = await supabaseAdmin.from("profiles").select("full_name").eq("id", user.id).single();
+    
+    // Use full name if available and not empty, otherwise use email
+    const displayName = (profile?.full_name && profile.full_name.trim() !== '') ? profile.full_name : user.email;
+    
+    // Insert progress log using admin client to bypass RLS (since policies are not set up)
+    const { error: logError } = await supabaseAdmin.from("progress_logs").insert({ 
+        work_id: workIdNumber, 
+        user_id: user.id, 
+        user_email: displayName, // Use full name if available, fallback to email
+        previous_progress: currentWork.progress_percentage, 
+        new_progress: progressNumber, 
+        remark: remark 
+    });
+    
+    if (logError) {
+        console.error("Failed to insert progress log:", logError);
+        return { error: `Progress updated but logging failed: ${logError.message}` };
+    }
+    
+    if (currentWork.scheme_sr_no) { 
+        await updateGoogleSheet(currentWork.scheme_sr_no, progressNumber, remark); 
+    }
+    
     revalidatePath(`/dashboard/work/${workId}`);
     revalidatePath("/dashboard");
     return { success: "Progress updated and logged successfully!" };
@@ -91,7 +120,7 @@ export async function generateUploadUrl(fileName: string, fileType: string) {
     const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 60 });
     const publicFileUrl = `${publicUrl}/${uniqueKey}`;
     return { success: { uploadUrl, publicFileUrl } };
-  } catch (error: any) { return { error: `Failed to generate upload URL: ${error.message}` }; }
+  } catch (error: unknown) { return { error: `Failed to generate upload URL: ${error instanceof Error ? error.message : 'Unknown error'}` }; }
 }
 
 export async function addAttachmentToWork(workId: number, fileUrl: string, fileName: string) {
@@ -121,8 +150,8 @@ export async function deleteAttachment(attachmentId: number, workId: number) {
     const s3Client = new S3Client({ region: "auto", endpoint: `https://${accountId}.r2.cloudflarestorage.com`, credentials: { accessKeyId, secretAccessKey }, });
     const fileKey = attachment.file_url.split('/').slice(3).join('/');
     await s3Client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: fileKey }));
-  } catch (r2Error: any) {
-    console.error("Failed to delete file from R2:", r2Error.message);
+  } catch (r2Error: unknown) {
+    console.error("Failed to delete file from R2:", r2Error instanceof Error ? r2Error.message : 'Unknown error');
     return { error: "Could not delete file from storage." };
   }
   const { error: deleteError } = await supabase.from("attachments").delete().eq("id", attachmentId);
@@ -154,14 +183,14 @@ export async function editComment(commentId: number, newContent: string) {
 
 export async function deleteComment(commentId: number) {
   const { client: supabase } = await createSupabaseServerClient();
-  const { error } = await supabase.from("comments").update({ content: "यह टिप्पणी हटा दी गई है।", is_deleted: true }).eq("id", commentId);
+  const { error } = await supabase.from("comments").update({ content: "This comment has been deleted.", is_deleted: true }).eq("id", commentId);
   if (error) { return { error: `Could not delete comment: ${error.message}` }; }
   revalidatePath(`/(main)/dashboard/work/[id]`);
   return { success: "Comment deleted." };
 }
 
 // ====================================================================
-// नया कोड यहाँ से शुरू होता है
+// New code starts from here
 // ====================================================================
 
 export async function toggleBlockerStatus(
@@ -173,12 +202,12 @@ export async function toggleBlockerStatus(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) { return { error: "Authentication required." }; }
 
-  // RLS नीतियों का सम्मान करते हुए काम को अपडेट करें
+  // Update work respecting RLS policies
   const { error } = await supabase
     .from("works")
     .update({
       is_blocked: status,
-      blocker_remark: status ? remark : null // यदि अनब्लॉक कर रहे हैं, तो रिमार्क को हटा दें
+      blocker_remark: status ? remark : null // If unblocking, remove the remark
     })
     .eq("id", workId);
 
@@ -186,7 +215,7 @@ export async function toggleBlockerStatus(
     return { error: `Could not update blocker status: ${error.message}` };
   }
 
-  // डैशबोर्ड और वर्क पेज दोनों के कैश को रीफ्रेश करें
+  // Refresh cache for both dashboard and work page
   revalidatePath(`/(main)/dashboard/work/${workId}`);
   revalidatePath(`/(main)/dashboard`);
   

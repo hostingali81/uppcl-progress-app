@@ -2,8 +2,11 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UpdateProfileForm } from "@/components/custom/UpdateProfileForm";
-import { UpdatePasswordForm } from "@/components/custom/UpdatePasswordForm";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ProfileClient } from "@/components/custom/ProfileClient";
+import { ProfileError, ProfileNotFound } from "@/components/custom/ProfileErrorStates";
+import { User, Mail, Shield, Calendar, MapPin } from "lucide-react";
 
 export default async function ProfilePage() {
     const { client: supabase } = await createSupabaseServerClient();
@@ -13,69 +16,194 @@ export default async function ProfilePage() {
         return redirect("/login");
     }
 
-    const { data: profile } = await supabase
+    let { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("full_name, role, value")
         .eq("id", user.id)
         .single();
 
+    console.log("User ID:", user.id);
+    console.log("Profile data:", profile);
+    console.log("Profile error:", profileError);
+    
+    // Additional check: see if any profile exists for this user
+    const { data: profileCheck, error: checkError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+    
+    console.log("Profile check result:", profileCheck);
+    console.log("Profile check error:", checkError);
+
+    if (profileError) {
+        console.error("Profile fetch error details:", profileError);
+        console.error("Error type:", typeof profileError);
+        console.error("Error keys:", Object.keys(profileError));
+        console.error("Error code:", profileError.code);
+        console.error("Error message:", profileError.message);
+        
+        // If it's a "not found" error or empty error object, show a more specific message
+        if (profileError.code === 'PGRST116' || 
+            profileError.message?.includes('No rows found') || 
+            (Object.keys(profileError).length > 0 && !profileError.message && !profileError.code)) {
+            return <ProfileNotFound userEmail={user.email} userId={user.id} />;
+        }
+        
+        return <ProfileError userEmail={user.email} userId={user.id} errorMessage={profileError.message} />;
+    }
+
     if (!profile) {
-        return <p className="p-8 text-red-500">Could not load profile.</p>;
+        // Try to create a basic profile if it doesn't exist
+        console.log("Profile not found, attempting to create basic profile...");
+        
+        const { data: newProfile, error: createError } = await supabase
+            .from("profiles")
+            .insert({
+                id: user.id,
+                full_name: user.email?.split('@')[0] || 'User',
+                role: 'je', // Default role
+                value: null,
+                updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+            
+        if (createError || !newProfile) {
+            console.error("Failed to create profile:", createError);
+            return <ProfileNotFound userEmail={user.email} userId={user.id} />;
+        }
+        
+        // Use the newly created profile
+        profile = newProfile;
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-8">
-            <h1 className="text-3xl font-bold">मेरी प्रोफाइल</h1>
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+            {/* Page Header */}
+            <div className="flex items-center gap-3">
+                <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <User className="h-7 w-7 text-white" />
+                </div>
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-900">My Profile</h1>
+                    <p className="text-slate-600">Manage your account settings and personal information</p>
+                </div>
+            </div>
             
-            {/* प्रोफाइल विवरण कार्ड */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>प्रोफाइल विवरण</CardTitle>
-                    <CardDescription>
-                        यह जानकारी केवल आप और सिस्टम एडमिन देख सकते हैं।
-                    </CardDescription>
+            {/* Profile Overview Card */}
+            <Card className="border-slate-200 shadow-sm bg-gradient-to-r from-white to-slate-50">
+                <CardHeader className="border-b border-slate-200">
+                    <CardTitle className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+                        <div className="h-6 w-6 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <User className="h-4 w-4 text-blue-600" />
+                        </div>
+                        Profile Overview
+                    </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <UpdateProfileForm fullName={profile.full_name || ''} />
+                <CardContent className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-slate-600">
+                                <Mail className="h-4 w-4" />
+                                <span className="text-sm font-medium">Email</span>
+                            </div>
+                            <p className="text-slate-900 font-medium">{user.email}</p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-slate-600">
+                                <Shield className="h-4 w-4" />
+                                <span className="text-sm font-medium">Role</span>
+                            </div>
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                {profile.role.replace('_', ' ')}
+                            </Badge>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-slate-600">
+                                <MapPin className="h-4 w-4" />
+                                <span className="text-sm font-medium">Assignment</span>
+                            </div>
+                            <p className="text-slate-900 font-medium">{profile.value || 'N/A'}</p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-slate-600">
+                                <Calendar className="h-4 w-4" />
+                                <span className="text-sm font-medium">Member Since</span>
+                            </div>
+                            <p className="text-slate-900 font-medium">
+                                N/A
+                            </p>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
-            {/* पासवर्ड बदलें कार्ड */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>पासवर्ड बदलें</CardTitle>
-                    <CardDescription>
-                        सुरक्षा कारणों से समय-समय पर अपना पासवर्ड बदलते रहें।
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <UpdatePasswordForm />
-                </CardContent>
-            </Card>
+            {/* Action Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Edit Profile Card */}
+                <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                    <CardHeader className="border-b border-slate-200">
+                        <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                <User className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-lg font-semibold text-slate-900">Personal Information</CardTitle>
+                                <CardDescription className="text-slate-600">
+                                    Update your name and personal details
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        <div className="space-y-4">
+                            <div>
+                                <p className="text-sm text-slate-600 mb-2">Current Name:</p>
+                                <p className="text-slate-900 font-medium">{profile.full_name || 'Not set'}</p>
+                            </div>
+                            <ProfileClient 
+                                fullName={profile.full_name || ''} 
+                                type="profile"
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
 
-            {/* केवल-पढ़ने योग्य जानकारी */}
-             <Card className="border-yellow-500">
-                <CardHeader>
-                    <CardTitle>सिस्टम जानकारी (केवल-पढ़ने योग्य)</CardTitle>
-                    <CardDescription>
-                       यह जानकारी सिस्टम एडमिन द्वारा प्रबंधित की जाती है।
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                     <div>
-                        <h3 className="font-medium text-sm text-gray-500">ईमेल</h3>
-                        <p>{user.email}</p>
-                    </div>
-                     <div>
-                        <h3 className="font-medium text-sm text-gray-500">आपकी भूमिका (Role)</h3>
-                        <p className="capitalize">{profile.role.replace('_', ' ')}</p>
-                    </div>
-                     <div>
-                        <h3 className="font-medium text-sm text-gray-500">आपका मान (Value)</h3>
-                        <p>{profile.value || 'N/A'}</p>
-                    </div>
-                </CardContent>
-            </Card>
+                {/* Change Password Card */}
+                <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                    <CardHeader className="border-b border-slate-200">
+                        <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                                <Shield className="h-5 w-5 text-orange-600" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-lg font-semibold text-slate-900">Security</CardTitle>
+                                <CardDescription className="text-slate-600">
+                                    Change your password for better security
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        <div className="space-y-4">
+                            <div>
+                                <p className="text-sm text-slate-600 mb-2">Password Status:</p>
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                    Active
+                                </Badge>
+                            </div>
+                            <ProfileClient 
+                                fullName="" 
+                                type="password"
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }

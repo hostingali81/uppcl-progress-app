@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTransition, useState } from "react";
+import { Save } from "lucide-react";
 
 export function UpdateProfileForm({ fullName }: { fullName: string }) {
   const [isPending, startTransition] = useTransition();
@@ -16,7 +17,7 @@ export function UpdateProfileForm({ fullName }: { fullName: string }) {
     const formData = new FormData(event.currentTarget);
     startTransition(async () => {
       const result = await updateUserProfile(formData);
-      // --- यहाँ बदलाव किया गया है ---
+      // --- Updated here ---
       setMessage(result.error || result.success || null);
     });
   };
@@ -24,13 +25,28 @@ export function UpdateProfileForm({ fullName }: { fullName: string }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="fullName">पूरा नाम</Label>
-        <Input id="fullName" name="fullName" defaultValue={fullName} required />
+        <Label htmlFor="fullName" className="text-sm font-medium text-slate-700">Full Name</Label>
+        <Input 
+          id="fullName" 
+          name="fullName" 
+          defaultValue={fullName} 
+          required 
+          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+        />
       </div>
-      <Button type="submit" disabled={isPending}>
-        {isPending ? "सेव हो रहा है..." : "नाम सेव करें"}
+      <Button type="submit" disabled={isPending} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+        <Save className="h-4 w-4 mr-2" />
+        {isPending ? "Saving..." : "Save Name"}
       </Button>
-      {message && <p className={`text-sm mt-2 ${message.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>{message}</p>}
+      {message && (
+        <div className={`text-sm p-3 rounded-lg border ${
+          message.includes('successfully') 
+            ? 'text-green-700 bg-green-50 border-green-200' 
+            : 'text-red-700 bg-red-50 border-red-200'
+        }`}>
+          {message}
+        </div>
+      )}
     </form>
   );
 }

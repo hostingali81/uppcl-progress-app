@@ -1,5 +1,5 @@
 // src/components/custom/AddUserDialog.tsx
-"use client"; // यह एक क्लाइंट कंपोनेंट है क्योंकि इसमें स्टेट और इंटरेक्शन है
+"use client"; // This is a client component because it has state and interactions
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -21,8 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { UserPlus } from "lucide-react";
 
-// सर्वर एक्शन को यहाँ इम्पोर्ट करें (इसे हम अगले चरण में बनाएंगे)
+// Import the server action here (we'll create this in the next step)
 import { addUser } from "@/app/(main)/admin/users/actions";
 
 export function AddUserDialog() {
@@ -39,59 +40,92 @@ export function AddUserDialog() {
     if (result?.error) {
       setError(result.error);
     } else {
-      setIsOpen(false); // सफलता पर डायलॉग बंद करें
+      setIsOpen(false); // Close dialog on success
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button>नया यूज़र जोड़ें</Button>
+        <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+          <UserPlus className="h-4 w-4 mr-2" />
+          Add New User
+        </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] overflow-visible p-6">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>नया यूज़र बनाएँ</DialogTitle>
-            <DialogDescription>
-              यहाँ यूज़र की जानकारी दर्ज करें। उसे एक अस्थायी पासवर्ड दिया जाएगा।
+            <DialogTitle className="text-xl font-semibold text-slate-900">Create New User</DialogTitle>
+            <DialogDescription className="text-slate-600">
+              Enter user information here. They will be given a temporary password.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="full_name" className="text-right">पूरा नाम</Label>
-              <Input id="full_name" name="full_name" className="col-span-3" required />
+              <Label htmlFor="full_name" className="text-right font-medium text-slate-700">Full Name</Label>
+              <Input 
+                id="full_name" 
+                name="full_name" 
+                className="col-span-3 border-slate-200 focus:border-blue-500 focus:ring-blue-500" 
+                required 
+              />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">ईमेल</Label>
-              <Input id="email" name="email" type="email" className="col-span-3" required />
+              <Label htmlFor="email" className="text-right font-medium text-slate-700">Email</Label>
+              <Input 
+                id="email" 
+                name="email" 
+                type="email" 
+                className="col-span-3 border-slate-200 focus:border-blue-500 focus:ring-blue-500" 
+                required 
+              />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="password" className="text-right">पासवर्ड</Label>
-              <Input id="password" name="password" type="password" className="col-span-3" required />
+              <Label htmlFor="password" className="text-right font-medium text-slate-700">Password</Label>
+              <Input 
+                id="password" 
+                name="password" 
+                type="password" 
+                className="col-span-3 border-slate-200 focus:border-blue-500 focus:ring-blue-500" 
+                required 
+              />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="role" className="text-right">भूमिका</Label>
+              <Label htmlFor="role" className="text-right font-medium text-slate-700">Role</Label>
               <Select name="role" required>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="एक भूमिका चुनें" />
+                <SelectTrigger className="col-span-3 border-slate-200 focus:border-blue-500 focus:ring-blue-500">
+                  <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="je">JE</SelectItem>
-                  <SelectItem value="division_head">Division Head</SelectItem>
-                  <SelectItem value="circle_head">Circle Head</SelectItem>
-                  <SelectItem value="zone_head">Zone Head</SelectItem>
+                <SelectContent 
+                  className="z-[100] bg-white border-slate-200 shadow-lg"
+                  position="item-aligned"
+                  side="bottom"
+                  align="start"
+                  sideOffset={4}
+                >
+                  <SelectItem value="je" className="bg-white hover:bg-slate-50">JE</SelectItem>
+                  <SelectItem value="sub_division_head" className="bg-white hover:bg-slate-50">Sub-Division Head</SelectItem>
+                  <SelectItem value="division_head" className="bg-white hover:bg-slate-50">Division Head</SelectItem>
+                  <SelectItem value="circle_head" className="bg-white hover:bg-slate-50">Circle Head</SelectItem>
+                  <SelectItem value="zone_head" className="bg-white hover:bg-slate-50">Zone Head</SelectItem>
                 </SelectContent>
               </Select>
             </div>
              <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="value" className="text-right">मान (Value)</Label>
-              <Input id="value" name="value" placeholder="जैसे: ECD AGRA" className="col-span-3" />
+              <Label htmlFor="value" className="text-right font-medium text-slate-700">Value</Label>
+              <Input 
+                id="value" 
+                name="value" 
+                placeholder="e.g., ECD AGRA" 
+                className="col-span-3 border-slate-200 focus:border-blue-500 focus:ring-blue-500" 
+              />
             </div>
           </div>
-           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+           {error && <p className="text-red-500 text-sm mb-4 bg-red-50 p-3 rounded-lg border border-red-200">{error}</p>}
           <DialogFooter>
-            <Button type="submit">यूज़र सेव करें</Button>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
+              Save User
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
