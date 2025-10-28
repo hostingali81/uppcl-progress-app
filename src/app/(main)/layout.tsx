@@ -11,25 +11,84 @@ export default async function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // --- Data fetching logic remains unchanged ---
-  const { client: supabase } = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  let userDetails;
+  try {
+    // Attempt to create Supabase client with validation
+    let supabase;
+    try {
+      const result = await createSupabaseServerClient();
+      supabase = result.client;
+    } catch (error) {
+      console.error('Failed to create Supabase client:', error);
+      return redirect('/login');
+    }
+    
+    // Check auth status with timeout
+    const authPromise = supabase.auth.getUser();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Auth timeout')), 5000)
+    );
+    
+    const { data: { user }, error: authError } = await Promise.race([
+      authPromise,
+      timeoutPromise
+    ]) as Awaited<typeof authPromise>;
 
-  if (!user) {
+    if (authError) {
+      console.error('Auth error:', authError);
+      return redirect('/login');
+    }
+    
+    if (!user) {
+      return redirect('/login');
+    }
+
+    // Fetch user profile with retry logic
+    let profile = null;
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("role, full_name")
+          .eq("id", user.id)
+          .single();
+
+        if (data) {
+          profile = data;
+          break;
+        }
+
+        if (error) {
+          console.error(`Profile fetch attempt ${retryCount + 1} failed:`, error);
+          retryCount++;
+          if (retryCount === maxRetries) {
+            throw error;
+          }
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+        }
+      } catch (error) {
+        console.error(`Profile fetch attempt ${retryCount + 1} failed with exception:`, error);
+        retryCount++;
+        if (retryCount === maxRetries) {
+          throw error;
+        }
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+      }
+    }
+
+    userDetails = {
+      email: user.email,
+      role: profile?.role || 'user',
+      fullName: profile?.full_name || user.email,
+    };
+  } catch (error) {
+    console.error('MainLayout error:', error);
     return redirect('/login');
   }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, full_name")
-    .eq("id", user.id)
-    .single();
-
-  const userDetails = {
-    email: user.email,
-    role: profile?.role || 'user',
-    fullName: profile?.full_name || user.email,
-  };
   // --- End of data fetching logic ---
 
   return (

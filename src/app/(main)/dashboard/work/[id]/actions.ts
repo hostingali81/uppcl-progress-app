@@ -3,6 +3,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { google } from "googleapis";
 import { getSettings } from "@/app/(main)/admin/settings/actions";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
@@ -23,7 +24,13 @@ function toColumnName(num: number): string {
     return columnName;
 }
 
-async function updateGoogleSheet(workSrNo: string, newProgress: number, newRemark: string) {
+async function updateGoogleSheet(
+  workSrNo: string,
+  newProgress: number,
+  newRemark: string,
+  newBillNo?: string | null,
+  newBillAmount?: number | null
+) {
     try {
         const { client: supabase } = await createSupabaseServerClient();
         const settings = await getSettings(supabase);
@@ -37,18 +44,43 @@ async function updateGoogleSheet(workSrNo: string, newProgress: number, newRemar
         const readData = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName });
         const rows = readData.data.values;
         if (!rows) throw new Error("No data in sheet.");
-        const headers = rows[0];
-        const srNoColIndex = headers.indexOf('Sr. No. OF SCEME');
-        const progressColIndex = headers.indexOf('Present Progress in %');
-        const remarkColIndex = headers.indexOf('Remark');
-        if (srNoColIndex === -1 || progressColIndex === -1 || remarkColIndex === -1) { throw new Error("Required columns not found."); }
+  const headers = rows[0];
+  const srNoColIndex = headers.indexOf('Sr. No. OF SCEME');
+  const progressColIndex = headers.indexOf('Present Progress in %');
+  const remarkColIndex = headers.indexOf('Remark');
+  if (srNoColIndex === -1 || progressColIndex === -1 || remarkColIndex === -1) { throw new Error("Required columns not found."); }
         const rowIndex = rows.findIndex(row => row[srNoColIndex] === workSrNo);
         if (rowIndex === -1) return;
         const rowNumber = rowIndex + 1;
-        const progressColumnLetter = toColumnName(progressColIndex + 1);
-        const remarkColumnLetter = toColumnName(remarkColIndex + 1);
-        await sheets.spreadsheets.values.update({ spreadsheetId: sheetId, range: `${sheetName}!${progressColumnLetter}${rowNumber}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[`${newProgress}%`]] } });
-        await sheets.spreadsheets.values.update({ spreadsheetId: sheetId, range: `${sheetName}!${remarkColumnLetter}${rowNumber}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[newRemark]] } });
+    const progressColumnLetter = toColumnName(progressColIndex + 1);
+    const remarkColumnLetter = toColumnName(remarkColIndex + 1);
+    await sheets.spreadsheets.values.update({ spreadsheetId: sheetId, range: `${sheetName}!${progressColumnLetter}${rowNumber}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[`${newProgress}%`]] } });
+    await sheets.spreadsheets.values.update({ spreadsheetId: sheetId, range: `${sheetName}!${remarkColumnLetter}${rowNumber}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[newRemark]] } });
+
+    // Optional: update Bill No and Bill Amount (Incl. Tax) if those headers exist
+    const billNoColIndex = headers.indexOf('Bill No');
+    const billAmountColIndex = headers.indexOf('Bill Amount (Incl. Tax)');
+
+    if (billNoColIndex !== -1) {
+      const billNoColLetter = toColumnName(billNoColIndex + 1);
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!${billNoColLetter}${rowNumber}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [[newBillNo || '']] }
+      });
+    }
+
+    if (billAmountColIndex !== -1) {
+      const billAmountColLetter = toColumnName(billAmountColIndex + 1);
+      const amountValue = (typeof newBillAmount === 'number') ? String(newBillAmount) : '';
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!${billAmountColLetter}${rowNumber}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [[amountValue]] }
+      });
+    }
         console.log(`Google Sheet updated for Sr. No. ${workSrNo}`);
     } catch (error: unknown) {
         console.error("CRITICAL: Failed to update Google Sheet:", error instanceof Error ? error.message : 'Unknown error');
@@ -60,16 +92,32 @@ export async function updateWorkProgress(formData: FormData) {
     const workId = formData.get("workId") as string;
     const progress = formData.get("progress") as string;
     const remark = formData.get("remark") as string;
+    const billNo = formData.get("billNo") as string;
+    const billAmount = formData.get("billAmount") as string;
+    const expectedCompletionDate = formData.get("expectedCompletionDate") as string;
+    const actualCompletionDate = formData.get("actualCompletionDate") as string;
     const { data: { user } } = await supabase.auth.getUser();
     if (!workId || !user) return { error: "Work ID or User is missing." };
     
     const workIdNumber = parseInt(workId, 10);
     const progressNumber = parseInt(progress, 10);
+    const billAmountNumber = billAmount ? parseFloat(billAmount) : null;
     
-    const { data: currentWork, error: fetchError } = await supabase.from("works").select("progress_percentage, scheme_sr_no").eq("id", workIdNumber).single();
+    const { data: currentWork, error: fetchError } = await supabase
+        .from("works")
+        .select("progress_percentage, scheme_sr_no, bill_no, bill_amount_with_tax")
+        .eq("id", workIdNumber)
+        .single();
     if (fetchError || !currentWork) return { error: "Could not fetch current work details." };
     
-    const { error: updateError } = await supabase.from("works").update({ progress_percentage: progressNumber, remark: remark }).eq("id", workIdNumber);
+    const { error: updateError } = await supabase.from("works").update({
+        progress_percentage: progressNumber,
+        remark: remark,
+        bill_no: billNo || null,
+        bill_amount_with_tax: billAmountNumber,
+        expected_completion_date: expectedCompletionDate || null,
+        actual_completion_date: actualCompletionDate || null
+    }).eq("id", workIdNumber);
     if (updateError) return { error: `Database Error: ${updateError.message}` };
     
     // Get user's full name from profile using admin client to bypass RLS
@@ -79,6 +127,7 @@ export async function updateWorkProgress(formData: FormData) {
     const displayName = (profile?.full_name && profile.full_name.trim() !== '') ? profile.full_name : user.email;
     
     // Insert progress log using admin client to bypass RLS (since policies are not set up)
+    // Log progress update
     const { error: logError } = await supabaseAdmin.from("progress_logs").insert({ 
         work_id: workIdNumber, 
         user_id: user.id, 
@@ -92,10 +141,29 @@ export async function updateWorkProgress(formData: FormData) {
         console.error("Failed to insert progress log:", logError);
         return { error: `Progress updated but logging failed: ${logError.message}` };
     }
-    
-    if (currentWork.scheme_sr_no) { 
-        await updateGoogleSheet(currentWork.scheme_sr_no, progressNumber, remark); 
+
+    // If bill details are updated, log the payment update
+    if (billNo || billAmountNumber) {
+        const { error: paymentLogError } = await supabaseAdmin.from("payment_logs").insert({
+            work_id: workIdNumber,
+            user_id: user.id,
+            user_email: displayName,
+            previous_bill_no: currentWork.bill_no,
+            previous_bill_amount: currentWork.bill_amount_with_tax,
+            new_bill_no: billNo || null,
+            new_bill_amount: billAmountNumber,
+            remark: remark
+        });
+
+        if (paymentLogError) {
+            console.error("Failed to insert payment log:", paymentLogError);
+            return { error: `Progress and payment updated but payment logging failed: ${paymentLogError.message}` };
+        }
     }
+    
+  if (currentWork.scheme_sr_no) { 
+    await updateGoogleSheet(currentWork.scheme_sr_no, progressNumber, remark, billNo || null, billAmountNumber); 
+  }
     
     revalidatePath(`/dashboard/work/${workId}`);
     revalidatePath("/dashboard");
@@ -116,8 +184,14 @@ export async function generateUploadUrl(fileName: string, fileType: string) {
     if (!accountId || !accessKeyId || !secretAccessKey || !bucketName || !publicUrl) { return { error: "Cloudflare R2 settings are not configured." }; }
     const s3Client = new S3Client({ region: "auto", endpoint: `https://${accountId}.r2.cloudflarestorage.com`, credentials: { accessKeyId, secretAccessKey }, });
     const uniqueKey = `uploads/${crypto.randomUUID()}-${fileName}`;
-    const command = new PutObjectCommand({ Bucket: bucketName, Key: uniqueKey, ContentType: fileType });
-    const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 60 });
+    const command = new PutObjectCommand({ 
+      Bucket: bucketName, 
+      Key: uniqueKey, 
+      ContentType: fileType,
+    });
+    const uploadUrl = await getSignedUrl(s3Client, command, { 
+      expiresIn: 3600, // Increase expiry to 1 hour
+    });
     const publicFileUrl = `${publicUrl}/${uniqueKey}`;
     return { success: { uploadUrl, publicFileUrl } };
   } catch (error: unknown) { return { error: `Failed to generate upload URL: ${error instanceof Error ? error.message : 'Unknown error'}` }; }
@@ -220,4 +294,56 @@ export async function toggleBlockerStatus(
   revalidatePath(`/(main)/dashboard`);
   
   return { success: "Blocker status updated successfully." };
+}
+
+// Zod schema for billing update validation
+const billingUpdateSchema = z.object({
+  workId: z.number(),
+  billNo: z.string().min(1, "Bill number is required."),
+  billAmount: z.number().positive("Bill amount must be positive."),
+  remark: z.string().optional(),
+});
+
+export async function updateBillingDetails(data: {
+  workId: number;
+  billNo: string;
+  billAmount: number;
+  remark?: string;
+}) {
+  const { admin: supabaseAdmin, client: supabase } = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "Authentication required." };
+  }
+
+  const validation = billingUpdateSchema.safeParse(data);
+  if (!validation.success) {
+    return { error: `Invalid input: ${validation.error.errors.map(e => e.message).join(', ')}` };
+  }
+
+  const { workId, billNo, billAmount, remark } = validation.data;
+
+  // Get user's full name for logging
+  const { data: profile } = await supabaseAdmin.from("profiles").select("full_name").eq("id", user.id).single();
+  const displayName = profile?.full_name || user.email || 'Unknown User';
+
+  // Insert a new payment log
+  const { error: paymentLogError } = await supabaseAdmin.from("payment_logs").insert({
+    work_id: workId,
+    user_id: user.id,
+    user_email: displayName,
+    new_bill_no: billNo,
+    new_bill_amount: billAmount,
+    remark: remark,
+  });
+
+  if (paymentLogError) {
+    console.error("Failed to insert payment log:", paymentLogError);
+    return { error: `Database Error: Could not log payment. ${paymentLogError.message}` };
+  }
+
+  revalidatePath(`/dashboard/work/${workId}`);
+  revalidatePath("/dashboard");
+
+  return { success: "Billing details updated successfully!" };
 }

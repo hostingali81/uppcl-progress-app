@@ -7,20 +7,35 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { ArrowLeft, FileText, MapPin, DollarSign, Calendar, Users, AlertTriangle, CheckCircle, Clock, TrendingUp, Building2, MapPin as LocationIcon, FileText as DocumentIcon, DollarSign as MoneyIcon, Calendar as CalendarIcon, Users as TeamIcon, Settings } from "lucide-react";
+import { ClickableDetailRow } from './ClickableDetailRow';
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { UpdateProgressForm } from "./UpdateProgressForm";
+import { UpdateBillingForm } from "./UpdateBillingForm";
 import { FileUploadManager } from "@/components/custom/FileUploadManager";
 import { CommentsSection } from "@/components/custom/CommentsSection";
 import { BlockerStatusManager } from "@/components/custom/BlockerStatusManager";
 import { ProgressLogsSection } from "@/components/custom/ProgressLogsSection";
+import { PaymentStatusTab } from "@/components/custom/PaymentStatusTab";
 
 // Enhanced detail row component with modern styling
-function DetailRow({ label, value }: { label: string; value: string | number | null | undefined }) {
+type DetailRowProps = {
+    label: string;
+    value: string | number | null | undefined;
+    onClick?: () => void;
+}
+
+function DetailRow({ label, value, onClick }: DetailRowProps) {
     if (value === null || value === undefined || value === '') return null;
+    
+    const baseClasses = "group flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 transition-colors duration-200 border-b border-slate-100 last:border-b-0";
+    const clickableClasses = onClick ? "cursor-pointer" : "";
+    
     return (
-        <div className="group flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 transition-colors duration-200 border-b border-slate-100 last:border-b-0">
+        <div className={`${baseClasses} ${clickableClasses}`} onClick={onClick}>
             <dt className="text-sm font-medium text-slate-600 flex-shrink-0 min-w-[140px]">{label}</dt>
-            <dd className="text-sm text-slate-900 font-medium text-right flex-1 ml-4">{String(value)}</dd>
+            <dd className={`text-sm text-slate-900 font-medium text-right flex-1 ml-4 ${onClick ? 'hover:text-blue-600 transition-colors duration-200' : ''}`}>
+                {String(value)}
+            </dd>
         </div>
     );
 }
@@ -83,16 +98,30 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
     const profilePromise = supabase.from("profiles").select('role').eq('id', user.id).single();
     const progressLogsPromise = supabase
         .from("progress_logs")
-        .select('id, user_email, previous_progress, new_progress, remark, created_at')
+        .select(`
+            id, work_id, user_email, previous_progress, new_progress, remark, created_at,
+            attachments:attachments(*)
+        `)
+        .eq('work_id', id)
+        .order('created_at', { ascending: false });
+
+    const paymentLogsPromise = supabase
+        .from('payment_logs')
+        .select('id, work_id, user_id, created_at, user_email, previous_bill_no, previous_bill_amount, new_bill_no, new_bill_amount, remark')
         .eq('work_id', id)
         .order('created_at', { ascending: false });
     
-    const [{ data: work, error: workError }, { data: allUsers }, { data: currentUserProfile }, { data: progressLogs }] = await Promise.all([workPromise, usersPromise, profilePromise, progressLogsPromise]);
+    const [{ data: work, error: workError }, { data: allUsers }, { data: currentUserProfile }, { data: progressLogs }, { data: paymentLogs }] = await Promise.all([workPromise, usersPromise, profilePromise, progressLogsPromise, paymentLogsPromise]);
         
     if (workError || !work) notFound();
 
     const usersForMentions = allUsers ? allUsers.map(u => ({ id: u.id, display: u.full_name || 'Unknown' })) : [];
     const currentUserRole = currentUserProfile?.role || 'user';
+    
+    // Calculate billing summary
+    const totalBillAmount = paymentLogs?.reduce((sum, log) => sum + (log.new_bill_amount || 0), 0) || 0;
+    const latestBill = paymentLogs && paymentLogs.length > 0 ? paymentLogs[0] : null;
+    const latestBillNumber = latestBill?.new_bill_no || 'N/A';
     // --- END OF DATA FETCHING LOGIC ---
 
     return (
@@ -100,53 +129,20 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
             {/* Compact Header */}
             <div className="bg-white border-b border-slate-200 shadow-sm">
                 <div className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <Link href="/dashboard">
-                                <EnhancedButton 
-                                    variant="outline" 
-                                    size="icon" 
-                                    aria-label="Back to Dashboard" 
-                                    className="border-slate-200 hover:bg-slate-50"
-                                >
-                                    <ArrowLeft className="h-4 w-4" />
-                                </EnhancedButton>
-                            </Link>
-                            <div>
-                                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-                                    {work.work_name || 'Work Details'}
-                                </h1>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                                        {work.work_category || 'N/A'}
-                                    </Badge>
-                                    <span className="text-slate-500 text-sm">WBS: {work.wbs_code || 'N/A'}</span>
-                                    {work.is_blocked && (
-                                        <StatusBadge status="Blocked" type="error" />
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        {/* Progress Summary */}
-                        <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                                <div className="text-sm text-slate-600">Progress</div>
-                                <div className="text-lg font-bold text-slate-900">{work.progress_percentage || 0}%</div>
-                            </div>
-                            <div className="w-16 bg-slate-200 rounded-full h-2">
-                                <div 
-                                    className={`h-2 rounded-full transition-all duration-500 ${
-                                        (work.progress_percentage || 0) >= 100 ? 'bg-green-500' :
-                                        (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
-                                        (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
-                                        (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
-                                        'bg-red-500'
-                                    }`}
-                                    style={{ width: `${work.progress_percentage || 0}%` }}
-                                />
-                            </div>
-                        </div>
+                    <div className="flex items-center gap-3">
+                        <Link href="/dashboard">
+                            <EnhancedButton 
+                                variant="outline" 
+                                size="icon" 
+                                aria-label="Back to Dashboard" 
+                                className="border-slate-200 hover:bg-slate-50"
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                            </EnhancedButton>
+                        </Link>
+                        <h1 className="text-lg font-bold text-slate-900">
+                            {work.work_name || 'Work Details'}
+                        </h1>
                     </div>
                 </div>
             </div>
@@ -166,6 +162,12 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                                 workId={work.id}
                                 currentProgress={work.progress_percentage}
                                 currentRemark={work.remark}
+                                currentExpectedCompletionDate={work.expected_completion_date}
+                                currentActualCompletionDate={work.actual_completion_date}
+                            />
+                            <UpdateBillingForm 
+                                workId={work.id} 
+                                paymentLogs={paymentLogs || []} 
                             />
                             <BlockerStatusManager
                                 workId={work.id}
@@ -201,7 +203,8 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                                 <DetailRow label="Scheme Name" value={work.scheme_name} />
                                 <DetailRow label="Scheme Sr. No." value={work.scheme_sr_no} />
                                 <DetailRow label="Work Category" value={work.work_category} />
-                                <DetailRow label="Work Name" value={work.work_name} />
+                                <DetailRow label="Site Name" value={work.site_name} />
+                                <DetailRow label="District Name" value={work.district_name} />
                             </div>
                         </CardContent>
                     </Card>
@@ -225,7 +228,6 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                                 <DetailRow label="Circle Name" value={work.circle_name} />
                                 <DetailRow label="Division Name" value={work.division_name} />
                                 <DetailRow label="Sub-Division Name" value={work.sub_division_name} />
-                                <DetailRow label="District Name" value={work.district_name} />
                                 <DetailRow label="JE Name" value={work.je_name} />
                             </div>
                         </CardContent>
@@ -249,10 +251,9 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                <DetailRow label="Amount as per BP (Lacs)" value={work.amount_as_per_bp_lacs} />
-                                <DetailRow label="BOQ Amount" value={work.boq_amount} />
+                                <DetailRow label="Amount" value={work.amount_as_per_bp_lacs ?? work.sanction_amount_lacs} />
                                 <DetailRow label="Agreement Amount" value={work.agreement_amount} />
-                                <DetailRow label="Rate as per Agreement" value={work.rate_as_per_ag} />
+                                <DetailRow label="BOQ Amount" value={work.boq_amount} />
                             </div>
                         </CardContent>
                     </Card>
@@ -272,10 +273,11 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                <DetailRow label="Start Date" value={work.start_date} />
-                                <DetailRow label="Scheduled Completion Date" value={work.scheduled_completion_date} />
-                                <DetailRow label="Weightage" value={work.weightage} />
-                                <DetailRow label="Progress Percentage" value={`${work.progress_percentage || 0}%`} />
+                                <DetailRow label="Date of Start (As per Agr./ Actual)" value={work.start_date} />
+                                <DetailRow label="Scheduled Date of Completion" value={work.scheduled_completion_date} />
+                                <DetailRow label="Expected Date of Completion" value={work.expected_completion_date} />
+                                <DetailRow label="Actual Date of Completion" value={work.actual_completion_date} />
+                                <DetailRow label="Remark" value={work.remark} />
                             </div>
                         </CardContent>
                     </Card>
@@ -291,8 +293,8 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                                     <DocumentIcon className="h-5 w-5 text-white" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-xl font-bold text-slate-900">Tender Information</CardTitle>
-                                    <CardDescription className="text-slate-600">Procurement and bidding details</CardDescription>
+                                    <CardTitle className="text-xl font-bold text-slate-900">Tender & Contractor Information</CardTitle>
+                                    <CardDescription className="text-slate-600">Procurement, contractor and bidding details</CardDescription>
                                 </div>
                             </div>
                         </CardHeader>
@@ -300,37 +302,45 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                             <div className="divide-y divide-slate-100">
                                 <DetailRow label="Tender No." value={work.tender_no} />
                                 <DetailRow label="NIT Date" value={work.nit_date} />
-                                <DetailRow label="Part 1 Opening Date" value={work.part1_opening_date} />
                                 <DetailRow label="LOI No. and Date" value={work.loi_no_and_date} />
                                 <DetailRow label="Part 2 Opening Date" value={work.part2_opening_date} />
                                 <DetailRow label="Agreement No. and Date" value={work.agreement_no_and_date} />
+                                <DetailRow label="Weightage" value={work.weightage} />
+                                <DetailRow label="Rate as per Ag. (% above/ below)" value={work.rate_as_per_ag} />
+                                <DetailRow label="Firm Name and Contact" value={work.firm_name_and_contact} />
+                                <DetailRow label="Firm Contact No." value={work.firm_contact_no} />
+                                <DetailRow label="Firm Email" value={work.firm_email} />
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Contractor Information Card */}
+                    {/* Contractor Information card removed per user request */}
+
+                    {/* Distribution Location Detail Card */}
                     <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
-                        <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-slate-200">
+                        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                                    <TeamIcon className="h-5 w-5 text-white" />
+                                <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <LocationIcon className="h-5 w-5 text-white" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-xl font-bold text-slate-900">Contractor Information</CardTitle>
-                                    <CardDescription className="text-slate-600">Contractor and firm details</CardDescription>
+                                    <CardTitle className="text-xl font-bold text-slate-900">Distribution Location Detail</CardTitle>
+                                    <CardDescription className="text-slate-600">Distribution administrative details</CardDescription>
                                 </div>
                             </div>
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                <DetailRow label="Firm Name and Contact" value={work.firm_name_and_contact} />
-                                <DetailRow label="Firm Contact No." value={work.firm_contact_no} />
-                            </div>
-                        </CardContent>
+                                    <DetailRow label="Distribution Zone" value={work.distribution_zone ?? 'N/A'} />
+                                    <DetailRow label="Distribution Circle" value={work.distribution_circle ?? 'N/A'} />
+                                    <DetailRow label="Distribution Division" value={work.distribution_division ?? 'N/A'} />
+                                    <DetailRow label="Distribution Sub-Division" value={work.distribution_sub_division ?? 'N/A'} />
+                                </div>
+                            </CardContent>
                     </Card>
                 </div>
 
-                {/* Status Information Card */}
+                {/* Status Information Card (updated per user request) */}
                 <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
                     <CardHeader className="bg-gradient-to-r from-red-50 to-pink-50 border-b border-slate-200">
                         <div className="flex items-center gap-3">
@@ -345,12 +355,18 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="divide-y divide-slate-100">
+                            <DetailRow label="WBS Code" value={work.wbs_code} />
                             <DetailRow label="MB Status" value={work.mb_status} />
-                            <DetailRow label="TECO Status" value={work.teco_status} />
-                            <DetailRow label="FICO Status" value={work.fico_status} />
+                            <DetailRow label="TECO Status" value={work.teco_status || work.teco} />
+                            <DetailRow label="FICO Status" value={work.fico_status || work.fico} />
                             <DetailRow label="Is Blocked" value={work.is_blocked ? 'Yes' : 'No'} />
-                            <DetailRow label="Blocker Remark" value={work.blocker_remark} />
-                            <DetailRow label="Remark" value={work.remark} />
+                            <DetailRow label="Last Bill No." value={latestBillNumber} />
+                            <ClickableDetailRow 
+                                label="Total Billed Amount" 
+                                value={totalBillAmount > 0 ? `₹${totalBillAmount.toLocaleString()}` : 'N/A'} 
+                                workId={parseInt(id)}
+                                paymentLogs={paymentLogs || []}
+                            />
                         </div>
                     </CardContent>
                 </Card>
@@ -358,14 +374,14 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                 {/* Progress Logs & Comments Section */}
                 <div className="space-y-6">
                     <ProgressLogsSection progressLogs={progressLogs || []} />
-                    
-                    <CommentsSection 
-                        workId={work.id} 
-                        comments={work.comments} 
-                        mentionUsers={usersForMentions}
-                        currentUserId={user.id}
-                        currentUserRole={currentUserRole}
-                    />
+
+                        <CommentsSection 
+                            workId={work.id} 
+                            comments={work.comments} 
+                            mentionUsers={usersForMentions}
+                            currentUserId={user.id}
+                            currentUserRole={currentUserRole}
+                        />
                 </div>
             </div>
         </div>

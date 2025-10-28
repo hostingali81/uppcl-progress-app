@@ -32,14 +32,28 @@ type AnalyticsChartsProps = {
 };
 
 export function AnalyticsCharts({ statusData, financialData, districtData, monthlyData, chartTitle, kpis, colors, onKPIClick, activeFilter }: AnalyticsChartsProps) {
-  // Define the colors for the Pie chart based on the passed props.
-  const pieChartColors = [colors.completed, colors.inProgress, colors.notStarted];
+  // Define the colors for the Pie chart based on the KPI colors
+  const pieChartColors = {
+    Completed: '#16a34a', // text-green-600
+    'In Progress': '#9333ea', // text-purple-600
+    'Not Started': '#4b5563', // text-gray-600
+  };
 
-  // Format currency
+  // Format currency based on the value range
   const formatCurrency = (value: number) => {
-    if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
-    if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
-    return `₹${value.toLocaleString()}`;
+    if (value >= 10000000) {
+      const crores = value / 10000000;
+      return `₹${crores.toFixed(2)}Cr`;
+    }
+    if (value >= 100000) {
+      const lakhs = value / 100000;
+      return `₹${lakhs.toFixed(2)}L`;
+    }
+    if (value >= 1000) {
+      const thousands = value / 1000;
+      return `₹${thousands.toFixed(2)}K`;
+    }
+    return `₹${value.toFixed(2)}`;
   };
 
   return (
@@ -149,22 +163,29 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
             </div>
           </CardHeader>
           <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={400}>
               <PieChart>
                 <Pie
                   data={statusData}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  outerRadius={80}
+                  outerRadius={120}
                   fill="#8884d8"
                   dataKey="value"
                   nameKey="name"
                   strokeWidth={2}
                   stroke="#fff"
-                >
+                  isAnimationActive={false}
+                  style={{ outline: 'none' }}
+                  activeShape={false}
+                  label={(entry: any) => {
+                    const total = statusData.reduce((sum, item) => sum + item.value, 0);
+                    const percent = ((entry.value / total) * 100).toFixed(0);
+                    return `${entry.value} (${percent}%)`;
+                  }}
+                  labelLine={{ stroke: '#666666', strokeWidth: 1 }}>
                   {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={pieChartColors[index % pieChartColors.length]} />
+                    <Cell key={`cell-${index}`} fill={pieChartColors[entry.name as keyof typeof pieChartColors]} />
                   ))}
                 </Pie>
                 <Tooltip 
@@ -192,22 +213,32 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
             </div>
           </CardHeader>
           <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={400}>
               <PieChart>
                 <Pie
                   data={financialData}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  outerRadius={80}
+                  outerRadius={120}
                   fill="#8884d8"
                   dataKey="value"
                   nameKey="name"
                   strokeWidth={2}
                   stroke="#fff"
+                  style={{ outline: 'none' }}
+                  label={(entry: any) => {
+                    const total = financialData.reduce((sum, item) => sum + item.value, 0);
+                    if (total === 0) return '';
+                    const percent = ((entry.value / total) * 100).toFixed(1);
+                    return formatCurrency(entry.value) + ` (${percent}%)`;
+                  }}
+                  labelLine={{ stroke: '#666666', strokeWidth: 1 }}
                 >
                   {financialData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={pieChartColors[index % pieChartColors.length]} />
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={pieChartColors[entry.name as keyof typeof pieChartColors]} 
+                    />
                   ))}
                 </Pie>
                 <Tooltip 
@@ -263,6 +294,8 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
                   fill={colors.barChart} 
                   name="Total Works"
                   radius={[4, 4, 0, 0]}
+                  style={{ outline: 'none' }}
+                  className="focus:outline-none"
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -313,6 +346,8 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
                   stroke={colors.barChart} 
                   fill={`${colors.barChart}20`}
                   name="Completion Rate (%)"
+                  style={{ outline: 'none' }}
+                  className="focus:outline-none"
                 />
               </AreaChart>
             </ResponsiveContainer>

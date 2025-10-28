@@ -6,23 +6,9 @@ import { AnalyticsClient } from "@/components/custom/AnalyticsClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { BarChart3, PieChart } from "lucide-react";
 import { cache, cacheKeys } from "@/lib/cache";
+import type { Work } from "@/lib/types";
 
-// Type definition for a single work record for analytics purposes.
-type Work = {
-  id: string;
-  scheme_sr_no: string;
-  scheme_name: string;
-  work_name: string;
-  progress_percentage: number;
-  division_name: string | null;
-  sub_division_name: string | null;
-  circle_name: string | null;
-  zone_name: string | null;
-  district_name: string;
-  agreement_amount: number;
-  is_blocked: boolean;
-  created_at: string;
-};
+// Use shared Work type from src/lib/types.ts
 
 // This mapping logic remains unchanged.
 const roleToColumnMap: { [key:string]: string } = {
@@ -60,7 +46,18 @@ export default async function AnalyticsPage() {
   let works = cache.get(worksCacheKey);
   
   if (!works) {
-    let worksQuery = supabase.from("works").select("id, scheme_sr_no, scheme_name, work_name, progress_percentage, division_name, sub_division_name, circle_name, zone_name, district_name, agreement_amount, is_blocked, created_at");
+    let worksQuery = supabase.from("works").select(`
+      id, scheme_sr_no, scheme_name, work_name, work_category, wbs_code, district_name,
+      civil_zone, civil_circle, civil_division, civil_sub_division,
+      distribution_zone, distribution_circle, distribution_division, distribution_sub_division,
+      je_name, site_name,
+      sanction_amount_lacs, tender_no, boq_amount,
+      nit_date, part1_opening_date, part2_opening_date, loi_no_and_date,
+      rate_as_per_ag, agreement_amount, agreement_no_and_date,
+      firm_name_and_contact, firm_contact_no, firm_email,
+      start_date, scheduled_completion_date, weightage, progress_percentage, remark,
+      wbs_code, mb_status, teco, fico, is_blocked, created_at
+    `);
     
     const filterColumn = roleToColumnMap[(profile as any).role];
     if ((profile as any).role !== 'superadmin' && filterColumn && (profile as any).value) {
@@ -124,11 +121,20 @@ export default async function AnalyticsPage() {
   const financialData = worksData.reduce((acc, work) => {
     const progress = work.progress_percentage || 0;
     const agreementAmount = work.agreement_amount || 0;
-    const financialProgress = (agreementAmount * progress) / 100;
     
-    if (progress === 100) acc[0].value += financialProgress;
-    else if (progress > 0) acc[1].value += financialProgress;
-    else acc[2].value += financialProgress;
+    if (progress === 100) {
+      // For completed works, add full amount to completed
+      acc[0].value += agreementAmount;
+    } else if (progress > 0) {
+      // For in-progress works, split the amount between in-progress and not-started
+      const progressAmount = (agreementAmount * progress) / 100;
+      const remainingAmount = agreementAmount - progressAmount;
+      acc[1].value += progressAmount;
+      acc[2].value += remainingAmount;
+    } else {
+      // For not started works, add full amount to not-started
+      acc[2].value += agreementAmount;
+    }
     
     return acc;
   }, [
@@ -179,22 +185,8 @@ export default async function AnalyticsPage() {
   
   // Generate chart title based on user role
   const getChartTitle = (role: string) => {
-    switch (role) {
-      case 'je':
-        return 'Works by District';
-      case 'sub_division_head':
-        return 'Works by District';
-      case 'division_head':
-        return 'Works by Sub-Division';
-      case 'circle_head':
-        return 'Works by Division';
-      case 'zone_head':
-        return 'Works by Circle';
-      case 'superadmin':
-        return 'Works by Division';
-      default:
-        return 'Works by Division';
-    }
+    // Always return 'Works by District' regardless of role
+    return 'Works by District';
   };
   
   const chartTitle = getChartTitle((profile as any).role);

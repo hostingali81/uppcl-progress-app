@@ -66,7 +66,14 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
           return;
         }
 
-        const uploadResponse = await fetch(urlResult.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type }});
+        const uploadResponse = await fetch(urlResult.uploadUrl, { 
+          method: "PUT", 
+          body: file, 
+          headers: { 
+            "Content-Type": file.type,
+            "x-amz-acl": "public-read"
+          }
+        });
         if (!uploadResponse.ok) {
           setMessage({ text: `Upload failed for ${file.name}.`, type: 'error' });
           return;

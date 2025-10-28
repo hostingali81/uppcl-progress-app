@@ -12,36 +12,33 @@ const roleToColumnMap: { [key: string]: string } = {
   'zone_head': 'zone_name',
 };
 
-export async function exportToExcel() {
+export async function exportToExcel(works: any[], selectedColumns: string[] = []) {
   try {
-    const { client: supabase } = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { throw new Error("Authentication required."); }
+    // Validate selected columns
+    const allowedColumns = [
+      'id','scheme_name','zone_name','circle_name','division_name','sub_division_name','district_name','je_name',
+      'work_category','wbs_code','work_name','amount_as_per_bp_lacs','boq_amount','agreement_amount','rate_as_per_ag',
+      'tender_no','nit_date','part1_opening_date','loi_no_and_date','part2_opening_date','agreement_no_and_date',
+      'firm_name_and_contact','firm_contact_no','firm_email','start_date','scheduled_completion_date','actual_completion_date','weightage','progress_percentage',
+      'remark','mb_status','teco_status','fico_status','updated_at','is_blocked','blocker_remark',
+      'distribution_zone','distribution_circle','distribution_division','distribution_sub_division',
+      'bill_no','bill_amount_with_tax'
+    ];
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, value")
-      .eq("id", user.id)
-      .single();
+    const colsToSelect = (selectedColumns && selectedColumns.length > 0)
+      ? selectedColumns.filter(c => allowedColumns.includes(c))
+      : allowedColumns;
 
-    if (!profile) { throw new Error("Profile not found."); }
-
-    // Prepare database query same as dashboard
-    let worksQuery = supabase.from("works").select("*"); // Select all columns
-
-    const filterColumn = roleToColumnMap[profile.role];
-    if (profile.role !== 'superadmin' && filterColumn && profile.value) {
-      worksQuery = worksQuery.eq(filterColumn, profile.value);
+    if (colsToSelect.length === 0) {
+      return { error: 'No valid columns selected for export.' };
     }
-
-    const { data: works, error } = await worksQuery;
-    if (error) { throw new Error(`Database error: ${error.message}`); }
     if (!works || works.length === 0) {
       return { error: "No data available for export." };
     }
 
     // Create Excel workbook
-    const worksheet = XLSX.utils.json_to_sheet(works);
+  // Ensure exported sheet contains all requested headers (even if some rows lack the key)
+  const worksheet = XLSX.utils.json_to_sheet(works as any[], { header: colsToSelect });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Works");
 

@@ -7,31 +7,9 @@ import { Suspense } from "react";
 import { DashboardSkeleton } from "@/components/custom/DashboardSkeleton";
 import { cache, cacheKeys } from "@/lib/cache";
 import { PerformanceMonitor } from "@/lib/performance";
+import type { Work, ProgressLog } from "@/lib/types";
 
-// Types are used in DashboardClient component
-type Work = {
-  id: number;
-  work_name: string | null;
-  district_name: string | null;
-  progress_percentage: number | null;
-  wbs_code: string;
-  is_blocked: boolean;
-  zone_name: string | null;
-  circle_name: string | null;
-  division_name: string | null;
-  sub_division_name: string | null;
-  je_name: string | null;
-};
-
-type ProgressLog = {
-  id: number;
-  work_id: number;
-  user_email: string | null;
-  previous_progress: number | null;
-  new_progress: number;
-  remark: string | null;
-  created_at: string;
-};
+// Using shared Work and ProgressLog types from src/lib/types.ts
 
 // Map roles to database columns for filtering. This remains unchanged.
 const roleToColumnMap: { [key: string]: string } = {
@@ -72,8 +50,17 @@ async function DashboardContent() {
     if (!works) {
       // Fetch works with more columns for filtering
       let worksQuery = supabase.from("works").select(`
-        id, work_name, district_name, progress_percentage, wbs_code, is_blocked,
-        zone_name, circle_name, division_name, sub_division_name, je_name
+        id, scheme_sr_no, scheme_name, work_name, work_category, wbs_code, district_name,
+        zone_name, circle_name, division_name, sub_division_name,
+        civil_zone, civil_circle, civil_division, civil_sub_division,
+        distribution_zone, distribution_circle, distribution_division, distribution_sub_division,
+        je_name, site_name,
+        sanction_amount_lacs, tender_no, boq_amount,
+        nit_date, part1_opening_date, part2_opening_date, loi_no_and_date,
+        rate_as_per_ag, agreement_amount, agreement_no_and_date,
+        firm_name_and_contact, firm_contact_no, firm_email,
+        start_date, scheduled_completion_date, actual_completion_date, weightage, progress_percentage, remark,
+        mb_status, teco, fico, is_blocked, created_at
       `);
       
       const filterColumn = roleToColumnMap[(profile as any).role];

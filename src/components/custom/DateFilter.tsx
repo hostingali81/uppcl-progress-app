@@ -1,3 +1,4 @@
+
 // src/components/custom/DateFilter.tsx
 "use client";
 
@@ -71,8 +72,7 @@ export function DateFilter({ onDateChange, selectedDate }: DateFilterProps) {
               <History className="h-4 w-4 text-white" />
             </div>
             <div>
-              <CardTitle className="text-lg font-bold text-slate-900">Historical View</CardTitle>
-              <p className="text-xs text-slate-600">Select date to see past progress</p>
+              <CardTitle className="text-lg font-bold text-slate-900 capitalize">Archive Progress</CardTitle>
             </div>
           </div>
           {selectedDate ? (
@@ -148,16 +148,6 @@ export function DateFilter({ onDateChange, selectedDate }: DateFilterProps) {
           </div>
         </div>
 
-        {/* Compact Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-          <div className="flex items-start gap-2">
-            <TrendingUp className="h-3 w-3 text-blue-600 mt-0.5 flex-shrink-0" />
-            <div className="text-xs text-blue-800">
-              <p className="font-medium mb-1">How it works:</p>
-              <p>Select any date to see progress as it was on that day. &quot;Live&quot; shows current progress.</p>
-            </div>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

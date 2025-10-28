@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -13,31 +14,7 @@ import { DashboardFilters } from "@/components/custom/DashboardFilters";
 import { DateFilter } from "@/components/custom/DateFilter";
 import { AlertTriangle, TrendingUp, Clock, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown, Play, Info } from "lucide-react";
 
-// Define a type for the work object for better type safety.
-type Work = {
-  id: number;
-  work_name: string | null;
-  district_name: string | null;
-  progress_percentage: number | null;
-  wbs_code: string;
-  is_blocked: boolean;
-  zone_name: string | null;
-  circle_name: string | null;
-  division_name: string | null;
-  sub_division_name: string | null;
-  je_name: string | null;
-};
-
-// Define a type for progress logs
-type ProgressLog = {
-  id: number;
-  work_id: number;
-  user_email: string | null;
-  previous_progress: number | null;
-  new_progress: number;
-  remark: string | null;
-  created_at: string;
-};
+import type { Work, ProgressLog } from "@/lib/types";
 
 interface DashboardClientProps {
   works: Work[];
@@ -57,10 +34,11 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [activeKPI, setActiveKPI] = useState<string>('all');
+  const [selectedWorkCategory, setSelectedWorkCategory] = useState<string>('all');
   const itemsPerPage = 20; // Show 20 items per page
 
   // Function to truncate work names
-  const truncateWorkName = (name: string | null, maxLength: number = 30): string => {
+  const truncateWorkName = (name?: string | null, maxLength: number = 30): string => {
     if (!name) return 'No name';
     if (name.length <= maxLength) return name;
     return name.substring(0, maxLength) + '...';
@@ -72,7 +50,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
   };
 
   // Helper function to check if tooltip should be shown
-  const shouldShowTooltip = (workName: string | null) => {
+  const shouldShowTooltip = (workName?: string | null) => {
     if (!workName) return false;
     // Show tooltip if text is longer than mobile truncation length (20 chars)
     // Mobile mein tooltip show karna chahiye jab text 20+ characters ho
@@ -147,10 +125,12 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     }
   }, []);
 
-  // Update filtered works whenever historical progress changes
+  // Update filtered works when selected date or source data changes.
+  // Avoid overwriting user-applied filters on unrelated renders by
+  // depending on concrete inputs instead of the memo reference.
   useEffect(() => {
     setFilteredWorks(getHistoricalProgress);
-  }, [getHistoricalProgress]);
+  }, [selectedDate, works.length, progressLogs.length]);
 
   const handleSort = useCallback((column: string) => {
     let newDirection: 'asc' | 'desc' = 'asc';
@@ -192,70 +172,237 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
       <ArrowDown className="h-4 w-4 text-blue-600" />;
   };
 
+  const [selectedScheme, setSelectedScheme] = useState<string>('all');
+
   const handleKPIClick = useCallback((type: 'completed' | 'in_progress' | 'not_started' | 'blocked' | 'all') => {
-    let filtered: Work[] = [];
+    let filtered = works;
     
+    // First apply scheme filter
+    if (selectedScheme !== 'all') {
+      filtered = filtered.filter(w => w.scheme_name === selectedScheme);
+    }
+    
+    // Update summary stats based on the selected category before applying KPI filter
+    const categoryWorks = selectedWorkCategory === 'all' 
+      ? filtered 
+      : filtered.filter(w => w.work_category === selectedWorkCategory);
+
+    // Then apply KPI filter
     switch (type) {
       case 'all':
-        filtered = works;
+        // For 'all', just show the category-filtered works
+        filtered = categoryWorks;
         break;
       case 'completed':
-        filtered = works.filter(w => (w.progress_percentage || 0) === 100);
+        filtered = categoryWorks.filter(w => (w.progress_percentage || 0) === 100);
         break;
       case 'in_progress':
-        filtered = works.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100);
+        filtered = categoryWorks.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100);
         break;
       case 'not_started':
-        filtered = works.filter(w => (w.progress_percentage || 0) === 0);
+        filtered = categoryWorks.filter(w => (w.progress_percentage || 0) === 0);
         break;
       case 'blocked':
-        filtered = works.filter(w => w.is_blocked);
+        filtered = categoryWorks.filter(w => w.is_blocked);
         break;
     }
     
     setFilteredWorks(filtered);
     setActiveKPI(type);
-  }, [works]);
+  }, [works, selectedScheme, selectedWorkCategory]);
 
-  // Calculate summary statistics based on original works dataset - memoized for performance
+  // Calculate summary statistics based on selected scheme - memoized for performance
   const summaryStats = useMemo(() => {
-    const totalWorks = works?.length || 0;
-    const completedWorks = works?.filter(w => (w.progress_percentage || 0) === 100).length || 0;
-    const inProgressWorks = works?.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100).length || 0;
-    const notStartedWorks = works?.filter(w => (w.progress_percentage || 0) === 0).length || 0;
-    const blockedWorks = works?.filter(w => w.is_blocked).length || 0;
+    // First filter works by selected scheme
+    const schemeWorks = selectedScheme === 'all' 
+      ? works 
+      : works.filter(w => w.scheme_name === selectedScheme);
+    
+    // Then filter by selected category
+    const filteredWorks = selectedWorkCategory === 'all'
+      ? schemeWorks
+      : schemeWorks.filter(w => w.work_category === selectedWorkCategory);
+    
+    const totalWorks = filteredWorks?.length || 0;
+    const completedWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) === 100).length || 0;
+    const inProgressWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100).length || 0;
+    const notStartedWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) === 0).length || 0;
+    const blockedWorks = filteredWorks?.filter(w => w.is_blocked).length || 0;
     
     return { totalWorks, completedWorks, inProgressWorks, notStartedWorks, blockedWorks };
-  }, [works]);
+  }, [works, selectedScheme, selectedWorkCategory]);
 
-  // Calculate paginated data
+  // Calculate paginated data with blocked works shown first
   const paginatedData = useMemo(() => {
+    // Sort blocked works to the top
+    const sortedWorks = [...filteredWorks].sort((a, b) => {
+      // First sort by blocked status (blocked works first)
+      if (a.is_blocked && !b.is_blocked) return -1;
+      if (!a.is_blocked && b.is_blocked) return 1;
+      
+      // Then maintain the current sort order for non-blocked works
+      if (sort.column) {
+        const aVal = a[sort.column as keyof Work];
+        const bVal = b[sort.column as keyof Work];
+        
+        if (typeof aVal === 'string' && typeof bVal === 'string') {
+          const comparison = aVal.localeCompare(bVal);
+          return sort.direction === 'asc' ? comparison : -comparison;
+        }
+        
+        if (typeof aVal === 'number' && typeof bVal === 'number') {
+          return sort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+        }
+      }
+      
+      return 0;
+    });
+
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return filteredWorks.slice(startIndex, endIndex);
-  }, [filteredWorks, currentPage, itemsPerPage]);
+    return sortedWorks.slice(startIndex, endIndex);
+  }, [filteredWorks, currentPage, itemsPerPage, sort.column, sort.direction]);
 
   // Calculate total pages
   const totalPages = Math.ceil(filteredWorks.length / itemsPerPage);
 
-  // Reset to first page when filters change
+  // Update filtered works when filters or data changes
   useEffect(() => {
-    setCurrentPage(1);
-  }, [filteredWorks]);
+    let filtered = getHistoricalProgress;
+    
+    // Apply all filters in consistent order
+    if (selectedScheme !== 'all') {
+      filtered = filtered.filter(work => work.scheme_name === selectedScheme);
+    }
+    
+    if (selectedWorkCategory !== 'all') {
+      filtered = filtered.filter(work => work.work_category === selectedWorkCategory);
+    }
 
-  return (
+    // Apply KPI filter if active
+    if (activeKPI !== 'all') {
+      switch (activeKPI) {
+        case 'completed':
+          filtered = filtered.filter(w => (w.progress_percentage || 0) === 100);
+          break;
+        case 'in_progress':
+          filtered = filtered.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100);
+          break;
+        case 'not_started':
+          filtered = filtered.filter(w => (w.progress_percentage || 0) === 0);
+          break;
+        case 'blocked':
+          filtered = filtered.filter(w => w.is_blocked);
+          break;
+      }
+    }
+    
+    setFilteredWorks(filtered);
+  }, [selectedDate, works, progressLogs, selectedScheme, selectedWorkCategory, activeKPI, getHistoricalProgress]);  return (
     <div className="p-2 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Dashboard</h1>
-          <p className="mt-1 sm:mt-2 text-sm sm:text-base text-slate-600">
-            Overview of all works assigned to you. Your role: <Badge variant="outline" className="ml-1 text-xs">{profile.role}</Badge>
-          </p>
+      {/* Page Header with Scheme Selector */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Dashboard</h1>
+            <p className="mt-1 sm:mt-2 text-sm sm:text-base text-slate-600">
+              Overview of all works assigned to you. Your role: <Badge variant="outline" className="ml-1 text-xs">{profile.role}</Badge>
+            </p>
+          </div>
         </div>
-        <div className="mt-3 sm:mt-0">
-          <ExportToExcelButton />
-        </div>
+
+        {/* Filters Card */}
+        <Card className="border-slate-200 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-4">
+              {/* Scheme Selector */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">NAME OF SCHEME</label>
+                  <Select value={selectedScheme} onValueChange={setSelectedScheme}>
+                    <SelectTrigger className="w-full sm:w-[300px] border-slate-200 focus:border-blue-500 focus:ring-blue-500">
+                      <SelectValue placeholder="Select a scheme" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg max-h-[300px]">
+                      <SelectItem value="all" className="bg-white hover:bg-slate-50">All Schemes</SelectItem>
+                      {works
+                        .map(w => w.scheme_name)
+                        .filter((scheme): scheme is string => scheme !== null && scheme !== '')
+                        .filter((scheme, index, self) => self.indexOf(scheme) === index)
+                        .sort()
+                        .map(scheme => (
+                          <SelectItem key={scheme} value={scheme} className="bg-white hover:bg-slate-50">
+                            {scheme}
+                          </SelectItem>
+                        ))
+                      }
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <span className="font-medium">{selectedScheme === 'all' ? 'All Schemes' : selectedScheme}</span>
+                  <span>•</span>
+                  <span>{summaryStats.totalWorks} total works</span>
+                  {selectedScheme !== 'all' && (
+                    <>
+                      <span>•</span>
+                      <span>{Math.round((summaryStats.completedWorks / summaryStats.totalWorks) * 100)}% completed</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Work Category Selector */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">WORK CATEGORY</label>
+                  <Select 
+                    value={selectedWorkCategory} 
+                    onValueChange={(value) => {
+                      setSelectedWorkCategory(value);
+                      // Reset to page 1 when changing category
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full sm:w-[300px] border-slate-200 focus:border-blue-500 focus:ring-blue-500">
+                      <SelectValue placeholder="Select work category" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg max-h-[300px]">
+                      <SelectItem value="all" className="bg-white hover:bg-slate-50">All Categories</SelectItem>
+                      {/* Get unique, non-null categories */}
+                      {(() => {
+                        const categories = [...new Set(works
+                          .map(w => w.work_category)
+                          .filter((category): category is string => 
+                            category !== null && category !== ''
+                          )
+                        )];
+                        console.log('Available categories:', categories);
+                        return categories;
+                      })()
+                        .sort((a, b) => a.localeCompare(b))
+                        .map((category, index) => (
+                          <SelectItem 
+                            key={`category-${index}-${category}`} 
+                            value={category} 
+                            className="bg-white hover:bg-slate-50"
+                          >
+                            {category}
+                          </SelectItem>
+                        ))
+                      }
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <span className="font-medium">{selectedWorkCategory === 'all' ? 'All Categories' : selectedWorkCategory}</span>
+                  <span>•</span>
+                  <span>{filteredWorks.length} works</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Summary Cards */}
@@ -344,6 +491,8 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
           <DashboardFilters 
             works={getHistoricalProgress}
             userRole={profile.role}
+            selectedScheme={selectedScheme}
+            selectedWorkCategory={selectedWorkCategory}
             onFilterChange={handleFilterChange}
             onSortChange={handleSortChange}
           />
@@ -353,18 +502,17 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
       {/* Works Table */}
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="border-b border-slate-200 p-3 sm:p-6">
-          <CardTitle className="text-lg sm:text-xl font-semibold text-slate-900">Works Overview</CardTitle>
-          <CardDescription className="text-sm text-slate-600">
-            {selectedDate ? 
-              `Historical view as of ${new Date(selectedDate).toLocaleDateString('en-IN')} (${filteredWorks.length} of ${getHistoricalProgress.length} works shown)` :
-              `Detailed list of all works assigned to you (${filteredWorks.length} of ${works.length} works shown)`
-            }
-            {totalPages > 1 && (
-              <span className="ml-2 text-slate-500">
-                • Page {currentPage} of {totalPages}
-              </span>
-            )}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg sm:text-xl font-semibold text-slate-900">Works Overview</CardTitle>
+              <CardDescription className="text-sm text-slate-600">
+                Detailed list of all works assigned to you ({filteredWorks.length} works)
+              </CardDescription>
+            </div>
+            <div>
+              <ExportToExcelButton selectedScheme={selectedScheme} filteredWorks={filteredWorks} />
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {/* Mobile-first responsive table */}

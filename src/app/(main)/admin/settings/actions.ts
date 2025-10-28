@@ -205,9 +205,27 @@ export async function syncWithGoogleSheet() {
     const credentials = JSON.parse(settings.google_service_account_credentials);
     if (!sheetId || !credentials) { throw new Error("Google Sheet ID or credentials are not configured."); }
 
-    const auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'] });
-    const sheets = google.sheets({ version: 'v4', auth });
-    const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetName });
+    // Create auth client with current timestamp for token
+    const auth = new google.auth.GoogleAuth({ 
+      credentials: {
+        ...credentials,
+        // Ensure token is fresh with proper timestamps
+        iat: Math.floor(Date.now() / 1000), // Current time in seconds
+        exp: Math.floor(Date.now() / 1000) + 3600, // Expires in 1 hour
+      }, 
+      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
+    });
+
+    // Get authenticated client
+    const client = await auth.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: client });
+    
+    // Make the API request
+    const response = await sheets.spreadsheets.values.get({ 
+      spreadsheetId: sheetId, 
+      range: sheetName,
+      auth: client
+    });
     const rows = response.data.values;
     if (!rows || rows.length < 2) { throw new Error("No data found in the specified sheet."); }
 

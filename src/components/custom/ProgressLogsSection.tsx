@@ -3,17 +3,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, User, Calendar, MessageSquare } from "lucide-react";
-
-// Type definition for progress logs
-type ProgressLog = {
-  id: number;
-  user_email: string | null; // This field now contains user's full name
-  previous_progress: number | null;
-  new_progress: number;
-  remark: string | null;
-  created_at: string;
-};
+import { TrendingUp, User, Calendar, MessageSquare, Camera } from "lucide-react";
+import type { ProgressLog } from "@/lib/types";
 
 interface ProgressLogsSectionProps {
   progressLogs: ProgressLog[];
@@ -130,6 +121,32 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
                   <div className="flex items-start gap-2">
                     <MessageSquare className="h-4 w-4 text-slate-400 mt-0.5 flex-shrink-0" />
                     <p className="text-sm text-slate-700 leading-relaxed">{log.remark}</p>
+                  </div>
+                </div>
+              )}
+              
+              {log.attachments && log.attachments.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Camera className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm font-medium text-slate-600">Attached Photos</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {log.attachments.map((attachment) => (
+                      <a
+                        key={attachment.id}
+                        href={attachment.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block aspect-video w-full overflow-hidden rounded-lg border border-slate-200 hover:border-blue-500 transition-colors"
+                      >
+                        <img
+                          src={attachment.file_url}
+                          alt={`Progress photo ${formatTimeAgo(attachment.created_at)}`}
+                          className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                        />
+                      </a>
+                    ))}
                   </div>
                 </div>
               )}

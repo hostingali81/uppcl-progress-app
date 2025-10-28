@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { Work } from "@/lib/types";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -13,41 +14,37 @@ type FilterState = {
   circle: string;
   division: string;
   subDivision: string;
+  je: string;
   status: string;
   search: string;
+  scheme: string;
+  workCategory: string;
 };
 
-// Removed unused SortState type
 
 interface DashboardFiltersProps {
   works: Work[];
   userRole: string;
+  selectedScheme: string;
+  selectedWorkCategory: string;
   onFilterChange: (filteredWorks: Work[]) => void;
-  onSortChange: (sortedWorks: Work[]) => void;
+  onSortChange?: (sortedWorks: Work[]) => void;
 }
 
-type Work = {
-  id: number;
-  work_name: string | null;
-  district_name: string | null;
-  progress_percentage: number | null;
-  wbs_code: string;
-  is_blocked: boolean;
-  zone_name: string | null;
-  circle_name: string | null;
-  division_name: string | null;
-  sub_division_name: string | null;
-  je_name: string | null;
-};
 
-export function DashboardFilters({ works, userRole, onFilterChange }: DashboardFiltersProps) {
+// use shared Work type from src/lib/types.ts
+
+export function DashboardFilters({ works, userRole, selectedScheme, onFilterChange }: DashboardFiltersProps) {
   const [filters, setFilters] = useState<FilterState>({
     zone: 'all',
     circle: 'all',
     division: 'all',
     subDivision: 'all',
+    je: 'all',
     status: 'all',
-    search: ''
+    search: '',
+    scheme: 'all',
+    workCategory: 'all'
   });
 
   // Debounce search input to avoid excessive filtering
@@ -69,10 +66,12 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
           showCircle: false,
           showDivision: false,
           showSubDivision: false,
+          showJe: false,
           zones: [],
           circles: [],
           divisions: [],
-          subDivisions: []
+          subDivisions: [],
+          jes: []
         };
       case 'sub_division_head':
         return {
@@ -80,10 +79,12 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
           showCircle: false,
           showDivision: false,
           showSubDivision: false,
+          showJe: true,
           zones: [],
           circles: [],
           divisions: [],
-          subDivisions: []
+          subDivisions: [],
+          jes: [...new Set(works.map(w => w.je_name).filter(Boolean))].sort()
         };
       case 'division_head':
         return {
@@ -91,32 +92,70 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
           showCircle: false,
           showDivision: false,
           showSubDivision: true,
+          showJe: true,
           zones: [],
           circles: [],
           divisions: [],
-          subDivisions: [...new Set(works.map(w => w.sub_division_name).filter(Boolean))]
+          subDivisions: [...new Set(works.map(w => w.sub_division_name).filter(Boolean))].sort(),
+          jes: [...new Set(works
+            .filter(w => filters.subDivision === 'all' ? false : w.sub_division_name === filters.subDivision)
+            .map(w => w.je_name)
+            .filter(Boolean))].sort()
         };
       case 'circle_head':
         return {
           showZone: false,
           showCircle: false,
           showDivision: true,
-          showSubDivision: false,
+          showSubDivision: true,
+          showJe: true,
           zones: [],
           circles: [],
-          divisions: [...new Set(works.map(w => w.division_name).filter(Boolean))],
-          subDivisions: []
+          divisions: [...new Set(works.map(w => w.division_name).filter(Boolean))].sort(),
+          subDivisions: [...new Set(works
+            .filter(w => filters.division === 'all' ? false : w.division_name === filters.division)
+            .map(w => w.sub_division_name)
+            .filter(Boolean))].sort(),
+          jes: [...new Set(works
+            .filter(w => 
+              (filters.division !== 'all' && w.division_name === filters.division) &&
+              (filters.subDivision === 'all' ? false : w.sub_division_name === filters.subDivision)
+            )
+            .map(w => w.je_name)
+            .filter(Boolean))].sort()
         };
       case 'zone_head':
         return {
           showZone: false,
           showCircle: true,
-          showDivision: false,
-          showSubDivision: false,
+          showDivision: true,
+          showSubDivision: true,
+          showJe: true,
           zones: [],
-          circles: [...new Set(works.map(w => w.circle_name).filter(Boolean))],
-          divisions: [],
-          subDivisions: []
+          circles: [...new Set(works.map(w => w.circle_name).filter(Boolean))].sort(),
+          // For zone_head, populate divisions from works in the current zone (works is likely already zone-filtered),
+          // but still narrow down when a circle is selected.
+          divisions: [...new Set(works
+            .filter(w => (filters.circle === 'all' ? true : w.circle_name === filters.circle))
+            .map(w => w.division_name)
+            .filter(Boolean))].sort(),
+          // Sub-divisions should consider both circle and division selections when present.
+          subDivisions: [...new Set(works
+            .filter(w => 
+              (filters.circle === 'all' ? true : w.circle_name === filters.circle) &&
+              (filters.division === 'all' ? true : w.division_name === filters.division)
+            )
+            .map(w => w.sub_division_name)
+            .filter(Boolean))].sort(),
+          // JEs should be shown based on all higher-level selections when provided.
+          jes: [...new Set(works
+            .filter(w => 
+              (filters.circle === 'all' ? true : w.circle_name === filters.circle) &&
+              (filters.division === 'all' ? true : w.division_name === filters.division) &&
+              (filters.subDivision === 'all' ? true : w.sub_division_name === filters.subDivision)
+            )
+            .map(w => w.je_name)
+            .filter(Boolean))].sort()
         };
       case 'superadmin':
         return {
@@ -124,10 +163,36 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
           showCircle: true,
           showDivision: true,
           showSubDivision: true,
-          zones: [...new Set(works.map(w => w.zone_name).filter(Boolean))],
-          circles: [...new Set(works.map(w => w.circle_name).filter(Boolean))],
-          divisions: [...new Set(works.map(w => w.division_name).filter(Boolean))],
-          subDivisions: [...new Set(works.map(w => w.sub_division_name).filter(Boolean))]
+          showJe: true,
+          zones: [...new Set(works.map(w => w.zone_name).filter(Boolean))].sort(),
+          circles: [...new Set(works
+            .filter(w => filters.zone === 'all' ? false : w.zone_name === filters.zone)
+            .map(w => w.circle_name)
+            .filter(Boolean))].sort(),
+          divisions: [...new Set(works
+            .filter(w => 
+              (filters.zone !== 'all' && w.zone_name === filters.zone) &&
+              (filters.circle === 'all' ? false : w.circle_name === filters.circle)
+            )
+            .map(w => w.division_name)
+            .filter(Boolean))].sort(),
+          subDivisions: [...new Set(works
+            .filter(w => 
+              (filters.zone !== 'all' && w.zone_name === filters.zone) &&
+              (filters.circle !== 'all' && w.circle_name === filters.circle) &&
+              (filters.division === 'all' ? false : w.division_name === filters.division)
+            )
+            .map(w => w.sub_division_name)
+            .filter(Boolean))].sort(),
+          jes: [...new Set(works
+            .filter(w => 
+              (filters.zone !== 'all' && w.zone_name === filters.zone) &&
+              (filters.circle !== 'all' && w.circle_name === filters.circle) &&
+              (filters.division !== 'all' && w.division_name === filters.division) &&
+              (filters.subDivision === 'all' ? false : w.sub_division_name === filters.subDivision)
+            )
+            .map(w => w.je_name)
+            .filter(Boolean))].sort()
         };
       default:
         return {
@@ -135,10 +200,12 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
           showCircle: false,
           showDivision: false,
           showSubDivision: false,
+          showJe: false,
           zones: [],
           circles: [],
           divisions: [],
-          subDivisions: []
+          subDivisions: [],
+          jes: []
         };
     }
   };
@@ -146,11 +213,55 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
   const filterOptions = getFilterOptions();
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
-    const newFilters = { ...filters, [key]: value };
+    // Reset dependent filters when higher-level filter changes
+    let newFilters = { ...filters };
+    
+    if (key === 'zone') {
+      newFilters = {
+        ...newFilters,
+        zone: value,
+        circle: 'all',
+        division: 'all',
+        subDivision: 'all',
+        je: 'all'
+      };
+    } else if (key === 'circle') {
+      newFilters = {
+        ...newFilters,
+        circle: value,
+        division: 'all',
+        subDivision: 'all',
+        je: 'all'
+      };
+    } else if (key === 'division') {
+      newFilters = {
+        ...newFilters,
+        division: value,
+        subDivision: 'all',
+        je: 'all'
+      };
+    } else if (key === 'subDivision') {
+      newFilters = {
+        ...newFilters,
+        subDivision: value,
+        je: 'all'
+      };
+    } else {
+      newFilters[key] = value;
+    }
+    
     setFilters(newFilters);
     
     // Apply filters
     let filteredWorks = works;
+    
+    if (newFilters.scheme && newFilters.scheme !== 'all') {
+      filteredWorks = filteredWorks.filter(w => w.scheme_name === newFilters.scheme);
+    }
+
+    if (newFilters.workCategory && newFilters.workCategory !== 'all') {
+      filteredWorks = filteredWorks.filter(w => w.work_category === newFilters.workCategory);
+    }
     
     if (newFilters.zone && newFilters.zone !== 'all') {
       filteredWorks = filteredWorks.filter(w => w.zone_name === newFilters.zone);
@@ -166,6 +277,10 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
     
     if (newFilters.subDivision && newFilters.subDivision !== 'all') {
       filteredWorks = filteredWorks.filter(w => w.sub_division_name === newFilters.subDivision);
+    }
+
+    if (newFilters.je && newFilters.je !== 'all') {
+      filteredWorks = filteredWorks.filter(w => w.je_name === newFilters.je);
     }
     
     if (newFilters.status && newFilters.status !== 'all') {
@@ -198,7 +313,17 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
   };
 
   const clearFilters = () => {
-    setFilters({ zone: 'all', circle: 'all', division: 'all', subDivision: 'all', status: 'all', search: '' });
+    setFilters({ 
+      zone: 'all', 
+      circle: 'all', 
+      division: 'all', 
+      subDivision: 'all',
+      je: 'all', 
+      status: 'all', 
+      search: '', 
+      scheme: 'all',
+      workCategory: 'all'
+    });
     onFilterChange(works);
   };
 
@@ -238,6 +363,7 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
           <span className="text-sm font-medium text-slate-700">Filters:</span>
         </div>
         
+
         {filterOptions.showZone && (
           <Select value={filters.zone} onValueChange={(value) => handleFilterChange('zone', value)}>
             <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
@@ -246,7 +372,7 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
             <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
               <SelectItem value="all" className="bg-white hover:bg-slate-50">All Zones</SelectItem>
               {filterOptions.zones.map(zone => (
-                <SelectItem key={zone} value={zone || ''} className="bg-white hover:bg-slate-50">{zone || 'Unknown'}</SelectItem>
+                <SelectItem key={zone ?? 'unknown-zone'} value={zone ?? ''} className="bg-white hover:bg-slate-50">{zone || 'Unknown'}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -260,7 +386,7 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
             <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
               <SelectItem value="all" className="bg-white hover:bg-slate-50">All Circles</SelectItem>
               {filterOptions.circles.map(circle => (
-                <SelectItem key={circle} value={circle || ''} className="bg-white hover:bg-slate-50">{circle || 'Unknown'}</SelectItem>
+                <SelectItem key={circle ?? 'unknown-circle'} value={circle ?? ''} className="bg-white hover:bg-slate-50">{circle || 'Unknown'}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -274,7 +400,7 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
             <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
               <SelectItem value="all" className="bg-white hover:bg-slate-50">All Divisions</SelectItem>
               {filterOptions.divisions.map(division => (
-                <SelectItem key={division} value={division || ''} className="bg-white hover:bg-slate-50">{division || 'Unknown'}</SelectItem>
+                <SelectItem key={division ?? 'unknown-division'} value={division ?? ''} className="bg-white hover:bg-slate-50">{division || 'Unknown'}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -288,30 +414,47 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
             <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
               <SelectItem value="all" className="bg-white hover:bg-slate-50">All Sub-Divisions</SelectItem>
               {filterOptions.subDivisions.map(subDivision => (
-                <SelectItem key={subDivision} value={subDivision || ''} className="bg-white hover:bg-slate-50">{subDivision || 'Unknown'}</SelectItem>
+                <SelectItem key={subDivision ?? 'unknown-subdivision'} value={subDivision ?? ''} className="bg-white hover:bg-slate-50">{subDivision || 'Unknown'}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         )}
 
-        <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
-          <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
-            <SelectItem value="all" className="bg-white hover:bg-slate-50">All Status</SelectItem>
-            <SelectItem value="completed" className="bg-white hover:bg-slate-50">Completed</SelectItem>
-            <SelectItem value="in_progress" className="bg-white hover:bg-slate-50">In Progress</SelectItem>
-            <SelectItem value="not_started" className="bg-white hover:bg-slate-50">Not Started</SelectItem>
-            <SelectItem value="blocked" className="bg-white hover:bg-slate-50">Blocked</SelectItem>
-          </SelectContent>
-        </Select>
+        {filterOptions.showJe && (
+          <Select value={filters.je} onValueChange={(value) => handleFilterChange('je', value)}>
+            <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
+              <SelectValue placeholder="All JEs" />
+            </SelectTrigger>
+            <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
+              <SelectItem value="all" className="bg-white hover:bg-slate-50">All JEs</SelectItem>
+              {filterOptions.jes
+                .filter(je => {
+                  const work = works.find(w => w.je_name === je);
+                  return (
+                    (filters.subDivision === 'all' || work?.sub_division_name === filters.subDivision) &&
+                    (filters.division === 'all' || work?.division_name === filters.division) &&
+                    (filters.circle === 'all' || work?.circle_name === filters.circle) &&
+                    (filters.zone === 'all' || work?.zone_name === filters.zone)
+                  );
+                })
+                .map(je => (
+                  <SelectItem key={je} value={je || ''} className="bg-white hover:bg-slate-50">{je || 'Unknown'}</SelectItem>
+                ))
+              }
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Active Filters Display */}
       {activeFiltersCount > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-slate-600">Active filters:</span>
+          {filters.scheme && filters.scheme !== 'all' && (
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+              Scheme: {filters.scheme}
+            </Badge>
+          )}
           {filters.zone && filters.zone !== 'all' && (
             <Badge variant="secondary" className="bg-blue-100 text-blue-700">
               Zone: {filters.zone}
@@ -335,6 +478,11 @@ export function DashboardFilters({ works, userRole, onFilterChange }: DashboardF
           {filters.status && filters.status !== 'all' && (
             <Badge variant="secondary" className="bg-orange-100 text-orange-700">
               Status: {filters.status.replace('_', ' ')}
+            </Badge>
+          )}
+          {filters.workCategory && filters.workCategory !== 'all' && (
+            <Badge variant="secondary" className="bg-teal-100 text-teal-700">
+              Category: {filters.workCategory}
             </Badge>
           )}
         </div>
