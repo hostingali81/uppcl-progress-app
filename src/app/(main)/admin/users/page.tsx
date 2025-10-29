@@ -20,11 +20,13 @@ import { Users, Shield } from "lucide-react";
 // Define a clear type for a user's profile data.
 type Profile = {
   id: string;
-  name: string | null;
+  full_name: string | null;
   role: string;
   region: string | null;
   division: string | null;
   subdivision: string | null;
+  circle: string | null;
+  zone: string | null;
 };
 
 // Combine Auth and Profile data into a single type for convenience.
@@ -39,13 +41,15 @@ function getProfileValue(profile: Profile | null): string {
 
   switch (profile.role) {
     case 'je':
+      return profile.region || 'N/A';
     case 'sub_division_head':
       return profile.subdivision || 'N/A';
     case 'division_head':
       return profile.division || 'N/A';
     case 'circle_head':
+      return profile.circle || 'N/A';
     case 'zone_head':
-      return profile.region || 'N/A';
+      return profile.zone || 'N/A';
     case 'superadmin':
       return 'Super Admin';
     default:
@@ -65,7 +69,7 @@ export default async function UsersPage() {
     return <p className="p-4 text-red-500">Failed to fetch users.</p>;
   }
 
-  const { data: profiles, error: profileError } = await supabaseAdmin.from("profiles").select("*");
+  const { data: profiles, error: profileError } = await supabaseAdmin.from("profiles").select("id, full_name, role, region, division, subdivision, circle, zone");
   if (profileError) {
     return <p className="p-4 text-red-500">Failed to fetch profiles: {profileError.message}</p>;
   }
@@ -123,7 +127,7 @@ export default async function UsersPage() {
                 {usersWithProfiles.map(({ auth, profile }) => (
                   <TableRow key={auth.id} className="hover:bg-slate-50 transition-colors">
                     <TableCell className="font-mono text-sm text-slate-700">{auth.email}</TableCell>
-                    <TableCell className="text-slate-700">{profile?.name || 'N/A'}</TableCell>
+                    <TableCell className="text-slate-700">{profile?.full_name || 'N/A'}</TableCell>
                     <TableCell>
                       {profile?.role && (
                         // Use a destructive badge for the high-privilege superadmin role.
@@ -143,7 +147,7 @@ export default async function UsersPage() {
                           id: auth.id,
                           email: auth.email,
                           profile: profile ? {
-                            full_name: profile.name,
+                            full_name: profile.full_name,
                             role: profile.role,
                             value: getProfileValue(profile) === 'Super Admin' ? null : getProfileValue(profile) === 'N/A' ? null : getProfileValue(profile).replace('Super Admin', '').replace('N/A', '')
                           } : null
@@ -154,7 +158,7 @@ export default async function UsersPage() {
                             id: auth.id,
                             email: auth.email,
                             profile: profile ? {
-                              full_name: profile.name,
+                              full_name: profile.full_name,
                               role: profile.role,
                               value: getProfileValue(profile) === 'Super Admin' ? null : getProfileValue(profile) === 'N/A' ? null : getProfileValue(profile).replace('Super Admin', '').replace('N/A', '')
                             } : null

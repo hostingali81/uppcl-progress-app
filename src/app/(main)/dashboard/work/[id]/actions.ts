@@ -134,7 +134,8 @@ export async function updateWorkProgress(formData: FormData) {
         user_email: user.email, // Always store email
         previous_progress: currentWork.progress_percentage, 
         new_progress: progressNumber, 
-        remark: remark 
+        remark: remark,
+        expected_completion_date: expectedCompletionDate || null
     });
     
     if (logError) {

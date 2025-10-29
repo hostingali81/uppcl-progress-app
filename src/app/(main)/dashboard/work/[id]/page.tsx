@@ -86,7 +86,7 @@ function StatusBadge({ status, type }: { status: string; type: 'success' | 'warn
 export default async function WorkDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     // --- DATA FETCHING LOGIC IS UNCHANGED ---
-    const { client: supabase } = await createSupabaseServerClient();
+    const { client: supabase, admin: supabaseAdmin } = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return redirect("/login");
 
@@ -97,14 +97,14 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
         .select(`*, attachments (*)`)
         .eq("id", numericId)
         .single();
-    const usersPromise = supabase.from("profiles").select('id, full_name, role');
+    const usersPromise = supabaseAdmin.from("profiles").select('id, full_name, role, region, division, subdivision, circle, zone');
     const profilePromise = supabase.from("profiles").select('role').eq('id', user.id).single();
     const progressLogsPromise = supabase
         .from("progress_logs")
         .select(`
             id, work_id, user_id, user_email, previous_progress, new_progress, remark, created_at,
         `)
-        .eq('work_id', id)
+        .eq('work_id', numericId)
         .order('created_at', { ascending: false });
 
     const commentsPromise = supabase
@@ -116,7 +116,7 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
     const paymentLogsPromise = supabase
         .from('payment_logs')
         .select('id, work_id, user_id, created_at, user_email, previous_bill_no, previous_bill_amount, new_bill_no, new_bill_amount, remark')
-        .eq('work_id', id)
+        .eq('work_id', numericId)
         .order('created_at', { ascending: false });
     
     const [
@@ -162,7 +162,19 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
     const progressLogsData = (progressLogs || []) as any[];
     const paymentLogsData = (paymentLogs || []) as any[];
 
-    const usersForMentions = allUsersData ? allUsersData.map(u => ({ id: u.id, display: u.full_name || 'Unknown' })) : [];
+    // Build mention users list scoped to this work's hierarchy
+    const usersForMentions = allUsersData ? allUsersData
+      .filter(u => {
+        const role = (u.role || '').toString();
+        if (role === 'superadmin') return true;
+        const matchesJe = role === 'je' && u.region && u.region === work.je_name;
+        const matchesSubDiv = role === 'sub_division_head' && u.subdivision && u.subdivision === work.civil_sub_division;
+        const matchesDiv = role === 'division_head' && u.division && u.division === work.civil_division;
+        const matchesCircle = role === 'circle_head' && u.circle && u.circle === work.civil_circle;
+        const matchesZone = role === 'zone_head' && u.zone && u.zone === work.civil_zone;
+        return matchesJe || matchesSubDiv || matchesDiv || matchesCircle || matchesZone;
+      })
+      .map(u => ({ id: u.id, display: u.full_name || 'Unknown' })) : [];
     const currentUserRole = currentUserProfileData?.role || 'user';
 
     // Calculate billing summary

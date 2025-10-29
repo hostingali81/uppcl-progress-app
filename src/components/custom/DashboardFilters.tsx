@@ -96,9 +96,9 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
           zones: [],
           circles: [],
           divisions: [],
-          subDivisions: [...new Set(works.map(w => w.sub_division_name).filter(Boolean))].sort(),
+          subDivisions: [...new Set(works.map(w => w.civil_sub_division).filter(Boolean))].sort(),
           jes: [...new Set(works
-            .filter(w => (filters.subDivision === 'all' || w.sub_division_name === filters.subDivision))
+            .filter(w => (filters.subDivision === 'all' || w.civil_sub_division === filters.subDivision))
             .map(w => w.je_name)
             .filter(Boolean))].sort()
         };
@@ -111,15 +111,15 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
           showJe: true,
           zones: [],
           circles: [],
-          divisions: [...new Set(works.map(w => w.division_name).filter(Boolean))].sort(),
+          divisions: [...new Set(works.map(w => w.civil_division).filter(Boolean))].sort(),
           subDivisions: [...new Set(works
-            .filter(w => filters.division === 'all' ? false : w.division_name === filters.division)
-            .map(w => w.sub_division_name)
+            .filter(w => (filters.division === 'all' || w.civil_division === filters.division))
+            .map(w => w.civil_sub_division)
             .filter(Boolean))].sort(),
           jes: [...new Set(works
             .filter(w => 
-              (filters.division === 'all' || w.division_name === filters.division) &&
-              (filters.subDivision === 'all' || w.sub_division_name === filters.subDivision)
+              (filters.division === 'all' || w.civil_division === filters.division) &&
+              (filters.subDivision === 'all' || w.civil_sub_division === filters.subDivision)
             )
             .map(w => w.je_name)
             .filter(Boolean))].sort()
@@ -132,24 +132,24 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
           showSubDivision: true,
           showJe: true,
           zones: [],
-          circles: [...new Set(works.map(w => w.circle_name).filter(Boolean))].sort(),
+          circles: [...new Set(works.map(w => w.civil_circle).filter(Boolean))].sort(),
           divisions: [...new Set(works
-            .filter(w => filters.circle === 'all' || w.circle_name === filters.circle)
-            .map(w => w.division_name)
+            .filter(w => filters.circle === 'all' || w.civil_circle === filters.circle)
+            .map(w => w.civil_division)
             .filter(Boolean))].sort(),
           subDivisions: [...new Set(works
             .filter(w => 
-              (filters.circle === 'all' || w.circle_name === filters.circle) &&
-              (filters.division === 'all' || w.division_name === filters.division)
+              (filters.circle === 'all' || w.civil_circle === filters.circle) &&
+              (filters.division === 'all' || w.civil_division === filters.division)
             )
-            .map(w => w.sub_division_name)
+            .map(w => w.civil_sub_division)
             .filter(Boolean))].sort(),
           jes: [...new Set(works
             .filter(w => {
               const matchesFilters = (
-                (filters.circle === 'all' || w.circle_name === filters.circle) &&
-                (filters.division === 'all' || w.division_name === filters.division) &&
-                (filters.subDivision === 'all' || w.sub_division_name === filters.subDivision)
+                (filters.circle === 'all' || w.civil_circle === filters.circle) &&
+                (filters.division === 'all' || w.civil_division === filters.division) &&
+                (filters.subDivision === 'all' || w.civil_sub_division === filters.subDivision)
               );
               return matchesFilters && w.je_name; // Only include if JE name exists
             })
@@ -163,32 +163,32 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
           showDivision: true,
           showSubDivision: true,
           showJe: true,
-          zones: [...new Set(works.map(w => w.zone_name).filter(Boolean))].sort(),
+          zones: [...new Set(works.map(w => w.civil_zone).filter(Boolean))].sort(),
           circles: [...new Set(works
-            .filter(w => filters.zone === 'all' || w.zone_name === filters.zone)
-            .map(w => w.circle_name)
+            .filter(w => filters.zone === 'all' || w.civil_zone === filters.zone)
+            .map(w => w.civil_circle)
             .filter(Boolean))].sort(),
           divisions: [...new Set(works
             .filter(w => 
-              (filters.zone === 'all' || w.zone_name === filters.zone) &&
-              (filters.circle === 'all' || w.circle_name === filters.circle)
+              (filters.zone === 'all' || w.civil_zone === filters.zone) &&
+              (filters.circle === 'all' || w.civil_circle === filters.circle)
             )
-            .map(w => w.division_name)
+            .map(w => w.civil_division)
             .filter(Boolean))].sort(),
           subDivisions: [...new Set(works
             .filter(w => 
-              (filters.zone === 'all' || w.zone_name === filters.zone) &&
-              (filters.circle === 'all' || w.circle_name === filters.circle) &&
-              (filters.division === 'all' || w.division_name === filters.division)
+              (filters.zone === 'all' || w.civil_zone === filters.zone) &&
+              (filters.circle === 'all' || w.civil_circle === filters.circle) &&
+              (filters.division === 'all' || w.civil_division === filters.division)
             )
-            .map(w => w.sub_division_name)
+            .map(w => w.civil_sub_division)
             .filter(Boolean))].sort(),
           jes: [...new Set(works
             .filter(w => 
-              (filters.zone === 'all' || w.zone_name === filters.zone) &&
-              (filters.circle === 'all' || w.circle_name === filters.circle) &&
-              (filters.division === 'all' || w.division_name === filters.division) &&
-              (filters.subDivision === 'all' || w.sub_division_name === filters.subDivision)
+              (filters.zone === 'all' || w.civil_zone === filters.zone) &&
+              (filters.circle === 'all' || w.civil_circle === filters.circle) &&
+              (filters.division === 'all' || w.civil_division === filters.division) &&
+              (filters.subDivision === 'all' || w.civil_sub_division === filters.subDivision)
             )
             .map(w => w.je_name)
             .filter(Boolean))].sort()
@@ -257,10 +257,10 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
       const passesBasicFilters = (
         (newFilters.scheme === 'all' || work.scheme_name === newFilters.scheme) &&
         (newFilters.workCategory === 'all' || work.work_category === newFilters.workCategory) &&
-        (newFilters.zone === 'all' || work.zone_name === newFilters.zone) &&
-        (newFilters.circle === 'all' || work.circle_name === newFilters.circle) &&
-        (newFilters.division === 'all' || work.division_name === newFilters.division) &&
-        (newFilters.subDivision === 'all' || work.sub_division_name === newFilters.subDivision) &&
+        (newFilters.zone === 'all' || work.civil_zone === newFilters.zone) &&
+        (newFilters.circle === 'all' || work.civil_circle === newFilters.circle) &&
+        (newFilters.division === 'all' || work.civil_division === newFilters.division) &&
+        (newFilters.subDivision === 'all' || work.civil_sub_division === newFilters.subDivision) &&
         (newFilters.je === 'all' || work.je_name === newFilters.je)
       );
 
