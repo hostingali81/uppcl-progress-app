@@ -11,13 +11,22 @@ import type { Work } from "@/lib/types";
 
 // Use shared Work type from src/lib/types.ts
 
-// This mapping logic remains unchanged.
-const roleToColumnMap: { [key:string]: string } = {
+// Map roles to database columns for filtering - UPDATED for new schema
+const roleToColumnMap: { [key: string]: string } = {
   'je': 'je_name',
-  'sub_division_head': 'sub_division_name',
-  'division_head': 'division_name',
-  'circle_head': 'circle_name',
-  'zone_head': 'zone_name',
+  'sub_division_head': 'civil_sub_division',
+  'division_head': 'civil_division',
+  'circle_head': 'civil_circle',
+  'zone_head': 'civil_zone',
+};
+
+// Map roles to profile fields for filtering
+const roleToProfileFieldMap: { [key: string]: string } = {
+  'je': 'region',
+  'sub_division_head': 'subdivision',
+  'division_head': 'division',
+  'circle_head': 'circle',
+  'zone_head': 'zone',
 };
 
 export default async function AnalyticsPage() {
@@ -33,7 +42,7 @@ export default async function AnalyticsPage() {
   let profile = cache.get(profileCacheKey);
   
   if (!profile) {
-    const { data: profileData } = await supabase.from("profiles").select("role, value").eq("id", user.id).single();
+    const { data: profileData } = await supabase.from("profiles").select("role, full_name, region, division, subdivision, circle, zone").eq("id", user.id).single();
     if (!profileData) {
       return <p className="p-8 text-red-500">Could not find your profile.</p>;
     }
@@ -41,9 +50,13 @@ export default async function AnalyticsPage() {
     // Cache profile for 10 minutes
     cache.set(profileCacheKey, profile, 10 * 60 * 1000);
   }
+
+  // Get the filtering value from profile based on role
+  const profileField = roleToProfileFieldMap[(profile as any).role];
+  const filterValue = profileField ? (profile as any)[profileField] : null;
   
   // Check cache for works data
-  const worksCacheKey = CACHE_KEYS.userWorks(user.id, (profile as any).role, (profile as any).value);
+  const worksCacheKey = CACHE_KEYS.userWorks(user.id, (profile as any).role, filterValue);
   let works = cache.get(worksCacheKey);
   
   if (!works) {
@@ -61,8 +74,8 @@ export default async function AnalyticsPage() {
     `);
     
     const filterColumn = roleToColumnMap[(profile as any).role];
-    if ((profile as any).role !== 'superadmin' && filterColumn && (profile as any).value) {
-      worksQuery = worksQuery.eq(filterColumn, (profile as any).value);
+    if ((profile as any).role !== 'superadmin' && filterColumn && filterValue) {
+      worksQuery = worksQuery.eq(filterColumn, filterValue);
     }
 
     const { data: worksData, error } = await worksQuery;
