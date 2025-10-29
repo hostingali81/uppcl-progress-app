@@ -9,6 +9,7 @@ import { getSettings } from "@/app/(main)/admin/settings/actions";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // ====================================================================
 // These functions remain unchanged
@@ -126,12 +127,11 @@ export async function updateWorkProgress(formData: FormData) {
     // Use full name if available and not empty, otherwise use email
     const displayName = (profile?.full_name && profile.full_name.trim() !== '') ? profile.full_name : user.email;
     
-    // Insert progress log using admin client to bypass RLS (since policies are not set up)
-    // Log progress update
+    // Insert progress log using admin client to bypass RLS
     const { error: logError } = await supabaseAdmin.from("progress_logs").insert({ 
         work_id: workIdNumber, 
         user_id: user.id, 
-        user_email: displayName, // Use full name if available, fallback to email
+        user_email: user.email, // Always store email
         previous_progress: currentWork.progress_percentage, 
         new_progress: progressNumber, 
         remark: remark 
@@ -296,6 +296,63 @@ export async function toggleBlockerStatus(
   return { success: "Blocker status updated successfully." };
 }
 
+// Update MB/TECO/FICO status fields
+export async function updateWorkStatuses(formData: FormData) {
+  const { client: supabase } = await createSupabaseServerClient();
+  const workId = Number(formData.get('workId'));
+  const mbStatus = (formData.get('mbStatus') as string) || (formData.get('mb_status') as string) || null;
+  const tecoStatus = (formData.get('tecoStatus') as string) || (formData.get('teco_status') as string) || null;
+  const ficoStatus = (formData.get('ficoStatus') as string) || (formData.get('fico_status') as string) || null;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !workId) return { error: 'Authentication or workId missing.' };
+  // Fetch current values for audit logging
+  const { data: currentWork } = await supabase.from('works').select('mb_status, teco_status, fico_status').eq('id', workId).single();
+
+  const { error } = await supabase.from('works').update({
+    mb_status: mbStatus,
+    teco_status: tecoStatus,
+    fico_status: ficoStatus,
+    updated_at: new Date().toISOString()
+  }).eq('id', workId);
+
+  if (error) {
+    return { error: `Could not update status: ${error.message}` };
+  }
+
+  // Insert an audit comment summarizing status changes (user-facing log)
+  try {
+    const changes: string[] = [];
+    if (currentWork) {
+      if ((currentWork.mb_status || '') !== (mbStatus || '')) changes.push(`MB Status: "${currentWork.mb_status || 'Not set'}" → "${mbStatus || 'Not set'}"`);
+      if ((currentWork.teco_status || '') !== (tecoStatus || '')) changes.push(`TECO Status: "${currentWork.teco_status || 'Not set'}" → "${tecoStatus || 'Not set'}"`);
+      if ((currentWork.fico_status || '') !== (ficoStatus || '')) changes.push(`FICO Status: "${currentWork.fico_status || 'Not set'}" → "${ficoStatus || 'Not set'}"`);
+    }
+
+    if (changes.length > 0) {
+      const changeText = `Status updated by ${user.email}: ` + changes.join('; ');
+      await supabase.from('comments').insert({
+        work_id: workId,
+        user_id: user.id,
+        user_full_name: user.email,
+        content: changeText
+      });
+    }
+  } catch (logErr) {
+    // non-fatal - audit logging failed
+    console.error('Failed to write status audit comment:', logErr);
+  }
+
+  // Revalidate work and dashboard pages
+  try {
+    revalidatePath(`/dashboard/work/${workId}`);
+    revalidatePath('/dashboard');
+  } catch (e) {
+    // ignore
+  }
+
+  return { success: 'Status updated successfully.' };
+}
+
 // Zod schema for billing update validation
 const billingUpdateSchema = z.object({
   workId: z.number(),
@@ -318,7 +375,7 @@ export async function updateBillingDetails(data: {
 
   const validation = billingUpdateSchema.safeParse(data);
   if (!validation.success) {
-    return { error: `Invalid input: ${validation.error.errors.map(e => e.message).join(', ')}` };
+    return { error: `Invalid input: ${validation.error.issues.map((e) => e.message).join(', ')}` };
   }
 
   const { workId, billNo, billAmount, remark } = validation.data;

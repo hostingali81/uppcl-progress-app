@@ -98,7 +98,7 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
           divisions: [],
           subDivisions: [...new Set(works.map(w => w.sub_division_name).filter(Boolean))].sort(),
           jes: [...new Set(works
-            .filter(w => filters.subDivision === 'all' ? false : w.sub_division_name === filters.subDivision)
+            .filter(w => (filters.subDivision === 'all' || w.sub_division_name === filters.subDivision))
             .map(w => w.je_name)
             .filter(Boolean))].sort()
         };
@@ -118,8 +118,8 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
             .filter(Boolean))].sort(),
           jes: [...new Set(works
             .filter(w => 
-              (filters.division !== 'all' && w.division_name === filters.division) &&
-              (filters.subDivision === 'all' ? false : w.sub_division_name === filters.subDivision)
+              (filters.division === 'all' || w.division_name === filters.division) &&
+              (filters.subDivision === 'all' || w.sub_division_name === filters.subDivision)
             )
             .map(w => w.je_name)
             .filter(Boolean))].sort()
@@ -133,28 +133,27 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
           showJe: true,
           zones: [],
           circles: [...new Set(works.map(w => w.circle_name).filter(Boolean))].sort(),
-          // For zone_head, populate divisions from works in the current zone (works is likely already zone-filtered),
-          // but still narrow down when a circle is selected.
           divisions: [...new Set(works
-            .filter(w => (filters.circle === 'all' ? true : w.circle_name === filters.circle))
+            .filter(w => filters.circle === 'all' || w.circle_name === filters.circle)
             .map(w => w.division_name)
             .filter(Boolean))].sort(),
-          // Sub-divisions should consider both circle and division selections when present.
           subDivisions: [...new Set(works
             .filter(w => 
-              (filters.circle === 'all' ? true : w.circle_name === filters.circle) &&
-              (filters.division === 'all' ? true : w.division_name === filters.division)
+              (filters.circle === 'all' || w.circle_name === filters.circle) &&
+              (filters.division === 'all' || w.division_name === filters.division)
             )
             .map(w => w.sub_division_name)
             .filter(Boolean))].sort(),
-          // JEs should be shown based on all higher-level selections when provided.
           jes: [...new Set(works
-            .filter(w => 
-              (filters.circle === 'all' ? true : w.circle_name === filters.circle) &&
-              (filters.division === 'all' ? true : w.division_name === filters.division) &&
-              (filters.subDivision === 'all' ? true : w.sub_division_name === filters.subDivision)
-            )
-            .map(w => w.je_name)
+            .filter(w => {
+              const matchesFilters = (
+                (filters.circle === 'all' || w.circle_name === filters.circle) &&
+                (filters.division === 'all' || w.division_name === filters.division) &&
+                (filters.subDivision === 'all' || w.sub_division_name === filters.subDivision)
+              );
+              return matchesFilters && w.je_name; // Only include if JE name exists
+            })
+            .map(w => w.je_name!)
             .filter(Boolean))].sort()
         };
       case 'superadmin':
@@ -166,30 +165,30 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
           showJe: true,
           zones: [...new Set(works.map(w => w.zone_name).filter(Boolean))].sort(),
           circles: [...new Set(works
-            .filter(w => filters.zone === 'all' ? false : w.zone_name === filters.zone)
+            .filter(w => filters.zone === 'all' || w.zone_name === filters.zone)
             .map(w => w.circle_name)
             .filter(Boolean))].sort(),
           divisions: [...new Set(works
             .filter(w => 
-              (filters.zone !== 'all' && w.zone_name === filters.zone) &&
-              (filters.circle === 'all' ? false : w.circle_name === filters.circle)
+              (filters.zone === 'all' || w.zone_name === filters.zone) &&
+              (filters.circle === 'all' || w.circle_name === filters.circle)
             )
             .map(w => w.division_name)
             .filter(Boolean))].sort(),
           subDivisions: [...new Set(works
             .filter(w => 
-              (filters.zone !== 'all' && w.zone_name === filters.zone) &&
-              (filters.circle !== 'all' && w.circle_name === filters.circle) &&
-              (filters.division === 'all' ? false : w.division_name === filters.division)
+              (filters.zone === 'all' || w.zone_name === filters.zone) &&
+              (filters.circle === 'all' || w.circle_name === filters.circle) &&
+              (filters.division === 'all' || w.division_name === filters.division)
             )
             .map(w => w.sub_division_name)
             .filter(Boolean))].sort(),
           jes: [...new Set(works
             .filter(w => 
-              (filters.zone !== 'all' && w.zone_name === filters.zone) &&
-              (filters.circle !== 'all' && w.circle_name === filters.circle) &&
-              (filters.division !== 'all' && w.division_name === filters.division) &&
-              (filters.subDivision === 'all' ? false : w.sub_division_name === filters.subDivision)
+              (filters.zone === 'all' || w.zone_name === filters.zone) &&
+              (filters.circle === 'all' || w.circle_name === filters.circle) &&
+              (filters.division === 'all' || w.division_name === filters.division) &&
+              (filters.subDivision === 'all' || w.sub_division_name === filters.subDivision)
             )
             .map(w => w.je_name)
             .filter(Boolean))].sort()
@@ -253,63 +252,52 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
     setFilters(newFilters);
     
     // Apply filters
-    let filteredWorks = works;
-    
-    if (newFilters.scheme && newFilters.scheme !== 'all') {
-      filteredWorks = filteredWorks.filter(w => w.scheme_name === newFilters.scheme);
-    }
-
-    if (newFilters.workCategory && newFilters.workCategory !== 'all') {
-      filteredWorks = filteredWorks.filter(w => w.work_category === newFilters.workCategory);
-    }
-    
-    if (newFilters.zone && newFilters.zone !== 'all') {
-      filteredWorks = filteredWorks.filter(w => w.zone_name === newFilters.zone);
-    }
-    
-    if (newFilters.circle && newFilters.circle !== 'all') {
-      filteredWorks = filteredWorks.filter(w => w.circle_name === newFilters.circle);
-    }
-    
-    if (newFilters.division && newFilters.division !== 'all') {
-      filteredWorks = filteredWorks.filter(w => w.division_name === newFilters.division);
-    }
-    
-    if (newFilters.subDivision && newFilters.subDivision !== 'all') {
-      filteredWorks = filteredWorks.filter(w => w.sub_division_name === newFilters.subDivision);
-    }
-
-    if (newFilters.je && newFilters.je !== 'all') {
-      filteredWorks = filteredWorks.filter(w => w.je_name === newFilters.je);
-    }
-    
-    if (newFilters.status && newFilters.status !== 'all') {
-      switch (newFilters.status) {
-        case 'completed':
-          filteredWorks = filteredWorks.filter(w => (w.progress_percentage || 0) === 100);
-          break;
-        case 'in_progress':
-          filteredWorks = filteredWorks.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100);
-          break;
-        case 'not_started':
-          filteredWorks = filteredWorks.filter(w => (w.progress_percentage || 0) === 0);
-          break;
-        case 'blocked':
-          filteredWorks = filteredWorks.filter(w => w.is_blocked);
-          break;
-      }
-    }
-    
-    if (debouncedSearch) {
-      const searchLower = debouncedSearch.toLowerCase();
-      filteredWorks = filteredWorks.filter(w => 
-        w.work_name?.toLowerCase().includes(searchLower) ||
-        w.wbs_code?.toLowerCase().includes(searchLower) ||
-        w.district_name?.toLowerCase().includes(searchLower)
+    let filteredWorks = works.filter(work => {
+      // Basic filters
+      const passesBasicFilters = (
+        (newFilters.scheme === 'all' || work.scheme_name === newFilters.scheme) &&
+        (newFilters.workCategory === 'all' || work.work_category === newFilters.workCategory) &&
+        (newFilters.zone === 'all' || work.zone_name === newFilters.zone) &&
+        (newFilters.circle === 'all' || work.circle_name === newFilters.circle) &&
+        (newFilters.division === 'all' || work.division_name === newFilters.division) &&
+        (newFilters.subDivision === 'all' || work.sub_division_name === newFilters.subDivision) &&
+        (newFilters.je === 'all' || work.je_name === newFilters.je)
       );
-    }
-    
-    onFilterChange(filteredWorks);
+
+      if (!passesBasicFilters) return false;
+
+      // Status filter
+      if (newFilters.status && newFilters.status !== 'all') {
+        const progress = work.progress_percentage || 0;
+        switch (newFilters.status) {
+          case 'completed':
+            if (progress !== 100) return false;
+            break;
+          case 'in_progress':
+            if (progress <= 0 || progress >= 100) return false;
+            break;
+          case 'not_started':
+            if (progress !== 0) return false;
+            break;
+          case 'blocked':
+            if (!work.is_blocked) return false;
+            break;
+        }
+      }
+
+      // Search filter
+      if (debouncedSearch) {
+        const searchLower = debouncedSearch.toLowerCase();
+        const matchesSearch = (
+          work.work_name?.toLowerCase().includes(searchLower) ||
+          work.wbs_code?.toLowerCase().includes(searchLower) ||
+          work.district_name?.toLowerCase().includes(searchLower)
+        );
+        if (!matchesSearch) return false;
+      }
+
+      return true;
+    });    onFilterChange(filteredWorks);
   };
 
   const clearFilters = () => {
@@ -421,29 +409,48 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
         )}
 
         {filterOptions.showJe && (
-          <Select value={filters.je} onValueChange={(value) => handleFilterChange('je', value)}>
-            <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
-              <SelectValue placeholder="All JEs" />
+          <Select 
+            value={filters.je} 
+            onValueChange={(value) => handleFilterChange('je', value)}
+            disabled={!filterOptions.jes.length}
+          >
+            <SelectTrigger 
+              className={`w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm ${
+                !filterOptions.jes.length ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              <SelectValue placeholder={filterOptions.jes.length ? "All JEs" : "No JEs available"} />
             </SelectTrigger>
             <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
               <SelectItem value="all" className="bg-white hover:bg-slate-50">All JEs</SelectItem>
               {filterOptions.jes
-                .filter(je => {
-                  const work = works.find(w => w.je_name === je);
-                  return (
-                    (filters.subDivision === 'all' || work?.sub_division_name === filters.subDivision) &&
-                    (filters.division === 'all' || work?.division_name === filters.division) &&
-                    (filters.circle === 'all' || work?.circle_name === filters.circle) &&
-                    (filters.zone === 'all' || work?.zone_name === filters.zone)
-                  );
-                })
+                .sort((a, b) => (a || '').localeCompare(b || ''))
                 .map(je => (
-                  <SelectItem key={je} value={je || ''} className="bg-white hover:bg-slate-50">{je || 'Unknown'}</SelectItem>
+                  <SelectItem 
+                    key={je ?? ''} 
+                    value={je ?? ''} 
+                    className="bg-white hover:bg-slate-50"
+                  >
+                    {je ?? 'Unknown'}
+                  </SelectItem>
                 ))
               }
             </SelectContent>
           </Select>
         )}
+        {/* Status filter: Completed / In Progress / Not Started / Blocked */}
+        <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+          <SelectTrigger className="w-[160px] sm:w-[200px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
+            <SelectItem value="all" className="bg-white hover:bg-slate-50">All Statuses</SelectItem>
+            <SelectItem value="completed" className="bg-white hover:bg-slate-50">Completed</SelectItem>
+            <SelectItem value="in_progress" className="bg-white hover:bg-slate-50">In Progress</SelectItem>
+            <SelectItem value="not_started" className="bg-white hover:bg-slate-50">Not Started</SelectItem>
+            <SelectItem value="blocked" className="bg-white hover:bg-slate-50">Blocked</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Active Filters Display */}

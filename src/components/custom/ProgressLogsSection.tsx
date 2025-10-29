@@ -38,6 +38,12 @@ function getProgressChangeIcon(previous: number | null, current: number) {
 }
 
 export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) {
+  // Format user display name from the data
+  const getUserDisplayName = (log: ProgressLog) => {
+    const profileName = log.profiles?.full_name;
+    return profileName || log.user_email || 'Unknown User';
+  };
+
   if (!progressLogs || progressLogs.length === 0) {
     return (
       <Card className="border-slate-200 shadow-sm">
@@ -97,7 +103,7 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
                     <div className="flex items-center gap-4 text-sm text-slate-600">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
-                        <span>{log.user_email || 'Unknown User'}</span>
+                        <span>{getUserDisplayName(log)}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />

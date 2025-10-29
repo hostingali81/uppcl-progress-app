@@ -1,26 +1,31 @@
 // src/lib/performance.ts
-// Performance monitoring utilities
+
+type Measurement = {
+  startTime: number;
+  label: string;
+};
 
 export class PerformanceMonitor {
-  private static measurements: Map<string, number> = new Map();
+  private static measurements = new Map<string, Measurement>();
 
   static start(label: string): void {
-    this.measurements.set(label, performance.now());
+    this.measurements.set(label, {
+      startTime: performance.now(),
+      label
+    });
   }
 
   static end(label: string): number {
-    const startTime = this.measurements.get(label);
-    if (!startTime) {
-      console.warn(`Performance measurement "${label}" was not started`);
-      return 0;
-    }
+    const measurement = this.measurements.get(label);
+    if (!measurement) return 0;
 
-    const duration = performance.now() - startTime;
+    const duration = performance.now() - measurement.startTime;
     this.measurements.delete(label);
     
-    // Log slow operations (> 1 second)
-    if (duration > 1000) {
-      console.warn(`Slow operation detected: ${label} took ${duration.toFixed(2)}ms`);
+    if (duration > 1000 && process.env.NODE_ENV === 'development') {
+      // Only log in development for slow operations
+      const warning = `Slow operation detected: ${label} took ${duration.toFixed(2)}ms`;
+      console.warn(warning);
     }
     
     return duration;
@@ -28,40 +33,33 @@ export class PerformanceMonitor {
 
   static measure<T>(label: string, fn: () => T): T {
     this.start(label);
-    const result = fn();
-    const duration = this.end(label);
-    
-    // Log in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`${label}: ${duration.toFixed(2)}ms`);
+    try {
+      return fn();
+    } finally {
+      this.end(label);
     }
-    
-    return result;
   }
 
   static async measureAsync<T>(label: string, fn: () => Promise<T>): Promise<T> {
     this.start(label);
-    const result = await fn();
-    const duration = this.end(label);
-    
-    // Log in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`${label}: ${duration.toFixed(2)}ms`);
+    try {
+      return await fn();
+    } finally {
+      this.end(label);
     }
-    
-    return result;
   }
 }
 
 // React hook for measuring component render time
-export function usePerformanceMonitor(componentName: string) {
-  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    PerformanceMonitor.start(`${componentName}_render`);
-    
-    return () => {
-      PerformanceMonitor.end(`${componentName}_render`);
-    };
+export function usePerformanceMonitor(componentName: string): () => void {
+  if (typeof window === 'undefined' || process.env.NODE_ENV !== 'development') {
+    return () => void 0;
   }
+
+  const label = `${componentName}_render`;
+  PerformanceMonitor.start(label);
   
-  return () => {};
+  return () => {
+    PerformanceMonitor.end(label);
+  };
 }

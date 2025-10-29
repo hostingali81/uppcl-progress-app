@@ -48,8 +48,8 @@ export function AnalyticsClient({
   const [selectedScheme, setSelectedScheme] = useState<string>('all');
   const [selectedWorkCategory, setSelectedWorkCategory] = useState<string>('all');
 
-  // Get filtered works based on selected scheme and category
-  const getFilteredWorks = useCallback((): Work[] => {
+  // Get base works filtered only by selected scheme and category
+  const getBaseFilteredWorks = useCallback((): Work[] => {
     return works.filter((w: Work) => {
       const matchesScheme = selectedScheme === 'all' || w.scheme_name === selectedScheme;
       const matchesCategory = selectedWorkCategory === 'all' || w.work_category === selectedWorkCategory;
@@ -58,8 +58,10 @@ export function AnalyticsClient({
   }, [works, selectedScheme, selectedWorkCategory]);
 
   // Recalculate status data based on filtered works
+  // Status distribution should be based on scheme/category filtered works only (not KPI filter)
   const getFilteredStatusData = useCallback(() => {
-    return filteredWorks.reduce(
+    const baseWorks = getBaseFilteredWorks();
+    return baseWorks.reduce(
       (acc: { name: string; value: number }[], work: Work) => {
         const progress = work.progress_percentage || 0;
         if (progress === 100) acc[0].value += 1;
@@ -73,53 +75,57 @@ export function AnalyticsClient({
         { name: 'Not Started', value: 0 },
       ]
     );
-  }, [filteredWorks]);
+  }, [getBaseFilteredWorks]);
 
   // Recalculate financial data based on filtered works
+  // Financial progress should consider billed amount (total billing) and agreement amount
   const getFilteredFinancialData = useCallback(() => {    
-    // Initialize data with proper structure
+    const baseWorks = getBaseFilteredWorks();
+
     const initialData = [
       { name: 'Completed', value: 0 },
       { name: 'In Progress', value: 0 },
       { name: 'Not Started', value: 0 },
     ];
 
-    // Calculate financial progress
-    const result = filteredWorks.reduce((acc, work) => {
-      // Ensure we have valid numbers
-      const progress = Number(work.progress_percentage) || 0;
+    const result = baseWorks.reduce((acc, work) => {
       const agreementAmount = Number(work.agreement_amount) || 0;
-      
-      if (agreementAmount === 0) return acc; // Skip if no agreement amount
-      
-      if (progress === 100) {
-        // For completed works
-        acc[0].value += agreementAmount;
-      } else if (progress > 0 && progress < 100) {
-        // For in-progress works (only if progress is between 1-99%)
-        const progressAmount = (agreementAmount * progress) / 100;
-        const remainingAmount = agreementAmount - progressAmount;
-        acc[1].value += progressAmount; // Completed portion
-        acc[2].value += remainingAmount; // Remaining portion
+      // Look for billed amount fields - prefer total_billed_amount, then bill_amount_with_tax, then bill_amount
+      const billedAmount = Number(
+        (work as any).total_billed_amount ?? (work as any).bill_amount_with_tax ?? (work as any).bill_amount ?? 0
+      ) || 0;
+
+      // If there's no agreement and no billing, skip
+      if (agreementAmount === 0 && billedAmount === 0) return acc;
+
+      // If there's any billed amount, consider it as completed (show total billed as Completed)
+      if (billedAmount > 0) {
+        acc[0].value += billedAmount;
+
+        // If there's an agreement and billed < agreement, the remaining is still 'In Progress' or 'Not Started'
+        if (agreementAmount > 0 && billedAmount < agreementAmount) {
+          // Remaining to be billed
+          acc[1].value += (agreementAmount - billedAmount);
+        }
       } else {
-        // For not started works (0% progress)
-        acc[2].value += agreementAmount;
+        // billedAmount === 0
+        // If there's an agreement amount, it's not billed yet => Not Started
+        if (agreementAmount > 0) {
+          acc[2].value += agreementAmount;
+        }
       }
-      
+
       return acc;
     }, initialData);
 
-    // Filter out segments with zero value
-    const finalResult = result.filter(item => item.value > 0);
-    
-    console.log('Financial Data:', finalResult); // Debug log
-    
-    return finalResult;
-  }, [getFilteredWorks]);
+    // Return only non-zero segments
+    return result.filter(item => item.value > 0);
+  }, [getBaseFilteredWorks]);
 
   // Recalculate district data based on filtered works
   const getFilteredDistrictData = useCallback(() => {
-    const districtCounts = filteredWorks.reduce((acc, work) => {
+    const baseWorks = getBaseFilteredWorks();
+    const districtCounts = baseWorks.reduce((acc, work) => {
       const district = work.district_name || 'N/A';
       if (!acc[district]) acc[district] = 0;
       acc[district]++;
@@ -129,11 +135,12 @@ export function AnalyticsClient({
     return Object.keys(districtCounts)
       .map(name => ({ name, total: districtCounts[name] }))
       .sort((a, b) => b.total - a.total); // Sort by total in descending order
-  }, [getFilteredWorks]);
+  }, [getBaseFilteredWorks]);
 
   // Recalculate monthly data based on filtered works
   const getFilteredMonthlyData = useCallback(() => {
-    const monthlyTrend = filteredWorks.reduce((acc, work) => {
+    const baseWorks = getBaseFilteredWorks();
+    const monthlyTrend = baseWorks.reduce((acc, work) => {
       if (work.created_at) {
         const month = new Date(work.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
         if (!acc[month]) acc[month] = { total: 0, completed: 0 };
@@ -151,22 +158,22 @@ export function AnalyticsClient({
         completionRate: monthlyTrend[month].total > 0 ? (monthlyTrend[month].completed / monthlyTrend[month].total) * 100 : 0
       }))
       .slice(-6);
-  }, [getFilteredWorks]);
+  }, [getBaseFilteredWorks]);
 
-  // Recalculate KPIs based on filtered works
+  // Recalculate KPIs based on scheme/category filtered works (base set)
   const getFilteredKPIs = useCallback(() => {
-    const filteredWorks = getFilteredWorks();
-    const totalWorks = filteredWorks.length;
-    const completedWorks = filteredWorks.filter(w => (w.progress_percentage || 0) === 100).length;
-    const notStartedWorks = filteredWorks.filter(w => (w.progress_percentage || 0) === 0).length;
-    const blockedWorks = filteredWorks.filter(w => w.is_blocked).length;
-    const totalAgreementValue = filteredWorks.reduce((sum, work) => sum + (work.agreement_amount || 0), 0);
-    const completedValue = filteredWorks.reduce((sum, work) => {
+    const baseWorks = getBaseFilteredWorks();
+    const totalWorks = baseWorks.length;
+    const completedWorks = baseWorks.filter((w: Work) => (w.progress_percentage || 0) === 100).length;
+    const notStartedWorks = baseWorks.filter((w: Work) => (w.progress_percentage || 0) === 0).length;
+    const blockedWorks = baseWorks.filter((w: Work) => w.is_blocked).length;
+    const totalAgreementValue = baseWorks.reduce((sum: number, work: Work) => sum + (work.agreement_amount || 0), 0);
+    const completedValue = baseWorks.reduce((sum: number, work: Work) => {
       const progress = work.progress_percentage || 0;
       return sum + ((work.agreement_amount || 0) * progress) / 100;
     }, 0);
-    const averageProgress = filteredWorks.length > 0 
-      ? filteredWorks.reduce((sum, work) => sum + (work.progress_percentage || 0), 0) / filteredWorks.length 
+    const averageProgress = baseWorks.length > 0 
+      ? baseWorks.reduce((sum: number, work: Work) => sum + (work.progress_percentage || 0), 0) / baseWorks.length 
       : 0;
 
     return {
@@ -178,7 +185,7 @@ export function AnalyticsClient({
       completedValue,
       averageProgress
     };
-  }, [getFilteredWorks]);
+  }, [getBaseFilteredWorks]);
 
   // Function to truncate work names
   const truncateWorkName = (name: string | null, maxLength: number = 30): string => {

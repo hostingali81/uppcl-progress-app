@@ -78,7 +78,27 @@ export function AddUserDialog() {
       formData.append("password", password);
       formData.append("full_name", fullName);
       formData.append("role", role);
-      formData.append("value", value);
+
+      // Map value to appropriate profiles field based on role
+      // Consistent with dashboard filters:
+      // - JE uses je_name -> stored in profiles.region
+      // - Sub-division head uses civil_sub_division -> profiles.subdivision
+      // - Division head uses civil_division -> profiles.division
+      // - Circle head uses civil_circle -> profiles.circle
+      // - Zone head uses civil_zone -> profiles.zone
+      if (role && value) {
+        if (role === 'je') {
+          formData.append("region", value);
+        } else if (role === 'sub_division_head') {
+          formData.append("subdivision", value);
+        } else if (role === 'division_head') {
+          formData.append("division", value);
+        } else if (role === 'circle_head') {
+          formData.append("circle", value);
+        } else if (role === 'zone_head') {
+          formData.append("zone", value);
+        }
+      }
       
       const result = await addUser(formData);
 

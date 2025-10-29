@@ -377,7 +377,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                             category !== null && category !== ''
                           )
                         )];
-                        console.log('Available categories:', categories);
+                        // Remove debug log
                         return categories;
                       })()
                         .sort((a, b) => a.localeCompare(b))

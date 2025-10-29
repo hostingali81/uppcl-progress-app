@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { ArrowLeft, FileText, MapPin, DollarSign, Calendar, Users, AlertTriangle, CheckCircle, Clock, TrendingUp, Building2, MapPin as LocationIcon, FileText as DocumentIcon, DollarSign as MoneyIcon, Calendar as CalendarIcon, Users as TeamIcon, Settings } from "lucide-react";
 import { ClickableDetailRow } from './ClickableDetailRow';
+import EditableStatusRow, { EditableDetailRow } from './EditableStatusRow';
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { UpdateProgressForm } from "./UpdateProgressForm";
 import { UpdateBillingForm } from "./UpdateBillingForm";
@@ -89,20 +90,27 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return redirect("/login");
 
+    // Query by numeric id to match DB id type (works.id is bigint)
+    const numericId = Number(id);
     const workPromise = supabase
         .from("works")
-        .select(`*, attachments (*), comments (*)`)
-        .eq("id", id)
+        .select(`*, attachments (*)`)
+        .eq("id", numericId)
         .single();
     const usersPromise = supabase.from("profiles").select('id, full_name, role');
     const profilePromise = supabase.from("profiles").select('role').eq('id', user.id).single();
     const progressLogsPromise = supabase
         .from("progress_logs")
         .select(`
-            id, work_id, user_email, previous_progress, new_progress, remark, created_at,
-            attachments:attachments(*)
+            id, work_id, user_id, user_email, previous_progress, new_progress, remark, created_at,
         `)
         .eq('work_id', id)
+        .order('created_at', { ascending: false });
+
+    const commentsPromise = supabase
+        .from('comments')
+        .select('*')
+        .eq('work_id', numericId)
         .order('created_at', { ascending: false });
 
     const paymentLogsPromise = supabase
@@ -111,16 +119,55 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
         .eq('work_id', id)
         .order('created_at', { ascending: false });
     
-    const [{ data: work, error: workError }, { data: allUsers }, { data: currentUserProfile }, { data: progressLogs }, { data: paymentLogs }] = await Promise.all([workPromise, usersPromise, profilePromise, progressLogsPromise, paymentLogsPromise]);
-        
-    if (workError || !work) notFound();
+    const [
+        { data: workRow, error: workError },
+        { data: allUsers },
+        { data: currentUserProfile },
+        { data: progressLogs },
+        { data: paymentLogs },
+        { data: comments }
+    ] = await Promise.all([workPromise, usersPromise, profilePromise, progressLogsPromise, paymentLogsPromise, commentsPromise]);
 
-    const usersForMentions = allUsers ? allUsers.map(u => ({ id: u.id, display: u.full_name || 'Unknown' })) : [];
-    const currentUserRole = currentUserProfile?.role || 'user';
-    
+    // If no work found or fetch error, log useful debug info. In development throw an error with details so you can see it in the overlay.
+    if (workError || !workRow) {
+        console.error('Work fetch failed:', {
+            id,
+            numericId,
+            workError: workError ? {
+                message: workError.message || 'No message',
+                code: workError.code || 'No code',
+                details: workError.details || 'No details',
+                hint: workError.hint || 'No hint'
+            } : 'No error object',
+            workRow,
+            workRowExists: !!workRow
+        });
+
+        if (process.env.NODE_ENV === 'development') {
+            // Enhanced error for development debugging
+            const errorMsg = `Work not found or fetch error. id=${id} numericId=${numericId}`;
+            const workErrorDetails = workError ? `, error=${workError.code ? `(${workError.code}) ` : ''}${workError.message}` : '';
+            throw new Error(`${errorMsg}${workErrorDetails}`);
+        }
+        // In production show the 404 page
+        notFound();
+    }
+
+    // Normalize work object for easier usage in the template (loosen typing to avoid TS issues)
+    const work = workRow as any;
+
+    // Cast other fetched collections to any to avoid strict TS generics errors from Supabase types
+    const allUsersData = (allUsers || []) as any[];
+    const currentUserProfileData = currentUserProfile as any;
+    const progressLogsData = (progressLogs || []) as any[];
+    const paymentLogsData = (paymentLogs || []) as any[];
+
+    const usersForMentions = allUsersData ? allUsersData.map(u => ({ id: u.id, display: u.full_name || 'Unknown' })) : [];
+    const currentUserRole = currentUserProfileData?.role || 'user';
+
     // Calculate billing summary
-    const totalBillAmount = paymentLogs?.reduce((sum, log) => sum + (log.new_bill_amount || 0), 0) || 0;
-    const latestBill = paymentLogs && paymentLogs.length > 0 ? paymentLogs[0] : null;
+    const totalBillAmount = paymentLogsData?.reduce((sum: number, log: any) => sum + (log.new_bill_amount || 0), 0) || 0;
+    const latestBill = paymentLogsData && paymentLogsData.length > 0 ? paymentLogsData[0] : null;
     const latestBillNumber = latestBill?.new_bill_no || 'N/A';
     // --- END OF DATA FETCHING LOGIC ---
 
@@ -204,7 +251,6 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                                 <DetailRow label="Scheme Sr. No." value={work.scheme_sr_no} />
                                 <DetailRow label="Work Category" value={work.work_category} />
                                 <DetailRow label="Site Name" value={work.site_name} />
-                                <DetailRow label="District Name" value={work.district_name} />
                             </div>
                         </CardContent>
                     </Card>
@@ -224,10 +270,19 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
+                                {/* Primary zone/civil hierarchy */}
+                                <DetailRow label="Civil Zone" value={work.civil_zone} />
+                                <DetailRow label="Civil Circle" value={work.civil_circle} />
+                                <DetailRow label="Civil Division" value={work.civil_division} />
+                                <DetailRow label="Civil Sub-Division" value={work.civil_sub_division} />
+
+                                {/* Legacy administrative fields (Zone, Circle, Division, Sub-Division) */}
                                 <DetailRow label="Zone Name" value={work.zone_name} />
                                 <DetailRow label="Circle Name" value={work.circle_name} />
                                 <DetailRow label="Division Name" value={work.division_name} />
                                 <DetailRow label="Sub-Division Name" value={work.sub_division_name} />
+
+                                <DetailRow label="District Name" value={work.district_name} />
                                 <DetailRow label="JE Name" value={work.je_name} />
                             </div>
                         </CardContent>
@@ -331,10 +386,10 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                    <DetailRow label="Distribution Zone" value={work.distribution_zone ?? 'N/A'} />
-                                    <DetailRow label="Distribution Circle" value={work.distribution_circle ?? 'N/A'} />
-                                    <DetailRow label="Distribution Division" value={work.distribution_division ?? 'N/A'} />
-                                    <DetailRow label="Distribution Sub-Division" value={work.distribution_sub_division ?? 'N/A'} />
+                                    <EditableDetailRow label="Distribution Zone" fieldName="distribution_zone" currentValue={work.distribution_zone} workId={work.id} />
+                                    <EditableDetailRow label="Distribution Circle" fieldName="distribution_circle" currentValue={work.distribution_circle} workId={work.id} />
+                                    <EditableDetailRow label="Distribution Division" fieldName="distribution_division" currentValue={work.distribution_division} workId={work.id} />
+                                    <EditableDetailRow label="Distribution Sub-Division" fieldName="distribution_sub_division" currentValue={work.distribution_sub_division} workId={work.id} />
                                 </div>
                             </CardContent>
                     </Card>
@@ -356,9 +411,9 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                     <CardContent className="p-0">
                         <div className="divide-y divide-slate-100">
                             <DetailRow label="WBS Code" value={work.wbs_code} />
-                            <DetailRow label="MB Status" value={work.mb_status} />
-                            <DetailRow label="TECO Status" value={work.teco_status || work.teco} />
-                            <DetailRow label="FICO Status" value={work.fico_status || work.fico} />
+                            <EditableStatusRow label="MB Status" fieldName="mb_status" currentValue={work.mb_status} workId={work.id} />
+                            <EditableStatusRow label="TECO Status" fieldName="teco_status" currentValue={work.teco_status || work.teco} workId={work.id} />
+                            <EditableStatusRow label="FICO Status" fieldName="fico_status" currentValue={work.fico_status || work.fico} workId={work.id} />
                             <DetailRow label="Is Blocked" value={work.is_blocked ? 'Yes' : 'No'} />
                             <DetailRow label="Last Bill No." value={latestBillNumber} />
                             <ClickableDetailRow 
@@ -377,7 +432,7 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
 
                         <CommentsSection 
                             workId={work.id} 
-                            comments={work.comments} 
+                            comments={comments || []} 
                             mentionUsers={usersForMentions}
                             currentUserId={user.id}
                             currentUserRole={currentUserRole}

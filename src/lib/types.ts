@@ -5,6 +5,10 @@
   work_name?: string | null;
   work_category?: string | null;
   wbs_code?: string | null;
+  civil_zone?: string | null;
+  civil_circle?: string | null;
+  civil_division?: string | null;
+  civil_sub_division?: string | null;
   zone_name?: string | null;
   circle_name?: string | null;
   division_name?: string | null;
@@ -37,7 +41,9 @@
   remark?: string | null;
   mb_status?: string | null;
   teco?: string | null;
+  teco_status?: string | null;
   fico?: string | null;
+  fico_status?: string | null;
   bill_no?: string | null;
   bill_amount_with_tax?: number | null;
   is_blocked?: boolean;
@@ -74,10 +80,14 @@ export interface Attachment {
 export interface ProgressLog {
   id: number;
   work_id: number;
+  user_id: string;
   user_email: string | null;
   previous_progress: number | null;
   new_progress: number;
   remark: string | null;
   created_at: string;
   attachments?: Attachment[];
+  profiles?: {
+    full_name: string | null;
+  } | null;
 }

@@ -25,16 +25,33 @@ export default function Login() {
 
     try {
       const supabase = createSupabaseClient();
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      
+      const resp = await supabase.auth.signInWithPassword({ email, password });
+      console.debug('signInWithPassword response:', resp);
+      const { error } = resp;
+
       if (error) {
-        toast.error("Invalid email or password. Please try again.");
+        // Show Supabase-provided message when available for easier debugging
+        const message = error.message || 'Invalid email or password. Please try again.';
+        toast.error(message);
         setIsLoading(false);
         return;
       }
       
+      // After login, fetch user and profile role to route appropriately
+      const { data: { user: signedInUser } } = await supabase.auth.getUser();
+      let destination = "/dashboard";
+      if (signedInUser) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", signedInUser.id)
+          .single();
+        if (profile?.role === "superadmin") {
+          destination = "/admin";
+        }
+      }
       toast.success("Login successful! Redirecting...");
-      router.push("/dashboard");
+      router.push(destination);
       router.refresh();
     } catch (error) {
       console.error("Login error:", error);

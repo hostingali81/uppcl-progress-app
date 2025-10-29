@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { ProfileClient } from "@/components/custom/ProfileClient";
 import { ProfileError, ProfileNotFound } from "@/components/custom/ProfileErrorStates";
 import { User, Mail, Shield, Calendar, MapPin } from "lucide-react";
+import type { Database } from "@/types/supabase";
+
+type ProfileData = Database['public']['Tables']['profiles']['Row'];
 
 export default async function ProfilePage() {
     const { client: supabase } = await createSupabaseServerClient();
@@ -15,11 +18,16 @@ export default async function ProfilePage() {
         return redirect("/login");
     }
 
-    let { data: profile, error: profileError } = await supabase
+    let profile: ProfileData | null = null;
+    const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("full_name, role, value")
+        .select("id, full_name, role, region, division, subdivision, updated_at")
         .eq("id", user.id)
         .single();
+
+    if (profileData) {
+        profile = profileData;
+    }
 
     console.log("User ID:", user.id);
     console.log("Profile data:", profile);
@@ -39,32 +47,36 @@ export default async function ProfilePage() {
         console.error("Profile fetch error details:", profileError);
         console.error("Error type:", typeof profileError);
         console.error("Error keys:", Object.keys(profileError));
-        console.error("Error code:", profileError.code);
-        console.error("Error message:", profileError.message);
-        
-        // If it's a "not found" error or empty error object, show a more specific message
-        if (profileError.code === 'PGRST116' || 
-            profileError.message?.includes('No rows found') || 
-            (Object.keys(profileError).length > 0 && !profileError.message && !profileError.code)) {
-            return <ProfileNotFound userEmail={user.email} userId={user.id} />;
+
+        // Check if error is empty object or has no meaningful properties
+        const isEmptyError = !profileError || (typeof profileError === 'object' && Object.keys(profileError).length === 0);
+        const hasNoContent = !profileError.code && !profileError.message && !profileError.details;
+
+        if (profileError.code === 'PGRST116' ||
+            profileError.message?.includes('No rows found') ||
+            isEmptyError || hasNoContent) {
+            console.log("Profile not found, proceeding to create profile logic");
+            // Don't return here, let the code fall through to profile creation logic
+        } else {
+            console.error("Error code:", profileError.code);
+            console.error("Error message:", profileError.message);
+            return <ProfileError userEmail={user.email} userId={user.id} errorMessage={profileError.message || 'Unknown error occurred'} />;
         }
-        
-        return <ProfileError userEmail={user.email} userId={user.id} errorMessage={profileError.message} />;
     }
 
     if (!profile) {
         // Try to create a basic profile if it doesn't exist
         console.log("Profile not found, attempting to create basic profile...");
         
+        const profileInsert = {
+            id: user.id,
+            full_name: user.email?.split('@')[0] || 'User',
+            role: 'je', // Default role
+        };
+
         const { data: newProfile, error: createError } = await supabase
             .from("profiles")
-            .insert({
-                id: user.id,
-                full_name: user.email?.split('@')[0] || 'User',
-                role: 'je', // Default role
-                value: null,
-                updated_at: new Date().toISOString(),
-            })
+            .insert(profileInsert)
             .select()
             .single();
             
@@ -74,7 +86,7 @@ export default async function ProfilePage() {
         }
         
         // Use the newly created profile
-        profile = newProfile;
+        profile = newProfile as ProfileData;
     }
 
     return (
@@ -125,7 +137,7 @@ export default async function ProfilePage() {
                                 <MapPin className="h-4 w-4" />
                                 <span className="text-sm font-medium">Assignment</span>
                             </div>
-                                <p className="text-slate-900 font-medium">{profile?.value || 'N/A'}</p>
+                                <p className="text-slate-900 font-medium">{profile?.region || 'N/A'}</p>
                         </div>
                         
                         <div className="space-y-2">
@@ -161,11 +173,11 @@ export default async function ProfilePage() {
                     <CardContent className="p-6">
                         <div className="space-y-4">
                             <div>
-                                <p className="text-sm text-slate-600 mb-2">Current Name:</p>
-                                <p className="text-slate-900 font-medium">{profile?.full_name || 'Not set'}</p>
+                            <p className="text-sm text-slate-600 mb-2">Current Name:</p>
+                            <p className="text-slate-900 font-medium">{profile?.full_name || 'Not set'}</p>
                             </div>
-                            <ProfileClient 
-                                fullName={profile?.full_name || ''} 
+                            <ProfileClient
+                                fullName={profile?.full_name || ''}
                                 type="profile"
                             />
                         </div>

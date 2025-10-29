@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { AnalyticsClient } from "@/components/custom/AnalyticsClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { BarChart3, PieChart } from "lucide-react";
-import { cache, cacheKeys } from "@/lib/cache";
+import { cache } from "@/lib/cache";
+import { CACHE_KEYS } from "@/lib/constants";
 import type { Work } from "@/lib/types";
 
 // Use shared Work type from src/lib/types.ts
@@ -28,7 +29,7 @@ export default async function AnalyticsPage() {
   }
   
   // Check cache for user profile
-  const profileCacheKey = cacheKeys.userProfile(user.id);
+  const profileCacheKey = CACHE_KEYS.userProfile(user.id);
   let profile = cache.get(profileCacheKey);
   
   if (!profile) {
@@ -42,7 +43,7 @@ export default async function AnalyticsPage() {
   }
   
   // Check cache for works data
-  const worksCacheKey = cacheKeys.userWorks(user.id, (profile as any).role, (profile as any).value);
+  const worksCacheKey = CACHE_KEYS.userWorks(user.id, (profile as any).role, (profile as any).value);
   let works = cache.get(worksCacheKey);
   
   if (!works) {
@@ -56,7 +57,7 @@ export default async function AnalyticsPage() {
       rate_as_per_ag, agreement_amount, agreement_no_and_date,
       firm_name_and_contact, firm_contact_no, firm_email,
       start_date, scheduled_completion_date, weightage, progress_percentage, remark,
-      wbs_code, mb_status, teco, fico, is_blocked, created_at
+      wbs_code, mb_status, teco_status, fico_status, is_blocked
     `);
     
     const filterColumn = roleToColumnMap[(profile as any).role];
@@ -155,8 +156,8 @@ export default async function AnalyticsPage() {
 
   // Monthly progress trend (last 6 months)
   const monthlyTrend = worksData.reduce((acc, work) => {
-    if (work.created_at) {
-      const month = new Date(work.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    if (work.start_date) {
+      const month = new Date(work.start_date as any).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
       if (!acc[month]) acc[month] = { total: 0, completed: 0 };
       acc[month].total++;
       if ((work.progress_percentage || 0) === 100) acc[month].completed++;

@@ -1,17 +1,31 @@
 // src/lib/cache.ts
-// Simple in-memory cache for server-side data
-// In production, you might want to use Redis or another caching solution
 
 interface CacheItem<T> {
   data: T;
   timestamp: number;
-  ttl: number; // Time to live in milliseconds
+  ttl: number;
 }
 
-class MemoryCache {
-  private cache = new Map<string, CacheItem<any>>();
+import { CACHE } from './constants';
 
-  set<T>(key: string, data: T, ttl: number = 5 * 60 * 1000): void { // Default 5 minutes
+class MemoryCache {
+  private static readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
+  private cache = new Map<string, CacheItem<unknown>>();
+
+  private cleanupInterval = setInterval(() => {
+    this.cleanup();
+  }, 60 * 1000); // Cleanup every minute
+
+  private cleanup(): void {
+    const now = Date.now();
+    for (const [key, item] of this.cache.entries()) {
+      if (now - item.timestamp > item.ttl) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  set<T>(key: string, data: T, ttl = MemoryCache.DEFAULT_TTL): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
@@ -20,10 +34,9 @@ class MemoryCache {
   }
 
   get<T>(key: string): T | null {
-    const item = this.cache.get(key);
+    const item = this.cache.get(key) as CacheItem<T> | undefined;
     if (!item) return null;
 
-    // Check if item has expired
     if (Date.now() - item.timestamp > item.ttl) {
       this.cache.delete(key);
       return null;
@@ -40,21 +53,14 @@ class MemoryCache {
     this.cache.clear();
   }
 
-  // Get cache size for monitoring
   size(): number {
     return this.cache.size;
+  }
+
+  destroy(): void {
+    clearInterval(this.cleanupInterval);
+    this.clear();
   }
 }
 
 export const cache = new MemoryCache();
-
-// Cache key generators
-export const cacheKeys = {
-  userProfile: (userId: string) => `user_profile_${userId}`,
-  userWorks: (userId: string, role: string, value?: string) => 
-    `user_works_${userId}_${role}_${value || 'all'}`,
-  progressLogs: (workId?: string) => 
-    workId ? `progress_logs_${workId}` : 'progress_logs_all',
-  allUsers: () => 'all_users',
-  allProfiles: () => 'all_profiles',
-};

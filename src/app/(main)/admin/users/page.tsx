@@ -20,9 +20,11 @@ import { Users, Shield } from "lucide-react";
 // Define a clear type for a user's profile data.
 type Profile = {
   id: string;
-  full_name: string | null;
+  name: string | null;
   role: string;
-  value: string | null;
+  region: string | null;
+  division: string | null;
+  subdivision: string | null;
 };
 
 // Combine Auth and Profile data into a single type for convenience.
@@ -30,6 +32,26 @@ type UserWithProfile = {
   auth: User;
   profile: Profile | null;
 };
+
+// Helper function to get the appropriate value for display based on role
+function getProfileValue(profile: Profile | null): string {
+  if (!profile) return 'N/A';
+
+  switch (profile.role) {
+    case 'je':
+    case 'sub_division_head':
+      return profile.subdivision || 'N/A';
+    case 'division_head':
+      return profile.division || 'N/A';
+    case 'circle_head':
+    case 'zone_head':
+      return profile.region || 'N/A';
+    case 'superadmin':
+      return 'Super Admin';
+    default:
+      return 'N/A';
+  }
+}
 
 export default async function UsersPage() {
   // Data fetching logic remains identical.
@@ -101,7 +123,7 @@ export default async function UsersPage() {
                 {usersWithProfiles.map(({ auth, profile }) => (
                   <TableRow key={auth.id} className="hover:bg-slate-50 transition-colors">
                     <TableCell className="font-mono text-sm text-slate-700">{auth.email}</TableCell>
-                    <TableCell className="text-slate-700">{profile?.full_name || 'N/A'}</TableCell>
+                    <TableCell className="text-slate-700">{profile?.name || 'N/A'}</TableCell>
                     <TableCell>
                       {profile?.role && (
                         // Use a destructive badge for the high-privilege superadmin role.
@@ -114,20 +136,28 @@ export default async function UsersPage() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-slate-600">{profile?.value || 'N/A'}</TableCell>
+                    <TableCell className="text-slate-600">{getProfileValue(profile)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <EditUserDialog user={{
                           id: auth.id,
                           email: auth.email,
-                          profile: profile
+                          profile: profile ? {
+                            full_name: profile.name,
+                            role: profile.role,
+                            value: getProfileValue(profile) === 'Super Admin' ? null : getProfileValue(profile) === 'N/A' ? null : getProfileValue(profile).replace('Super Admin', '').replace('N/A', '')
+                          } : null
                         }} />
                         {/* Only show delete button if not current user */}
                         {currentUser && currentUser.id !== auth.id && (
                           <DeleteUserDialog user={{
                             id: auth.id,
                             email: auth.email,
-                            profile: profile
+                            profile: profile ? {
+                              full_name: profile.name,
+                              role: profile.role,
+                              value: getProfileValue(profile) === 'Super Admin' ? null : getProfileValue(profile) === 'N/A' ? null : getProfileValue(profile).replace('Super Admin', '').replace('N/A', '')
+                            } : null
                           }} />
                         )}
                       </div>

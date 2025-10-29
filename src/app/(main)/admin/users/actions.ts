@@ -1,4 +1,4 @@
-// src/app/admin/users/actions.ts
+// src/app/(main)/admin/users/actions.ts
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -26,20 +26,26 @@ export async function addUser(formData: FormData) {
     const password = formData.get("password") as string;
     const fullName = formData.get("full_name") as string;
     const role = formData.get("role") as string;
-    const value = formData.get("value") as string;
+    const region = formData.get("region") as string;
+    const division = formData.get("division") as string;
+    const subdivision = formData.get("subdivision") as string;
+    const circle = formData.get("circle") as string;
+    const zone = formData.get("zone") as string;
 
     if (!email || !password || !fullName || !role) {
       return { error: "Missing required fields: email, password, full name, and role are required" };
     }
 
-    if (role !== 'superadmin' && !value) {
-      return { error: "Value is required for this role" };
-    }
+    // Relaxed validation for user creation - allow creation with optional fields missing
+    // This prevents form validation issues during initial setup
+    // Admins can update the assignments later if needed
+
+    console.log("Creating user:", { email, fullName, role, region, division, subdivision, circle, zone });
 
     // Check if user already exists
     const { data: existingUsers } = await supabaseServiceRole.auth.admin.listUsers();
     const userExists = existingUsers?.users?.find(u => u.email === email);
-    
+
     if (userExists) {
       return { error: "User with this email already exists" };
     }
@@ -47,7 +53,7 @@ export async function addUser(formData: FormData) {
     const { data: { user }, error: authError } = await supabaseServiceRole.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
+      email_confirm: true, // Set to false if you want them to confirm via email
     });
 
     if (authError) {
@@ -57,28 +63,57 @@ export async function addUser(formData: FormData) {
     if (!user) {
       return { error: "Could not create user." };
     }
-    
-    // Use upsert to handle both insert and update cases
-    const { error: profileError } = await supabaseServiceRole
-      .from("profiles")
-      .upsert({
-        id: user.id,
-        full_name: fullName,
-        role: role,
-        value: value || null,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'id'
-      });
-    
-    if (profileError) {
-      // Clean up the auth user if profile creation fails
+
+    // Create profile with error handling for existing profiles
+    try {
+      const { error: profileError } = await supabaseServiceRole
+        .from("profiles")
+        .insert({
+          id: user.id,
+          full_name: fullName,
+          role: role,
+          region: region || null,
+          division: division || null,
+          subdivision: subdivision || null,
+          circle: circle || null,
+          zone: zone || null,
+        });
+
+      if (profileError) {
+        // If profile already exists, try updating it instead
+        if (profileError.code === '23505') { // unique_violation
+          const { error: updateError } = await supabaseServiceRole
+            .from("profiles")
+            .update({
+              full_name: fullName,
+              role: role,
+              region: region || null,
+              division: division || null,
+              subdivision: subdivision || null,
+              circle: circle || null,
+              zone: zone || null,
+            })
+            .eq('id', user.id);
+
+          if (updateError) {
+            // Clean up the auth user if profile update fails
+            await supabaseServiceRole.auth.admin.deleteUser(user.id);
+            return { error: `Profile Update Error: ${updateError.message}` };
+          }
+        } else {
+          // Clean up the auth user if profile creation fails
+          await supabaseServiceRole.auth.admin.deleteUser(user.id);
+          return { error: `Profile Error: ${profileError.message}` };
+        }
+      }
+    } catch (error) {
+      // Clean up the auth user if unexpected error occurs
       await supabaseServiceRole.auth.admin.deleteUser(user.id);
-      return { error: `Profile Error: ${profileError.message}` };
+      return { error: `Unexpected profile error: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
 
     revalidatePath("/admin/users");
-    return { error: null };
+    return { success: "User created successfully!", error: null };
   } catch (error) {
     return { error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` };
   }
@@ -104,7 +139,11 @@ export async function updateUser(formData: FormData) {
     const id = formData.get("id") as string;
     const fullName = formData.get("full_name") as string;
     const role = formData.get("role") as string;
-    const value = formData.get("value") as string;
+    const region = formData.get("region") as string;
+    const division = formData.get("division") as string;
+    const subdivision = formData.get("subdivision") as string;
+    const circle = formData.get("circle") as string;
+    const zone = formData.get("zone") as string;
 
     if (!id) {
       return { error: "User ID is missing." };
@@ -115,7 +154,11 @@ export async function updateUser(formData: FormData) {
       .update({
         full_name: fullName,
         role: role,
-        value: value,
+        region: region || null,
+        division: division || null,
+        subdivision: subdivision || null,
+        circle: circle || null,
+        zone: zone || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id);
@@ -125,7 +168,7 @@ export async function updateUser(formData: FormData) {
     }
 
     revalidatePath("/admin/users");
-    return { error: null };
+    return { success: "User updated successfully!", error: null };
   } catch (error) {
     return { error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` };
   }
@@ -167,7 +210,9 @@ export async function deleteUser(formData: FormData) {
     }
 
     // Prevent superadmin from deleting themselves
-    const { data: { user: currentUser } } = await supabaseServiceRole.auth.getUser();
+    // Use the regular (anon) server client to read the requester session
+    const { client: supabaseClient } = await createSupabaseServerClient();
+    const { data: { user: currentUser } } = await supabaseClient.auth.getUser();
     if (currentUser && currentUser.id === userId) {
       return { error: "You cannot delete your own account." };
     }
@@ -211,46 +256,48 @@ export async function getRoleValues(role: string) {
       },
     }
   );
-  
+
   let columnName = '';
-  
-  // Map role to database column
+
+  // Map role to database column (updated for new works table schema)
   switch (role) {
     case 'je':
       columnName = 'je_name';
       break;
     case 'sub_division_head':
-      columnName = 'sub_division_name';
+      columnName = 'civil_sub_division';
       break;
     case 'division_head':
-      columnName = 'division_name';
+      columnName = 'civil_division';
       break;
     case 'circle_head':
-      columnName = 'circle_name';
+      columnName = 'civil_circle';
       break;
     case 'zone_head':
-      columnName = 'zone_name';
+      columnName = 'civil_zone';
       break;
     default:
       return { values: [] };
   }
-  
+
   try {
     const { data, error } = await supabaseServiceRole
       .from("works")
       .select(columnName)
       .not(columnName, 'is', null)
       .neq(columnName, '');
-    
+
     if (error) {
+      console.error(`Error fetching ${columnName}:`, error);
       return { values: [] };
     }
-    
+
     // Extract unique values
     const uniqueValues = [...new Set(data.map(item => (item as any)[columnName]).filter(Boolean))];
-    
+
     return { values: uniqueValues };
   } catch (error) {
+    console.error('Error in getRoleValues:', error);
     return { values: [] };
   }
 }
