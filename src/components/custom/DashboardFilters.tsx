@@ -10,15 +10,15 @@ import { Filter, X } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 
 type FilterState = {
-  zone: string;
-  circle: string;
-  division: string;
-  subDivision: string;
-  je: string;
-  status: string;
+  zone: string[];
+  circle: string[];
+  division: string[];
+  subDivision: string[];
+  je: string[];
+  status: string[];
   search: string;
-  scheme: string;
-  workCategory: string;
+  scheme: string[];
+  workCategory: string[];
 };
 
 
@@ -36,15 +36,15 @@ interface DashboardFiltersProps {
 
 export function DashboardFilters({ works, userRole, selectedScheme, onFilterChange }: DashboardFiltersProps) {
   const [filters, setFilters] = useState<FilterState>({
-    zone: 'all',
-    circle: 'all',
-    division: 'all',
-    subDivision: 'all',
-    je: 'all',
-    status: 'all',
+    zone: [],
+    circle: [],
+    division: [],
+    subDivision: [],
+    je: [],
+    status: [],
     search: '',
-    scheme: 'all',
-    workCategory: 'all'
+    scheme: [],
+    workCategory: []
   });
 
   // Debounce search input to avoid excessive filtering
@@ -211,78 +211,86 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
 
   const filterOptions = getFilterOptions();
 
+  const toggleArrayValue = (arr: string[], value: string): string[] => {
+    if (value === 'all') return [];
+    if (!value) return arr;
+    return arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value];
+  };
+
   const handleFilterChange = (key: keyof FilterState, value: string) => {
-    // Reset dependent filters when higher-level filter changes
-    let newFilters = { ...filters };
-    
+    // Reset dependent filters when higher-level filter changes (multi-select aware)
+    let newFilters: FilterState = { ...filters };
+
     if (key === 'zone') {
       newFilters = {
         ...newFilters,
-        zone: value,
-        circle: 'all',
-        division: 'all',
-        subDivision: 'all',
-        je: 'all'
+        zone: toggleArrayValue(newFilters.zone, value),
+        circle: [],
+        division: [],
+        subDivision: [],
+        je: []
       };
     } else if (key === 'circle') {
       newFilters = {
         ...newFilters,
-        circle: value,
-        division: 'all',
-        subDivision: 'all',
-        je: 'all'
+        circle: toggleArrayValue(newFilters.circle, value),
+        division: [],
+        subDivision: [],
+        je: []
       };
     } else if (key === 'division') {
       newFilters = {
         ...newFilters,
-        division: value,
-        subDivision: 'all',
-        je: 'all'
+        division: toggleArrayValue(newFilters.division, value),
+        subDivision: [],
+        je: []
       };
     } else if (key === 'subDivision') {
       newFilters = {
         ...newFilters,
-        subDivision: value,
-        je: 'all'
+        subDivision: toggleArrayValue(newFilters.subDivision, value),
+        je: []
       };
-    } else {
-      newFilters[key] = value;
+    } else if (key === 'je') {
+      newFilters.je = toggleArrayValue(newFilters.je, value);
+    } else if (key === 'status') {
+      newFilters.status = toggleArrayValue(newFilters.status, value);
+    } else if (key === 'scheme') {
+      newFilters.scheme = toggleArrayValue(newFilters.scheme, value);
+    } else if (key === 'workCategory') {
+      newFilters.workCategory = toggleArrayValue(newFilters.workCategory, value);
+    } else if (key === 'search') {
+      newFilters.search = value;
     }
-    
+
     setFilters(newFilters);
-    
+
     // Apply filters
     let filteredWorks = works.filter(work => {
       // Basic filters
       const passesBasicFilters = (
-        (newFilters.scheme === 'all' || work.scheme_name === newFilters.scheme) &&
-        (newFilters.workCategory === 'all' || work.work_category === newFilters.workCategory) &&
-        (newFilters.zone === 'all' || work.civil_zone === newFilters.zone) &&
-        (newFilters.circle === 'all' || work.civil_circle === newFilters.circle) &&
-        (newFilters.division === 'all' || work.civil_division === newFilters.division) &&
-        (newFilters.subDivision === 'all' || work.civil_sub_division === newFilters.subDivision) &&
-        (newFilters.je === 'all' || work.je_name === newFilters.je)
+        (newFilters.scheme.length === 0 || newFilters.scheme.includes(work.scheme_name || '')) &&
+        (newFilters.workCategory.length === 0 || newFilters.workCategory.includes(work.work_category || '')) &&
+        (newFilters.zone.length === 0 || newFilters.zone.includes(work.civil_zone || '')) &&
+        (newFilters.circle.length === 0 || newFilters.circle.includes(work.civil_circle || '')) &&
+        (newFilters.division.length === 0 || newFilters.division.includes(work.civil_division || '')) &&
+        (newFilters.subDivision.length === 0 || newFilters.subDivision.includes(work.civil_sub_division || '')) &&
+        (newFilters.je.length === 0 || newFilters.je.includes(work.je_name || ''))
       );
 
       if (!passesBasicFilters) return false;
 
       // Status filter
-      if (newFilters.status && newFilters.status !== 'all') {
+      if (newFilters.status && newFilters.status.length > 0) {
         const progress = work.progress_percentage || 0;
-        switch (newFilters.status) {
-          case 'completed':
-            if (progress !== 100) return false;
-            break;
-          case 'in_progress':
-            if (progress <= 0 || progress >= 100) return false;
-            break;
-          case 'not_started':
-            if (progress !== 0) return false;
-            break;
-          case 'blocked':
-            if (!work.is_blocked) return false;
-            break;
-        }
+        const matchesAnyStatus = newFilters.status.some(st => {
+          if (st === 'completed') return progress === 100;
+          if (st === 'in_progress') return progress > 0 && progress < 100;
+          if (st === 'not_started') return progress === 0;
+          if (st === 'blocked') return !!work.is_blocked;
+          return true;
+        });
+        if (!matchesAnyStatus) return false;
       }
 
       // Search filter
@@ -302,22 +310,31 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
 
   const clearFilters = () => {
     setFilters({ 
-      zone: 'all', 
-      circle: 'all', 
-      division: 'all', 
-      subDivision: 'all',
-      je: 'all', 
-      status: 'all', 
+      zone: [], 
+      circle: [], 
+      division: [], 
+      subDivision: [],
+      je: [], 
+      status: [], 
       search: '', 
-      scheme: 'all',
-      workCategory: 'all'
+      scheme: [],
+      workCategory: []
     });
     onFilterChange(works);
   };
 
   // Unused functions removed
 
-  const activeFiltersCount = Object.values(filters).filter(value => value && value !== 'all').length;
+  const activeFiltersCount = [
+    ...filters.zone,
+    ...filters.circle,
+    ...filters.division,
+    ...filters.subDivision,
+    ...filters.je,
+    ...filters.status,
+    ...filters.scheme,
+    ...filters.workCategory
+  ].filter(Boolean).length + (filters.search ? 1 : 0);
 
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -353,7 +370,7 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
         
 
         {filterOptions.showZone && (
-          <Select value={filters.zone} onValueChange={(value) => handleFilterChange('zone', value)}>
+          <Select value={""} onValueChange={(value) => handleFilterChange('zone', value)}>
             <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
               <SelectValue placeholder="All Zones" />
             </SelectTrigger>
@@ -367,7 +384,7 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
         )}
 
         {filterOptions.showCircle && (
-          <Select value={filters.circle} onValueChange={(value) => handleFilterChange('circle', value)}>
+          <Select value={""} onValueChange={(value) => handleFilterChange('circle', value)}>
             <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
               <SelectValue placeholder="All Circles" />
             </SelectTrigger>
@@ -381,7 +398,7 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
         )}
 
         {filterOptions.showDivision && (
-          <Select value={filters.division} onValueChange={(value) => handleFilterChange('division', value)}>
+          <Select value={""} onValueChange={(value) => handleFilterChange('division', value)}>
             <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
               <SelectValue placeholder="All Divisions" />
             </SelectTrigger>
@@ -395,7 +412,7 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
         )}
 
         {filterOptions.showSubDivision && (
-          <Select value={filters.subDivision} onValueChange={(value) => handleFilterChange('subDivision', value)}>
+          <Select value={""} onValueChange={(value) => handleFilterChange('subDivision', value)}>
             <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
               <SelectValue placeholder="All Sub-Divisions" />
             </SelectTrigger>
@@ -410,7 +427,7 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
 
         {filterOptions.showJe && (
           <Select 
-            value={filters.je} 
+            value={""} 
             onValueChange={(value) => handleFilterChange('je', value)}
             disabled={!filterOptions.jes.length}
           >
@@ -439,7 +456,7 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
           </Select>
         )}
         {/* Status filter: Completed / In Progress / Not Started / Blocked */}
-        <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+        <Select value={""} onValueChange={(value) => handleFilterChange('status', value)}>
           <SelectTrigger className="w-[160px] sm:w-[200px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
@@ -457,41 +474,27 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
       {activeFiltersCount > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-slate-600">Active filters:</span>
-          {filters.scheme && filters.scheme !== 'all' && (
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-              Scheme: {filters.scheme}
-            </Badge>
-          )}
-          {filters.zone && filters.zone !== 'all' && (
-            <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-              Zone: {filters.zone}
-            </Badge>
-          )}
-          {filters.circle && filters.circle !== 'all' && (
-            <Badge variant="secondary" className="bg-green-100 text-green-700">
-              Circle: {filters.circle}
-            </Badge>
-          )}
-          {filters.division && filters.division !== 'all' && (
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-              Division: {filters.division}
-            </Badge>
-          )}
-          {filters.subDivision && filters.subDivision !== 'all' && (
-            <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">
-              Sub-Division: {filters.subDivision}
-            </Badge>
-          )}
-          {filters.status && filters.status !== 'all' && (
-            <Badge variant="secondary" className="bg-orange-100 text-orange-700">
-              Status: {filters.status.replace('_', ' ')}
-            </Badge>
-          )}
-          {filters.workCategory && filters.workCategory !== 'all' && (
-            <Badge variant="secondary" className="bg-teal-100 text-teal-700">
-              Category: {filters.workCategory}
-            </Badge>
-          )}
+          {filters.scheme.map(v => (
+            <Badge key={`scheme-${v}`} variant="secondary" className="bg-purple-100 text-purple-700">Scheme: {v}</Badge>
+          ))}
+          {filters.zone.map(v => (
+            <Badge key={`zone-${v}`} variant="secondary" className="bg-blue-100 text-blue-700">Zone: {v}</Badge>
+          ))}
+          {filters.circle.map(v => (
+            <Badge key={`circle-${v}`} variant="secondary" className="bg-green-100 text-green-700">Circle: {v}</Badge>
+          ))}
+          {filters.division.map(v => (
+            <Badge key={`division-${v}`} variant="secondary" className="bg-purple-100 text-purple-700">Division: {v}</Badge>
+          ))}
+          {filters.subDivision.map(v => (
+            <Badge key={`subDiv-${v}`} variant="secondary" className="bg-indigo-100 text-indigo-700">Sub-Division: {v}</Badge>
+          ))}
+          {filters.status.map(v => (
+            <Badge key={`status-${v}`} variant="secondary" className="bg-orange-100 text-orange-700">Status: {v.replace('_',' ')}</Badge>
+          ))}
+          {filters.workCategory.map(v => (
+            <Badge key={`cat-${v}`} variant="secondary" className="bg-teal-100 text-teal-700">Category: {v}</Badge>
+          ))}
         </div>
       )}
 

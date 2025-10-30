@@ -45,17 +45,17 @@ export function AnalyticsClient({
 }: AnalyticsClientProps) {
   const [filteredWorks, setFilteredWorks] = useState<Work[]>(works);
   const [activeFilter, setActiveFilter] = useState<string>('all');
-  const [selectedScheme, setSelectedScheme] = useState<string>('all');
-  const [selectedWorkCategory, setSelectedWorkCategory] = useState<string>('all');
+  const [selectedSchemes, setSelectedSchemes] = useState<string[]>([]);
+  const [selectedWorkCategories, setSelectedWorkCategories] = useState<string[]>([]);
 
   // Get base works filtered only by selected scheme and category
   const getBaseFilteredWorks = useCallback((): Work[] => {
     return works.filter((w: Work) => {
-      const matchesScheme = selectedScheme === 'all' || w.scheme_name === selectedScheme;
-      const matchesCategory = selectedWorkCategory === 'all' || w.work_category === selectedWorkCategory;
+      const matchesScheme = selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '');
+      const matchesCategory = selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '');
       return matchesScheme && matchesCategory;
     });
-  }, [works, selectedScheme, selectedWorkCategory]);
+  }, [works, selectedSchemes, selectedWorkCategories]);
 
   // Recalculate status data based on filtered works
   // Status distribution should be based on scheme/category filtered works only (not KPI filter)
@@ -202,8 +202,8 @@ export function AnalyticsClient({
   const handleKPIClick = (filterType: 'all' | 'completed' | 'in_progress' | 'not_started' | 'blocked') => {
     // First get scheme and category filtered works
     let baseWorks = works.filter(w => {
-      const matchesScheme = selectedScheme === 'all' || w.scheme_name === selectedScheme;
-      const matchesCategory = selectedWorkCategory === 'all' || w.work_category === selectedWorkCategory;
+      const matchesScheme = selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '');
+      const matchesCategory = selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '');
       return matchesScheme && matchesCategory;
     });
 
@@ -237,8 +237,8 @@ export function AnalyticsClient({
   const clearFilter = () => {
     // Apply only scheme and category filters without KPI filter
     const filtered = works.filter(w => {
-      const matchesScheme = selectedScheme === 'all' || w.scheme_name === selectedScheme;
-      const matchesCategory = selectedWorkCategory === 'all' || w.work_category === selectedWorkCategory;
+      const matchesScheme = selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '');
+      const matchesCategory = selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '');
       return matchesScheme && matchesCategory;
     });
     
@@ -294,59 +294,59 @@ export function AnalyticsClient({
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="flex-1">
-              <label className="text-sm font-medium text-slate-700 mb-1.5 block">NAME OF SCHEME</label>
-              <select 
-                value={selectedScheme}
-                onChange={(e) => {
-                  const newScheme = e.target.value;
-                  setSelectedScheme(newScheme);
-                  
-                  // Apply both category and scheme filters
-                  let filtered = works.filter(w => {
-                    const matchesScheme = newScheme === 'all' || w.scheme_name === newScheme;
-                    const matchesCategory = selectedWorkCategory === 'all' || w.work_category === selectedWorkCategory;
-                    return matchesScheme && matchesCategory;
-                  });
+      <label className="text-sm font-medium text-slate-700 mb-1.5 block">NAME OF SCHEME</label>
+      <select 
+        multiple
+        value={selectedSchemes}
+        onChange={(e) => {
+          const opts = Array.from(e.target.selectedOptions).map(o => o.value);
+          setSelectedSchemes(opts);
+          
+          // Apply both category and scheme filters
+          let filtered = works.filter(w => {
+            const matchesScheme = opts.length === 0 || opts.includes(w.scheme_name || '');
+            const matchesCategory = selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '');
+            return matchesScheme && matchesCategory;
+          });
 
-                  // Reapply KPI filter if active
-                  if (activeFilter !== 'all') {
-                    switch (activeFilter) {
-                      case 'completed':
-                        filtered = filtered.filter(work => (work.progress_percentage || 0) === 100);
-                        break;
-                      case 'in_progress':
-                        filtered = filtered.filter(work => {
-                          const progress = work.progress_percentage || 0;
-                          return progress > 0 && progress < 100;
-                        });
-                        break;
-                      case 'not_started':
-                        filtered = filtered.filter(work => (work.progress_percentage || 0) === 0);
-                        break;
-                      case 'blocked':
-                        filtered = filtered.filter(work => work.is_blocked);
-                        break;
-                    }
-                  }
-                  
-                  setFilteredWorks(filtered);
-                }}
-                className="w-full sm:w-[300px] h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">All Schemes</option>
-                {Array.from(new Set(works.map(w => w.scheme_name)))
-                  .filter((scheme): scheme is string => scheme !== null && scheme !== '')
-                  .sort()
-                  .map(scheme => (
-                    <option key={scheme} value={scheme}>{scheme}</option>
-                  ))
-                }
-              </select>
+          // Reapply KPI filter if active
+          if (activeFilter !== 'all') {
+            switch (activeFilter) {
+              case 'completed':
+                filtered = filtered.filter(work => (work.progress_percentage || 0) === 100);
+                break;
+              case 'in_progress':
+                filtered = filtered.filter(work => {
+                  const progress = work.progress_percentage || 0;
+                  return progress > 0 && progress < 100;
+                });
+                break;
+              case 'not_started':
+                filtered = filtered.filter(work => (work.progress_percentage || 0) === 0);
+                break;
+              case 'blocked':
+                filtered = filtered.filter(work => work.is_blocked);
+                break;
+            }
+          }
+          
+          setFilteredWorks(filtered);
+        }}
+        className="w-full sm:w-[300px] min-h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      >
+        {Array.from(new Set(works.map(w => w.scheme_name)))
+          .filter((scheme): scheme is string => scheme !== null && scheme !== '')
+          .sort()
+          .map(scheme => (
+            <option key={scheme} value={scheme}>{scheme}</option>
+          ))
+        }
+      </select>
             </div>
             <div className="flex items-center gap-2 text-sm text-slate-600">
-              <span className="font-medium">{selectedScheme === 'all' ? 'All Schemes' : selectedScheme}</span>
+              <span className="font-medium">{selectedSchemes.length === 0 ? 'All Schemes' : `${selectedSchemes.length} selected`}</span>
               <span>•</span>
-              <span>{works.filter(w => selectedScheme === 'all' || w.scheme_name === selectedScheme).length} works</span>
+              <span>{works.filter(w => selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '')).length} works</span>
             </div>
           </div>
 
@@ -355,15 +355,16 @@ export function AnalyticsClient({
             <div className="flex-1">
               <label className="text-sm font-medium text-slate-700 mb-1.5 block">WORK CATEGORY</label>
               <select 
-                value={selectedWorkCategory}
+                multiple
+                value={selectedWorkCategories}
                 onChange={(e) => {
-                  const newCategory = e.target.value;
-                  setSelectedWorkCategory(newCategory);
+                  const opts = Array.from(e.target.selectedOptions).map(o => o.value);
+                  setSelectedWorkCategories(opts);
                   
                   // Apply both category and scheme filters
                   let filtered = works.filter(w => {
-                    const matchesScheme = selectedScheme === 'all' || w.scheme_name === selectedScheme;
-                    const matchesCategory = newCategory === 'all' || w.work_category === newCategory;
+                    const matchesScheme = selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '');
+                    const matchesCategory = opts.length === 0 || opts.includes(w.work_category || '');
                     return matchesScheme && matchesCategory;
                   });
 
@@ -390,9 +391,8 @@ export function AnalyticsClient({
                   
                   setFilteredWorks(filtered);
                 }}
-                className="w-full sm:w-[300px] h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full sm:w-[300px] min-h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="all">All Categories</option>
                 {Array.from(new Set(works.map(w => w.work_category)))
                   .filter((category): category is string => category !== null && category !== '')
                   .sort()
@@ -403,9 +403,9 @@ export function AnalyticsClient({
               </select>
             </div>
             <div className="flex items-center gap-2 text-sm text-slate-600">
-              <span className="font-medium">{selectedWorkCategory === 'all' ? 'All Categories' : selectedWorkCategory}</span>
+              <span className="font-medium">{selectedWorkCategories.length === 0 ? 'All Categories' : `${selectedWorkCategories.length} selected`}</span>
               <span>•</span>
-              <span>{works.filter(w => selectedWorkCategory === 'all' || w.work_category === selectedWorkCategory).length} works</span>
+              <span>{works.filter(w => selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '')).length} works</span>
             </div>
           </div>
         </CardContent>
