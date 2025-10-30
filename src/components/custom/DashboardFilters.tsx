@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import type { Work } from "@/lib/types";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
-// Replacing single-select dropdowns with checkbox-based multi-selects
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Filter, X } from "lucide-react";
@@ -59,7 +59,6 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
 
   // Get unique values for filter options based on user role
   const getFilterOptions = () => {
-    const includesOrAll = (arr: string[], value: string | null | undefined) => arr.length === 0 || arr.includes(value || "");
     switch (userRole) {
       case 'je':
         return {
@@ -99,7 +98,7 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
           divisions: [],
           subDivisions: [...new Set(works.map(w => w.civil_sub_division).filter(Boolean))].sort(),
           jes: [...new Set(works
-            .filter(w => includesOrAll(filters.subDivision, w.civil_sub_division))
+            .filter(w => (filters.subDivision === 'all' || w.civil_sub_division === filters.subDivision))
             .map(w => w.je_name)
             .filter(Boolean))].sort()
         };
@@ -114,13 +113,13 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
           circles: [],
           divisions: [...new Set(works.map(w => w.civil_division).filter(Boolean))].sort(),
           subDivisions: [...new Set(works
-            .filter(w => includesOrAll(filters.division, w.civil_division))
+            .filter(w => (filters.division === 'all' || w.civil_division === filters.division))
             .map(w => w.civil_sub_division)
             .filter(Boolean))].sort(),
           jes: [...new Set(works
             .filter(w => 
-              includesOrAll(filters.division, w.civil_division) &&
-              includesOrAll(filters.subDivision, w.civil_sub_division)
+              (filters.division === 'all' || w.civil_division === filters.division) &&
+              (filters.subDivision === 'all' || w.civil_sub_division === filters.subDivision)
             )
             .map(w => w.je_name)
             .filter(Boolean))].sort()
@@ -135,22 +134,22 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
           zones: [],
           circles: [...new Set(works.map(w => w.civil_circle).filter(Boolean))].sort(),
           divisions: [...new Set(works
-            .filter(w => includesOrAll(filters.circle, w.civil_circle))
+            .filter(w => filters.circle === 'all' || w.civil_circle === filters.circle)
             .map(w => w.civil_division)
             .filter(Boolean))].sort(),
           subDivisions: [...new Set(works
             .filter(w => 
-              includesOrAll(filters.circle, w.civil_circle) &&
-              includesOrAll(filters.division, w.civil_division)
+              (filters.circle === 'all' || w.civil_circle === filters.circle) &&
+              (filters.division === 'all' || w.civil_division === filters.division)
             )
             .map(w => w.civil_sub_division)
             .filter(Boolean))].sort(),
           jes: [...new Set(works
             .filter(w => {
               const matchesFilters = (
-                includesOrAll(filters.circle, w.civil_circle) &&
-                includesOrAll(filters.division, w.civil_division) &&
-                includesOrAll(filters.subDivision, w.civil_sub_division)
+                (filters.circle === 'all' || w.civil_circle === filters.circle) &&
+                (filters.division === 'all' || w.civil_division === filters.division) &&
+                (filters.subDivision === 'all' || w.civil_sub_division === filters.subDivision)
               );
               return matchesFilters && w.je_name; // Only include if JE name exists
             })
@@ -166,30 +165,30 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
           showJe: true,
           zones: [...new Set(works.map(w => w.civil_zone).filter(Boolean))].sort(),
           circles: [...new Set(works
-            .filter(w => includesOrAll(filters.zone, w.civil_zone))
+            .filter(w => filters.zone === 'all' || w.civil_zone === filters.zone)
             .map(w => w.civil_circle)
             .filter(Boolean))].sort(),
           divisions: [...new Set(works
             .filter(w => 
-              includesOrAll(filters.zone, w.civil_zone) &&
-              includesOrAll(filters.circle, w.civil_circle)
+              (filters.zone === 'all' || w.civil_zone === filters.zone) &&
+              (filters.circle === 'all' || w.civil_circle === filters.circle)
             )
             .map(w => w.civil_division)
             .filter(Boolean))].sort(),
           subDivisions: [...new Set(works
             .filter(w => 
-              includesOrAll(filters.zone, w.civil_zone) &&
-              includesOrAll(filters.circle, w.civil_circle) &&
-              includesOrAll(filters.division, w.civil_division)
+              (filters.zone === 'all' || w.civil_zone === filters.zone) &&
+              (filters.circle === 'all' || w.civil_circle === filters.circle) &&
+              (filters.division === 'all' || w.civil_division === filters.division)
             )
             .map(w => w.civil_sub_division)
             .filter(Boolean))].sort(),
           jes: [...new Set(works
             .filter(w => 
-              includesOrAll(filters.zone, w.civil_zone) &&
-              includesOrAll(filters.circle, w.civil_circle) &&
-              includesOrAll(filters.division, w.civil_division) &&
-              includesOrAll(filters.subDivision, w.civil_sub_division)
+              (filters.zone === 'all' || w.civil_zone === filters.zone) &&
+              (filters.circle === 'all' || w.civil_circle === filters.circle) &&
+              (filters.division === 'all' || w.civil_division === filters.division) &&
+              (filters.subDivision === 'all' || w.civil_sub_division === filters.subDivision)
             )
             .map(w => w.je_name)
             .filter(Boolean))].sort()
@@ -337,44 +336,6 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
     ...filters.workCategory
   ].filter(Boolean).length + (filters.search ? 1 : 0);
 
-  // Generic MultiSelect with checkboxes and an implicit "All" option (empty selection)
-  const MultiSelect = ({ label, options, selected, onChange, disabled }: { label: string; options: string[]; selected: string[]; onChange: (value: string) => void; disabled?: boolean; }) => {
-    const [open, setOpen] = useState(false);
-    return (
-      <div className={`relative ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
-        <button
-          type="button"
-          onClick={() => !disabled && setOpen(o => !o)}
-          className="w-[160px] sm:w-[200px] h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-left focus:outline-none"
-        >
-          <span className="block truncate">{label}: {selected.length === 0 ? 'All' : `${selected.length} selected`}</span>
-        </button>
-        {open && (
-          <div className="absolute z-[100] mt-1 w-[240px] max-h-60 overflow-auto rounded-md border border-slate-200 bg-white p-2 shadow-lg">
-            <label className="flex items-center gap-2 px-2 py-1 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selected.length === 0}
-                onChange={() => onChange('all')}
-              />
-              <span>All</span>
-            </label>
-            {options.map(opt => (
-              <label key={opt || 'unknown'} className="flex items-center gap-2 px-2 py-1 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selected.includes(opt || '')}
-                  onChange={() => onChange(opt || '')}
-                />
-                <span>{opt || 'Unknown'}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* Search Bar */}
@@ -409,57 +370,104 @@ export function DashboardFilters({ works, userRole, selectedScheme, onFilterChan
         
 
         {filterOptions.showZone && (
-          <MultiSelect
-            label="Zone"
-            options={filterOptions.zones}
-            selected={filters.zone}
-            onChange={(v) => handleFilterChange('zone', v)}
-          />
+          <Select value={""} onValueChange={(value) => handleFilterChange('zone', value)}>
+            <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
+              <SelectValue placeholder="All Zones" />
+            </SelectTrigger>
+            <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
+              <SelectItem value="all" className="bg-white hover:bg-slate-50">All Zones</SelectItem>
+              {filterOptions.zones.map(zone => (
+                <SelectItem key={zone ?? 'unknown-zone'} value={zone ?? ''} className="bg-white hover:bg-slate-50">{zone || 'Unknown'}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
         {filterOptions.showCircle && (
-          <MultiSelect
-            label="Circle"
-            options={filterOptions.circles}
-            selected={filters.circle}
-            onChange={(v) => handleFilterChange('circle', v)}
-          />
+          <Select value={""} onValueChange={(value) => handleFilterChange('circle', value)}>
+            <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
+              <SelectValue placeholder="All Circles" />
+            </SelectTrigger>
+            <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
+              <SelectItem value="all" className="bg-white hover:bg-slate-50">All Circles</SelectItem>
+              {filterOptions.circles.map(circle => (
+                <SelectItem key={circle ?? 'unknown-circle'} value={circle ?? ''} className="bg-white hover:bg-slate-50">{circle || 'Unknown'}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
         {filterOptions.showDivision && (
-          <MultiSelect
-            label="Division"
-            options={filterOptions.divisions}
-            selected={filters.division}
-            onChange={(v) => handleFilterChange('division', v)}
-          />
+          <Select value={""} onValueChange={(value) => handleFilterChange('division', value)}>
+            <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
+              <SelectValue placeholder="All Divisions" />
+            </SelectTrigger>
+            <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
+              <SelectItem value="all" className="bg-white hover:bg-slate-50">All Divisions</SelectItem>
+              {filterOptions.divisions.map(division => (
+                <SelectItem key={division ?? 'unknown-division'} value={division ?? ''} className="bg-white hover:bg-slate-50">{division || 'Unknown'}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
         {filterOptions.showSubDivision && (
-          <MultiSelect
-            label="Sub-Division"
-            options={filterOptions.subDivisions}
-            selected={filters.subDivision}
-            onChange={(v) => handleFilterChange('subDivision', v)}
-          />
+          <Select value={""} onValueChange={(value) => handleFilterChange('subDivision', value)}>
+            <SelectTrigger className="w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
+              <SelectValue placeholder="All Sub-Divisions" />
+            </SelectTrigger>
+            <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
+              <SelectItem value="all" className="bg-white hover:bg-slate-50">All Sub-Divisions</SelectItem>
+              {filterOptions.subDivisions.map(subDivision => (
+                <SelectItem key={subDivision ?? 'unknown-subdivision'} value={subDivision ?? ''} className="bg-white hover:bg-slate-50">{subDivision || 'Unknown'}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
         {filterOptions.showJe && (
-          <MultiSelect
-            label="JE"
-            options={filterOptions.jes}
-            selected={filters.je}
-            onChange={(v) => handleFilterChange('je', v)}
+          <Select 
+            value={""} 
+            onValueChange={(value) => handleFilterChange('je', value)}
             disabled={!filterOptions.jes.length}
-          />
+          >
+            <SelectTrigger 
+              className={`w-[140px] sm:w-[180px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm ${
+                !filterOptions.jes.length ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              <SelectValue placeholder={filterOptions.jes.length ? "All JEs" : "No JEs available"} />
+            </SelectTrigger>
+            <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
+              <SelectItem value="all" className="bg-white hover:bg-slate-50">All JEs</SelectItem>
+              {filterOptions.jes
+                .sort((a, b) => (a || '').localeCompare(b || ''))
+                .map(je => (
+                  <SelectItem 
+                    key={je ?? ''} 
+                    value={je ?? ''} 
+                    className="bg-white hover:bg-slate-50"
+                  >
+                    {je ?? 'Unknown'}
+                  </SelectItem>
+                ))
+              }
+            </SelectContent>
+          </Select>
         )}
         {/* Status filter: Completed / In Progress / Not Started / Blocked */}
-        <MultiSelect
-          label="Status"
-          options={["completed","in_progress","not_started","blocked"]}
-          selected={filters.status}
-          onChange={(v) => handleFilterChange('status', v)}
-        />
+        <Select value={""} onValueChange={(value) => handleFilterChange('status', value)}>
+          <SelectTrigger className="w-[160px] sm:w-[200px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg">
+            <SelectItem value="all" className="bg-white hover:bg-slate-50">All Statuses</SelectItem>
+            <SelectItem value="completed" className="bg-white hover:bg-slate-50">Completed</SelectItem>
+            <SelectItem value="in_progress" className="bg-white hover:bg-slate-50">In Progress</SelectItem>
+            <SelectItem value="not_started" className="bg-white hover:bg-slate-50">Not Started</SelectItem>
+            <SelectItem value="blocked" className="bg-white hover:bg-slate-50">Blocked</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Active Filters Display */}
