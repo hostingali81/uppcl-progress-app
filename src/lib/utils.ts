@@ -36,6 +36,30 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+/**
+ * Convert an amount stored in lacs to rupees and format with Indian grouping.
+ * Example: 12.5 (lacs) => "₹12,50,000" (when withCurrency is true)
+ */
+export function formatAmountFromLacs(amountLacs?: number | null, withCurrency = true, fractionDigits = 0): string {
+  if (amountLacs === null || amountLacs === undefined) return 'N/A';
+  const rupees = amountLacs * 100000;
+  const formatted = rupees.toLocaleString('en-IN', { maximumFractionDigits: fractionDigits, minimumFractionDigits: fractionDigits });
+  return withCurrency ? `₹${formatted}` : formatted;
+}
+
+/**
+ * Format a date into dd-mm-yyyy. Accepts Date or ISO date string.
+ */
+export function formatDateDDMMYYYY(dateInput?: string | Date | null): string {
+  if (!dateInput) return 'N/A';
+  const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (Number.isNaN(d.getTime())) return 'Invalid date';
+  const day = `${d.getDate()}`.padStart(2, '0');
+  const month = `${d.getMonth() + 1}`.padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
 export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength - 3) + '...';

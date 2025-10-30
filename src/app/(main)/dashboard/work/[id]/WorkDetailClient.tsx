@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { ClickableDetailRow } from './ClickableDetailRow';
 import EditableStatusRow, { EditableDetailRow } from './EditableStatusRow';
 import { EnhancedButton } from "@/components/ui/enhanced-button";
+import { formatAmountFromLacs, formatDateDDMMYYYY, formatCurrency } from '@/lib/utils';
 import { UpdateProgressForm } from "./UpdateProgressForm";
 import { UpdateBillingForm } from "./UpdateBillingForm";
 import { FileUploadManager } from "@/components/custom/FileUploadManager";
@@ -247,9 +248,9 @@ export default function WorkDetailClient({
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                <DetailRow label="Amount" value={work.amount_as_per_bp_lacs ?? work.sanction_amount_lacs} />
-                                <DetailRow label="Agreement Amount" value={work.agreement_amount} />
-                                <DetailRow label="BOQ Amount" value={work.boq_amount} />
+                                                <DetailRow label="Sanction Amount including Tax" value={formatAmountFromLacs(work.amount_as_per_bp_lacs ?? work.sanction_amount_lacs)} />
+                                                <DetailRow label="Agreement Amount" value={work.agreement_amount != null ? formatCurrency(work.agreement_amount) : null} />
+                                                <DetailRow label="BOQ Amount" value={work.boq_amount != null ? formatCurrency(work.boq_amount) : null} />
                             </div>
                         </CardContent>
                     </Card>
@@ -269,10 +270,10 @@ export default function WorkDetailClient({
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                <DetailRow label="Date of Start (As per Agr./ Actual)" value={work.start_date} />
-                                <DetailRow label="Scheduled Date of Completion" value={work.scheduled_completion_date} />
-                                <DetailRow label="Expected Date of Completion" value={work.expected_completion_date} />
-                                <DetailRow label="Actual Date of Completion" value={work.actual_completion_date} />
+                                <DetailRow label="Date of Start (As per Agr./ Actual)" value={formatDateDDMMYYYY(work.start_date)} />
+                                <DetailRow label="Scheduled Date of Completion" value={formatDateDDMMYYYY(work.scheduled_completion_date)} />
+                                <DetailRow label="Expected Date of Completion" value={formatDateDDMMYYYY(work.expected_completion_date)} />
+                                <DetailRow label="Actual Date of Completion" value={formatDateDDMMYYYY(work.actual_completion_date)} />
                                 <DetailRow label="Remark" value={work.remark} />
                             </div>
                         </CardContent>
@@ -355,12 +356,12 @@ export default function WorkDetailClient({
                             <EditableStatusRow label="FICO Status" fieldName="fico_status" currentValue={work.fico_status || work.fico} workId={work.id} />
                             <DetailRow label="Is Blocked" value={work.is_blocked ? 'Yes' : 'No'} />
                             <DetailRow label="Last Bill No." value={latestBillNumber} />
-                            <ClickableDetailRow
-                                label="Total Billed Amount"
-                                value={totalBillAmount > 0 ? `₹${totalBillAmount.toLocaleString()}` : 'N/A'}
-                                workId={work.id}
-                                paymentLogs={paymentLogs || []}
-                            />
+                                <ClickableDetailRow
+                                    label="Total Billed Amount"
+                                    value={totalBillAmount > 0 ? `₹${totalBillAmount.toLocaleString('en-IN')}` : 'N/A'}
+                                    workId={work.id}
+                                    paymentLogs={paymentLogs || []}
+                                />
                         </div>
                     </CardContent>
                 </Card>

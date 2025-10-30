@@ -127,11 +127,15 @@ export function EditableDetailRow({ label, fieldName, currentValue, workId }: Ed
     setMessage(null);
 
     startTransition(async () => {
-      const result = await updateWorkStatuses(new FormData(e.currentTarget));
+      const formData = new FormData(e.currentTarget);
+      const result = await updateWorkStatuses(formData);
       if (result?.error) {
         setMessage({ type: 'error', text: result.error });
       } else {
-        setValue(e.currentTarget[fieldName].value);
+        // Safely read value from the submitted FormData instead of accessing
+        // the element directly on the form (which can be null at runtime).
+        const newVal = (formData.get(fieldName) as string) || '';
+        setValue(newVal);
         setMessage({ type: 'success', text: result.success || 'Updated' });
         setTimeout(() => {
           setIsOpen(false);
