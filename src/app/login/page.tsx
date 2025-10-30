@@ -10,6 +10,7 @@ import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import { LogIn, Shield, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { Database } from "@/types/supabase";
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +46,7 @@ export default function Login() {
           .from("profiles")
           .select("role")
           .eq("id", signedInUser.id)
-          .single();
+          .single<Database['public']['Tables']['profiles']['Row']>();
         if (profile?.role === "superadmin") {
           destination = "/admin";
         }

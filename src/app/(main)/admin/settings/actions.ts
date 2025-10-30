@@ -4,6 +4,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { google } from "googleapis";
+import type { Database } from '@/types/supabase';
 
 // This function fetches all settings from database (unchanged)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,11 +25,11 @@ export async function updateCloudflareSettings(formData: FormData) {
   const { admin: supabase } = await createSupabaseServerClient();
   const secretAccessKey = formData.get('cloudflare_secret_access_key') as string;
 
-  const settingsToUpdate = [
-    { key: 'cloudflare_account_id', value: formData.get('cloudflare_account_id') as string },
-    { key: 'cloudflare_access_key_id', value: formData.get('cloudflare_access_key_id') as string },
-    { key: 'cloudflare_r2_bucket_name', value: formData.get('cloudflare_r2_bucket_name') as string },
-    { key: 'cloudflare_public_r2_url', value: formData.get('cloudflare_public_r2_url') as string },
+  const settingsToUpdate: Database['public']['Tables']['settings']['Insert'][] = [
+    { key: 'cloudflare_account_id', value: formData.get('cloudflare_account_id') as string | null },
+    { key: 'cloudflare_access_key_id', value: formData.get('cloudflare_access_key_id') as string | null },
+    { key: 'cloudflare_r2_bucket_name', value: formData.get('cloudflare_r2_bucket_name') as string | null },
+    { key: 'cloudflare_public_r2_url', value: formData.get('cloudflare_public_r2_url') as string | null },
   ];
   
   // --- Most important change ---
@@ -37,7 +38,7 @@ export async function updateCloudflareSettings(formData: FormData) {
     settingsToUpdate.push({ key: 'cloudflare_secret_access_key', value: secretAccessKey });
   }
 
-  const { error } = await supabase.from("settings").upsert(settingsToUpdate, { onConflict: 'key' });
+  const { error } = await supabase.from("settings").upsert(settingsToUpdate as any, { onConflict: 'key' });
 
   if (error) { return { error: `Database Error: ${error.message}` }; }
   
@@ -49,13 +50,13 @@ export async function updateCloudflareSettings(formData: FormData) {
 export async function updateGoogleSheetSettings(formData: FormData) {
   const { admin: supabase } = await createSupabaseServerClient();
   
-  const settingsToUpdate = [
-    { key: 'google_sheet_id', value: formData.get('google_sheet_id') as string },
-    { key: 'google_sheet_name', value: formData.get('google_sheet_name') as string },
-    { key: 'google_service_account_credentials', value: formData.get('google_service_account_credentials') as string },
+  const settingsToUpdate: Database['public']['Tables']['settings']['Insert'][] = [
+    { key: 'google_sheet_id', value: formData.get('google_sheet_id') as string | null },
+    { key: 'google_sheet_name', value: formData.get('google_sheet_name') as string | null },
+    { key: 'google_service_account_credentials', value: formData.get('google_service_account_credentials') as string | null },
   ];
 
-  const { error } = await supabase.from("settings").upsert(settingsToUpdate, { onConflict: 'key' });
+  const { error } = await supabase.from("settings").upsert(settingsToUpdate as any, { onConflict: 'key' });
 
   if (error) { return { error: `Database Error: ${error.message}` }; }
   

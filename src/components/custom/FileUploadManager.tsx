@@ -57,25 +57,105 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
       return;
     }
 
+    // Maximum file size (10MB)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    // Allowed file types
+    const ALLOWED_TYPES = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+
+    // Validate each file before uploading
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        setMessage({ 
+          text: `File ${file.name} is too large. Maximum size is 10MB.`, 
+          type: 'error' 
+        });
+        return;
+      }
+
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        setMessage({ 
+          text: `File ${file.name} has unsupported format. Allowed types are: images, PDF, Word, and Excel documents.`, 
+          type: 'error' 
+        });
+        return;
+      }
+    }
+
     startTransition(async () => {
       let uploadCount = 0;
       for (const file of files) {
+        console.log('Generating upload URL for:', { fileName: file.name, fileType: file.type, fileSize: file.size });
         const result = await generateUploadUrl(file.name, file.type);
+        
         if (result.error) {
-          setMessage({ text: `Error generating URL: ${result.error}`, type: 'error' });
+          console.error('URL generation failed:', {
+            error: result.error,
+            fileName: file.name,
+            fileType: file.type
+          });
+          setMessage({ 
+            text: `Failed to prepare upload for ${file.name}: ${result.error}`, 
+            type: 'error' 
+          });
+          return;
+        }
+        
+        if (!result.success?.uploadUrl || !result.success?.publicFileUrl) {
+          console.error('Invalid URL generation response:', { result });
+          setMessage({ 
+            text: `System configuration error: Invalid upload URL generated for ${file.name}`, 
+            type: 'error' 
+          });
           return;
         }
 
-        const uploadResponse = await fetch(result.success!.uploadUrl, {
-          method: "PUT",
-          body: file,
-          headers: {
-            "Content-Type": file.type,
-            "x-amz-acl": "public-read"
+        try {
+          console.log('Starting file upload to:', result.success!.uploadUrl);
+          const uploadResponse = await fetch(result.success!.uploadUrl, {
+            method: "PUT",
+            body: file,
+            headers: {
+              "Content-Type": file.type
+            }
+          });
+
+          if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text().catch(() => 'No error details available');
+            console.error('Upload failed:', {
+              status: uploadResponse.status,
+              statusText: uploadResponse.statusText,
+              errorText,
+              headers: Object.fromEntries(uploadResponse.headers.entries())
+            });
+            setMessage({ 
+              text: `Upload failed for ${file.name}. Status: ${uploadResponse.status} ${uploadResponse.statusText}. ${errorText}`, 
+              type: 'error' 
+            });
+            return;
           }
-        });
-        if (!uploadResponse.ok) {
-          setMessage({ text: `Upload failed for ${file.name}.`, type: 'error' });
+        } catch (uploadError: any) {
+          const fileName = file?.name || 'the selected file';
+          const errorMessage = uploadError instanceof Error 
+            ? uploadError.message 
+            : 'An unknown error occurred during upload.';
+
+          // Log details separately to avoid issues with complex error objects
+          console.error(`Upload error for ${fileName}:`, errorMessage);
+          console.error('Full error object:', uploadError);
+
+          setMessage({
+            text: `Upload failed for ${fileName}. Error: ${errorMessage}`,
+            type: 'error'
+          });
           return;
         }
 

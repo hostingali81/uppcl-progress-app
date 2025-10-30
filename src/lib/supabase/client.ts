@@ -1,6 +1,7 @@
 // src/lib/supabase/client.ts
 import { createBrowserClient } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
   throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable')
@@ -18,7 +19,7 @@ export const createClient = () => {
 }
 
 // Export a singleton instance for reuse
-let clientInstance: ReturnType<typeof createBrowserClient<Database>> | null = null
+let clientInstance: SupabaseClient<Database> | null = null
 
 export const getClient = () => {
   if (!clientInstance) {

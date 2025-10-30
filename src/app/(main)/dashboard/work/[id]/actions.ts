@@ -10,7 +10,8 @@ import { getSettings } from "@/app/(main)/admin/settings/actions";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/supabase";
 
 // ====================================================================
 // These functions remain unchanged
@@ -89,87 +90,119 @@ async function updateGoogleSheet(
     }
 }
 
-export async function updateWorkProgress(formData: FormData) {
-    const { admin: supabaseAdmin, client: supabase } = await createSupabaseServerClient();
-    const workId = formData.get("workId") as string;
-    const progress = formData.get("progress") as string;
-    const remark = formData.get("remark") as string;
-    const billNo = formData.get("billNo") as string;
-    const billAmount = formData.get("billAmount") as string;
-    const expectedCompletionDate = formData.get("expectedCompletionDate") as string;
-    const actualCompletionDate = formData.get("actualCompletionDate") as string;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!workId || !user) return { error: "Work ID or User is missing." };
+export async function updateWorkProgress(formData: FormData): Promise<{ error?: string; success?: string }> {
+  const { admin: supabase, client } = await createSupabaseServerClient();
 
-    const workIdNumber = parseInt(workId, 10);
-    const progressNumber = parseInt(progress, 10);
-    const billAmountNumber = billAmount ? parseFloat(billAmount) : null;
+  const workId = formData.get("workId");
+  const progress = formData.get("progress");
+  const remark = formData.get("remark") as string | null;
+  const billNo = formData.get("billNo") as string | null;
+  const billAmount = formData.get("billAmount");
+  const expectedCompletionDate = formData.get("expectedCompletionDate") as string | null;
+  const actualCompletionDate = formData.get("actualCompletionDate") as string | null;
 
-    const { data: currentWork, error: fetchError } = await supabase
-        .from("works")
-        .select("progress_percentage, scheme_sr_no, bill_no, bill_amount_with_tax")
-        .eq("id", workIdNumber)
-        .single();
-    if (fetchError || !currentWork) return { error: "Could not fetch current work details." };
+  const workIdNumber = Number(workId);
+  const progressNumber = Number(progress);
+  const billAmountNumber = billAmount ? Number(billAmount) : null;
 
-    const { error: updateError } = await supabase.from("works").update({
-        progress_percentage: progressNumber,
-        remark: remark,
-        bill_no: billNo || null,
-        bill_amount_with_tax: billAmountNumber,
-        expected_completion_date: expectedCompletionDate || null,
-        actual_completion_date: actualCompletionDate || null
-    }).eq("id", workIdNumber);
-    if (updateError) return { error: `Database Error: ${updateError.message}` };
+  if (isNaN(workIdNumber) || isNaN(progressNumber)) {
+    return { error: "Invalid work ID or progress value." };
+  }
 
-    // Get user's full name from profile using admin client to bypass RLS
-    const { data: profile } = await supabaseAdmin.from("profiles").select("full_name").eq("id", user.id).single();
+  // Get authenticated user
+  const { data: { user }, error: authError } = await client.auth.getUser();
+  if (authError || !user) {
+    return { error: "Authentication required." };
+  }
 
-    // Use full name if available and not empty, otherwise use email
-    const displayName = (profile?.full_name && profile.full_name.trim() !== '') ? profile.full_name : user.email;
+  const { data: currentWork, error: fetchError } = await (supabase as any)
+    .from("works")
+    .select("*")
+    .eq("id", workIdNumber)
+    .single();
 
-    // Insert progress log using admin client to bypass RLS - this now includes full profile info for validation
-    const { error: logError } = await supabaseAdmin.from("progress_logs").insert({
-        work_id: workIdNumber,
-        user_id: user.id,
-        user_email: user.email, // Always store email
-        previous_progress: currentWork.progress_percentage,
-        new_progress: progressNumber,
-        remark: remark,
-        expected_completion_date: expectedCompletionDate || null
+  if (fetchError || !currentWork) {
+    return { error: "Could not fetch current work details." };
+  }
+
+  const { error: updateError } = await (supabase as any)
+    .from("works")
+    .update({
+      progress_percentage: progressNumber,
+      remark,
+      bill_no: billNo || null,
+      bill_amount_with_tax: billAmountNumber,
+      expected_completion_date: expectedCompletionDate || null,
+      actual_completion_date: actualCompletionDate || null,
+    })
+    .eq("id", workIdNumber);
+
+  if (updateError) {
+    console.error("Error updating work:", updateError);
+    return { error: "Failed to update work progress." };
+  }
+
+  // Get user's profile and handle logging
+  const { data: userProfile } = await (supabase as any)
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
+  const userDisplayName = userProfile?.full_name || user.email;
+
+  // Log progress update
+  const { error: progressLogError } = await (supabase as any)
+    .from("progress_logs")
+    .insert({
+      work_id: workIdNumber,
+      user_id: user.id,
+      user_email: user.email,
+      previous_progress: currentWork.progress_percentage,
+      new_progress: progressNumber,
+      remark: remark || "",
+      expected_completion_date: expectedCompletionDate
     });
 
-    if (logError) {
-        console.error("Failed to insert progress log:", logError);
-        return { error: `Progress updated but logging failed: ${logError.message}` };
-    }
-
-    // If bill details are updated, log the payment update
-    if (billNo || billAmountNumber) {
-        const { error: paymentLogError } = await supabaseAdmin.from("payment_logs").insert({
-            work_id: workIdNumber,
-            user_id: user.id,
-            user_email: displayName,
-            previous_bill_no: currentWork.bill_no,
-            previous_bill_amount: currentWork.bill_amount_with_tax,
-            new_bill_no: billNo || null,
-            new_bill_amount: billAmountNumber,
-            remark: remark
-        });
-
-        if (paymentLogError) {
-            console.error("Failed to insert payment log:", paymentLogError);
-            return { error: `Progress and payment updated but payment logging failed: ${paymentLogError.message}` };
-        }
-    }
-    
-  if (currentWork.scheme_sr_no) { 
-    await updateGoogleSheet(currentWork.scheme_sr_no, progressNumber, remark, billNo || null, billAmountNumber); 
+  if (progressLogError) {
+    console.error("Failed to insert progress log:", progressLogError);
+    return { error: "Progress updated but logging failed." };
   }
-    
-    revalidatePath(`/dashboard/work/${workId}`);
-    revalidatePath("/dashboard");
-    return { success: "Progress updated and logged successfully!" };
+
+  // Log payment update if bill details provided
+  if (billNo || billAmountNumber) {
+    const { error: paymentLogError } = await (supabase as any)
+      .from("payment_logs")
+      .insert({
+        work_id: workIdNumber,
+        user_id: user.id,
+        user_email: userDisplayName,
+        previous_bill_no: currentWork.bill_no,
+        previous_bill_amount: currentWork.bill_amount_with_tax,
+        new_bill_no: billNo,
+        new_bill_amount: billAmountNumber,
+        remark: remark || ""
+      });
+
+    if (paymentLogError) {
+      console.error("Failed to insert payment log:", paymentLogError);
+      return { error: "Progress and payment updated but payment logging failed." };
+    }
+  }
+
+  // Update Google Sheet if scheme number exists and we have all required data
+  if (currentWork.scheme_sr_no && typeof remark === 'string') {
+    await updateGoogleSheet(
+      currentWork.scheme_sr_no,
+      progressNumber,
+      remark,
+      billNo?.toString() || '',
+      billAmountNumber
+    );
+  }
+
+  revalidatePath(`/dashboard/work/${workId}`);
+  return { success: "Progress updated successfully!" };
 }
 
 export async function generateUploadUrl(fileName: string, fileType: string) {
