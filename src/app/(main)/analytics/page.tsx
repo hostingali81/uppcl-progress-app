@@ -132,6 +132,7 @@ export default async function AnalyticsPage() {
   );
 
   // Financial progress data (agreement_amount * progress_percentage)
+  // Financial progress data (agreement_amount * progress_percentage)
   const financialData = worksData.reduce((acc, work) => {
     const progress = work.progress_percentage || 0;
     const agreementAmount = work.agreement_amount || 0;
@@ -190,6 +191,7 @@ export default async function AnalyticsPage() {
   const completedWorks = worksData.filter(w => (w.progress_percentage || 0) === 100).length;
   const notStartedWorks = worksData.filter(w => (w.progress_percentage || 0) === 0).length;
   const blockedWorks = worksData.filter(w => w.is_blocked).length;
+  // Calculate total agreement value and completed value based on progress
   const totalAgreementValue = worksData.reduce((sum, work) => sum + (work.agreement_amount || 0), 0);
   const completedValue = worksData.reduce((sum, work) => {
     const progress = work.progress_percentage || 0;

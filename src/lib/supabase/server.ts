@@ -53,7 +53,7 @@ interface SupabaseClients {
 }
 
 export const createSupabaseServerClient = async (): Promise<SupabaseClients> => {
-  const cookieStore = await cookies();
+  const cookieStore = cookies();
   const cookieHandler = createCookieHandler(cookieStore);
 
   return {

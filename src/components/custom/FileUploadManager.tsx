@@ -60,16 +60,16 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
     startTransition(async () => {
       let uploadCount = 0;
       for (const file of files) {
-        const { success: urlResult, error: urlError } = await generateUploadUrl(file.name, file.type);
-        if (urlError || !urlResult) {
-          setMessage({ text: `Error generating URL: ${urlError || 'Unknown error'}`, type: 'error' });
+        const result = await generateUploadUrl(file.name, file.type);
+        if (result.error) {
+          setMessage({ text: `Error generating URL: ${result.error}`, type: 'error' });
           return;
         }
 
-        const uploadResponse = await fetch(urlResult.uploadUrl, { 
-          method: "PUT", 
-          body: file, 
-          headers: { 
+        const uploadResponse = await fetch(result.success!.uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: {
             "Content-Type": file.type,
             "x-amz-acl": "public-read"
           }
@@ -79,7 +79,7 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
           return;
         }
 
-        const { error: dbError } = await addAttachmentToWork(workId, urlResult.publicFileUrl, file.name);
+        const { error: dbError } = await addAttachmentToWork(workId, result.success!.publicFileUrl, file.name);
         if (dbError) {
           setMessage({ text: `Failed to save attachment to DB: ${dbError}`, type: 'error' });
           return;

@@ -3,7 +3,8 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -12,7 +13,7 @@ import Link from "next/link";
 import { ExportToExcelButton } from "@/components/custom/ExportToExcelButton";
 import { DashboardFilters } from "@/components/custom/DashboardFilters";
 import { DateFilter } from "@/components/custom/DateFilter";
-import { AlertTriangle, TrendingUp, Clock, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown, Play, Info } from "lucide-react";
+import { AlertTriangle, TrendingUp, Clock, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown, Play, Info, ChevronDown, Filter, X } from "lucide-react";
 
 import type { Work, ProgressLog } from "@/lib/types";
 
@@ -34,8 +35,141 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [activeKPI, setActiveKPI] = useState<string>('all');
-  const [selectedWorkCategory, setSelectedWorkCategory] = useState<string>('all');
+  const [selectedSchemes, setSelectedSchemes] = useState<string[]>([]);
+  const [selectedWorkCategories, setSelectedWorkCategories] = useState<string[]>([]);
+  const [regionalFilters, setRegionalFilters] = useState<{
+    zone: string[];
+    circle: string[];
+    division: string[];
+    subDivision: string[];
+    je: string[];
+    status: string[];
+    search: string;
+    scheme: string[];
+    workCategory: string[];
+  }>({
+    zone: [],
+    circle: [],
+    division: [],
+    subDivision: [],
+    je: [],
+    status: [],
+    search: '',
+    scheme: [],
+    workCategory: []
+  });
+
+  // Handle filter state changes from DashboardFilters component
+  const handleFilterStateChange = (filterState: {
+    zone: string[];
+    circle: string[];
+    division: string[];
+    subDivision: string[];
+    je: string[];
+    status: string[];
+    search: string;
+    scheme: string[];
+    workCategory: string[];
+  }) => {
+    setRegionalFilters(filterState);
+  };
+
+  // Apply all current filters (schemes, categories, regional filters and KPI) to a base list of works
+  const applyFilters = useCallback((baseWorks: Work[]) => {
+    let filtered = [...baseWorks];
+
+    // Determine scheme and category filters. Prefer filter state coming from
+    // the DashboardFilters component (regionalFilters.scheme/workCategory).
+    // Fall back to the local top-bar selections if those are used.
+    const effectiveSchemes = (regionalFilters.scheme && regionalFilters.scheme.length > 0)
+      ? regionalFilters.scheme
+      : selectedSchemes;
+    const effectiveCategories = (regionalFilters.workCategory && regionalFilters.workCategory.length > 0)
+      ? regionalFilters.workCategory
+      : selectedWorkCategories;
+
+    if (effectiveSchemes.length > 0) {
+      filtered = filtered.filter(w => effectiveSchemes.includes(w.scheme_name || ''));
+    }
+    if (effectiveCategories.length > 0) {
+      filtered = filtered.filter(w => effectiveCategories.includes(w.work_category || ''));
+    }
+
+    // regional filters (zone/circle/division/subDivision/je)
+    if (regionalFilters.zone.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.zone.includes(w.civil_zone || ''));
+    }
+    if (regionalFilters.circle.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.circle.includes(w.civil_circle || ''));
+    }
+    if (regionalFilters.division.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.division.includes(w.civil_division || ''));
+    }
+    if (regionalFilters.subDivision.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.subDivision.includes(w.civil_sub_division || ''));
+    }
+    if (regionalFilters.je.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.je.includes(w.je_name || ''));
+    }
+
+    // Status filters from regionalFilters.status
+    if (regionalFilters.status && regionalFilters.status.length > 0) {
+      filtered = filtered.filter(w => {
+        const progress = w.progress_percentage || 0;
+        return regionalFilters.status!.some(st => {
+          if (st === 'completed') return progress === 100;
+          if (st === 'in_progress') return progress > 0 && progress < 100;
+          if (st === 'not_started') return progress === 0;
+          if (st === 'blocked') return !!w.is_blocked;
+          return true;
+        });
+      });
+    }
+
+    // KPI filter (clicked on summary cards)
+    switch (activeKPI) {
+      case 'completed':
+        filtered = filtered.filter(w => (w.progress_percentage || 0) === 100);
+        break;
+      case 'in_progress':
+        filtered = filtered.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100);
+        break;
+      case 'not_started':
+        filtered = filtered.filter(w => (w.progress_percentage || 0) === 0);
+        break;
+      case 'blocked':
+        filtered = filtered.filter(w => !!w.is_blocked);
+        break;
+      default:
+        break;
+    }
+
+    // Search filter
+    if (regionalFilters.search) {
+      const searchLower = regionalFilters.search.toLowerCase();
+      filtered = filtered.filter(w => (
+        (w.work_name || '').toLowerCase().includes(searchLower) ||
+        (w.wbs_code || '').toLowerCase().includes(searchLower) ||
+        (w.district_name || '').toLowerCase().includes(searchLower)
+      ));
+    }
+
+    return filtered;
+  }, [selectedSchemes, selectedWorkCategories, regionalFilters, activeKPI]);
+
+  // Helper function to get filter summary text
+  const getFilterSummaryText = (filterName: string, values: string[]) => {
+    if (values.length === 0) {
+      return `All ${filterName}`;
+    } else if (values.length === 1) {
+      return values[0];
+    } else {
+      return `${values.length} ${filterName}`;
+    }
+  };
   const itemsPerPage = 20; // Show 20 items per page
+  const [schemesDropdownOpen, setSchemesDropdownOpen] = useState<boolean>(false);
+  const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState<boolean>(false);
 
   // Function to truncate work names
   const truncateWorkName = (name?: string | null, maxLength: number = 30): string => {
@@ -126,11 +260,16 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
   }, []);
 
   // Update filtered works when selected date or source data changes.
-  // Avoid overwriting user-applied filters on unrelated renders by
-  // depending on concrete inputs instead of the memo reference.
+  // Instead of overwriting any user-applied filters, re-apply the current
+  // filter state on top of the historical dataset so the date selection
+  // doesn't reset other filters.
   useEffect(() => {
-    setFilteredWorks(getHistoricalProgress);
-  }, [selectedDate, works.length, progressLogs.length]);
+    const base = getHistoricalProgress;
+    const applied = applyFilters(base);
+    setFilteredWorks(applied);
+    // reset to first page when applying new filters
+    setCurrentPage(1);
+  }, [selectedDate, works.length, progressLogs.length, applyFilters, getHistoricalProgress]);
 
   const handleSort = useCallback((column: string) => {
     let newDirection: 'asc' | 'desc' = 'asc';
@@ -167,70 +306,157 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     if (sort.column !== column) {
       return <ArrowUpDown className="h-4 w-4 text-slate-400" />;
     }
-    return sort.direction === 'asc' ? 
-      <ArrowUp className="h-4 w-4 text-blue-600" /> : 
+    return sort.direction === 'asc' ?
+      <ArrowUp className="h-4 w-4 text-blue-600" /> :
       <ArrowDown className="h-4 w-4 text-blue-600" />;
   };
 
-  const [selectedScheme, setSelectedScheme] = useState<string>('all');
+  // Get available schemes and categories
+  const getAvailableSchemes = useCallback(() => {
+    return Array.from(new Set(works.map(w => w.scheme_name)))
+      .filter((scheme): scheme is string => scheme !== null && scheme !== '')
+      .sort();
+  }, [works]);
 
-  const handleKPIClick = useCallback((type: 'completed' | 'in_progress' | 'not_started' | 'blocked' | 'all') => {
-    let filtered = works;
-    
-    // First apply scheme filter
-    if (selectedScheme !== 'all') {
-      filtered = filtered.filter(w => w.scheme_name === selectedScheme);
-    }
-    
-    // Update summary stats based on the selected category before applying KPI filter
-    const categoryWorks = selectedWorkCategory === 'all' 
-      ? filtered 
-      : filtered.filter(w => w.work_category === selectedWorkCategory);
+  const getAvailableCategories = useCallback(() => {
+    return Array.from(new Set(works.map(w => w.work_category)))
+      .filter((category): category is string => category !== null && category !== '')
+      .sort();
+  }, [works]);
 
-    // Then apply KPI filter
-    switch (type) {
-      case 'all':
-        // For 'all', just show the category-filtered works
-        filtered = categoryWorks;
-        break;
-      case 'completed':
-        filtered = categoryWorks.filter(w => (w.progress_percentage || 0) === 100);
-        break;
-      case 'in_progress':
-        filtered = categoryWorks.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100);
-        break;
-      case 'not_started':
-        filtered = categoryWorks.filter(w => (w.progress_percentage || 0) === 0);
-        break;
-      case 'blocked':
-        filtered = categoryWorks.filter(w => w.is_blocked);
-        break;
+  // Handle scheme selection
+  // Add state to prevent dropdown closing on selection
+  const [keepSchemesDropdownOpen, setKeepSchemesDropdownOpen] = useState(false);
+
+  const handleSchemeToggle = useCallback((scheme: string, checked: boolean) => {
+    let newSelectedSchemes: string[];
+    if (checked) {
+      newSelectedSchemes = [...selectedSchemes, scheme];
+    } else {
+      newSelectedSchemes = selectedSchemes.filter(s => s !== scheme);
     }
-    
+    setSelectedSchemes(newSelectedSchemes);
+
+    // Keep dropdown open for multi-selection, close only when selecting all or none
+    if (newSelectedSchemes.length === 0) {
+      setKeepSchemesDropdownOpen(false);
+      setSchemesDropdownOpen(false);
+    } else if (newSelectedSchemes.length !== getAvailableSchemes().length) {
+      setKeepSchemesDropdownOpen(true);
+    } else {
+      // If all are selected, close (equivalent to "All" selection)
+      setKeepSchemesDropdownOpen(false);
+      setSchemesDropdownOpen(false);
+    }
+
+    // Apply filters
+    let filtered = works.filter(w => {
+      const matchesScheme = newSelectedSchemes.length === 0 || newSelectedSchemes.includes(w.scheme_name || '');
+      const matchesCategory = selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '');
+      return matchesScheme && matchesCategory;
+    });
+
     setFilteredWorks(filtered);
-    setActiveKPI(type);
-  }, [works, selectedScheme, selectedWorkCategory]);
+  }, [selectedSchemes, selectedWorkCategories, works, setSelectedSchemes, setFilteredWorks, getAvailableSchemes]);
 
-  // Calculate summary statistics based on selected scheme - memoized for performance
+  // Handle category selection
+  const handleCategoryToggle = useCallback((category: string, checked: boolean) => {
+    let newSelectedCategories: string[];
+    if (checked) {
+      newSelectedCategories = [...selectedWorkCategories, category];
+    } else {
+      newSelectedCategories = selectedWorkCategories.filter(c => c !== category);
+    }
+    setSelectedWorkCategories(newSelectedCategories);
+
+    // Apply filters
+    let filtered = works.filter(w => {
+      const matchesScheme = selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '');
+      const matchesCategory = newSelectedCategories.length === 0 || newSelectedCategories.includes(w.work_category || '');
+      return matchesScheme && matchesCategory;
+    });
+
+    setFilteredWorks(filtered);
+  }, [selectedSchemes, selectedWorkCategories, works, setSelectedWorkCategories, setFilteredWorks]);
+
+  // Handle select all for schemes
+  const handleSelectAllSchemes = useCallback((allSelected: boolean) => {
+    const newSelectedSchemes = allSelected ? getAvailableSchemes() : [];
+    setSelectedSchemes(newSelectedSchemes);
+
+    let filtered = works.filter(w => {
+      const matchesScheme = newSelectedSchemes.length === 0 || newSelectedSchemes.includes(w.scheme_name || '');
+      const matchesCategory = selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '');
+      return matchesScheme && matchesCategory;
+    });
+
+    setFilteredWorks(filtered);
+  }, [getAvailableSchemes, selectedWorkCategories, works, setSelectedSchemes, setFilteredWorks]);
+
+  // Handle select all for categories
+  const handleSelectAllCategories = useCallback((allSelected: boolean) => {
+    const newSelectedCategories = allSelected ? getAvailableCategories() : [];
+    setSelectedWorkCategories(newSelectedCategories);
+
+    let filtered = works.filter(w => {
+      const matchesScheme = selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '');
+      const matchesCategory = newSelectedCategories.length === 0 || newSelectedCategories.includes(w.work_category || '');
+      return matchesScheme && matchesCategory;
+    });
+
+    setFilteredWorks(filtered);
+  }, [getAvailableCategories, selectedSchemes, works, setSelectedWorkCategories, setFilteredWorks]);
+
+  // Calculate summary statistics based on selected scheme and category - memoized for performance
   const summaryStats = useMemo(() => {
-    // First filter works by selected scheme
-    const schemeWorks = selectedScheme === 'all' 
-      ? works 
-      : works.filter(w => w.scheme_name === selectedScheme);
-    
-    // Then filter by selected category
-    const filteredWorks = selectedWorkCategory === 'all'
+    // First filter works by selected schemes (multi-select)
+    const schemeWorks = selectedSchemes.length === 0
+      ? works
+      : works.filter(w => selectedSchemes.includes(w.scheme_name || ''));
+
+    // Then filter by selected categories (multi-select)
+    const filteredWorks = selectedWorkCategories.length === 0
       ? schemeWorks
-      : schemeWorks.filter(w => w.work_category === selectedWorkCategory);
-    
+      : schemeWorks.filter(w => selectedWorkCategories.includes(w.work_category || ''));
+
     const totalWorks = filteredWorks?.length || 0;
     const completedWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) === 100).length || 0;
     const inProgressWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100).length || 0;
     const notStartedWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) === 0).length || 0;
     const blockedWorks = filteredWorks?.filter(w => w.is_blocked).length || 0;
-    
+
     return { totalWorks, completedWorks, inProgressWorks, notStartedWorks, blockedWorks };
-  }, [works, selectedScheme, selectedWorkCategory]);
+  }, [getHistoricalProgress, applyFilters]);
+
+  const handleKPIClick = useCallback((type: 'completed' | 'in_progress' | 'not_started' | 'blocked' | 'all') => {
+    // Update active KPI then re-apply filters on top of the current historical base
+    setActiveKPI(type);
+    // Recompute using the current base dataset (respecting selected date and progress logs)
+    const base = getHistoricalProgress;
+    const applied = applyFilters(base);
+
+    // Finally apply the KPI filter on the already-applied filters
+    let final = applied;
+    switch (type) {
+      case 'completed':
+        final = final.filter(w => (w.progress_percentage || 0) === 100);
+        break;
+      case 'in_progress':
+        final = final.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100);
+        break;
+      case 'not_started':
+        final = final.filter(w => (w.progress_percentage || 0) === 0);
+        break;
+      case 'blocked':
+        final = final.filter(w => !!w.is_blocked);
+        break;
+      default:
+        break;
+    }
+
+    setFilteredWorks(final);
+    setCurrentPage(1);
+  }, [works, selectedSchemes, selectedWorkCategories]);
 
   // Calculate paginated data with blocked works shown first
   const paginatedData = useMemo(() => {
@@ -266,217 +492,22 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
   // Calculate total pages
   const totalPages = Math.ceil(filteredWorks.length / itemsPerPage);
 
-  // Update filtered works when filters or data changes
-  useEffect(() => {
-    let filtered = getHistoricalProgress;
-    
-    // Apply all filters in consistent order
-    if (selectedScheme !== 'all') {
-      filtered = filtered.filter(work => work.scheme_name === selectedScheme);
-    }
-    
-    if (selectedWorkCategory !== 'all') {
-      filtered = filtered.filter(work => work.work_category === selectedWorkCategory);
-    }
-
-    // Apply KPI filter if active
-    if (activeKPI !== 'all') {
-      switch (activeKPI) {
-        case 'completed':
-          filtered = filtered.filter(w => (w.progress_percentage || 0) === 100);
-          break;
-        case 'in_progress':
-          filtered = filtered.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100);
-          break;
-        case 'not_started':
-          filtered = filtered.filter(w => (w.progress_percentage || 0) === 0);
-          break;
-        case 'blocked':
-          filtered = filtered.filter(w => w.is_blocked);
-          break;
-      }
-    }
-    
-    setFilteredWorks(filtered);
-  }, [selectedDate, works, progressLogs, selectedScheme, selectedWorkCategory, activeKPI, getHistoricalProgress]);  return (
+  return (
     <div className="p-2 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
       {/* Page Header with Scheme Selector */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Progress Dashboard</h1>
             <p className="mt-1 sm:mt-2 text-sm sm:text-base text-slate-600">
               Overview of all works assigned to you. Your role: <Badge variant="outline" className="ml-1 text-xs">{profile.role}</Badge>
             </p>
           </div>
         </div>
 
-        {/* Filters Card */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-4">
-              {/* Scheme Selector */}
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                <div className="flex-1">
-                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">NAME OF SCHEME</label>
-                  <Select value={selectedScheme} onValueChange={setSelectedScheme}>
-                    <SelectTrigger className="w-full sm:w-[300px] border-slate-200 focus:border-blue-500 focus:ring-blue-500">
-                      <SelectValue placeholder="Select a scheme" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg max-h-[300px]">
-                      <SelectItem value="all" className="bg-white hover:bg-slate-50">All Schemes</SelectItem>
-                      {works
-                        .map(w => w.scheme_name)
-                        .filter((scheme): scheme is string => scheme !== null && scheme !== '')
-                        .filter((scheme, index, self) => self.indexOf(scheme) === index)
-                        .sort()
-                        .map(scheme => (
-                          <SelectItem key={scheme} value={scheme} className="bg-white hover:bg-slate-50">
-                            {scheme}
-                          </SelectItem>
-                        ))
-                      }
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <span className="font-medium">{selectedScheme === 'all' ? 'All Schemes' : selectedScheme}</span>
-                  <span>•</span>
-                  <span>{summaryStats.totalWorks} total works</span>
-                  {selectedScheme !== 'all' && (
-                    <>
-                      <span>•</span>
-                      <span>{Math.round((summaryStats.completedWorks / summaryStats.totalWorks) * 100)}% completed</span>
-                    </>
-                  )}
-                </div>
-              </div>
 
-              {/* Work Category Selector */}
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                <div className="flex-1">
-                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">WORK CATEGORY</label>
-                  <Select 
-                    value={selectedWorkCategory} 
-                    onValueChange={(value) => {
-                      setSelectedWorkCategory(value);
-                      // Reset to page 1 when changing category
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-full sm:w-[300px] border-slate-200 focus:border-blue-500 focus:ring-blue-500">
-                      <SelectValue placeholder="Select work category" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[100] bg-white border-slate-200 shadow-lg max-h-[300px]">
-                      <SelectItem value="all" className="bg-white hover:bg-slate-50">All Categories</SelectItem>
-                      {/* Get unique, non-null categories */}
-                      {(() => {
-                        const categories = [...new Set(works
-                          .map(w => w.work_category)
-                          .filter((category): category is string => 
-                            category !== null && category !== ''
-                          )
-                        )];
-                        // Remove debug log
-                        return categories;
-                      })()
-                        .sort((a, b) => a.localeCompare(b))
-                        .map((category, index) => (
-                          <SelectItem 
-                            key={`category-${index}-${category}`} 
-                            value={category} 
-                            className="bg-white hover:bg-slate-50"
-                          >
-                            {category}
-                          </SelectItem>
-                        ))
-                      }
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <span className="font-medium">{selectedWorkCategory === 'all' ? 'All Categories' : selectedWorkCategory}</span>
-                  <span>•</span>
-                  <span>{filteredWorks.length} works</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4">
-        <Card className={`border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${activeKPI === 'all' ? 'ring-2 ring-blue-500 border-blue-500' : ''}`} onClick={() => handleKPIClick('all')}>
-          <CardContent className="p-3 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-slate-600">Total Works</p>
-                <p className="text-lg sm:text-2xl font-bold text-slate-900">{summaryStats.totalWorks}</p>
-              </div>
-              <div className="h-8 w-8 sm:h-12 sm:w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className={`border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${activeKPI === 'completed' ? 'ring-2 ring-green-500 border-green-500' : ''}`} onClick={() => handleKPIClick('completed')}>
-          <CardContent className="p-3 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-slate-600">Completed</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-600">{summaryStats.completedWorks}</p>
-              </div>
-              <div className="h-8 w-8 sm:h-12 sm:w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="h-4 w-4 sm:h-6 sm:w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className={`border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${activeKPI === 'in_progress' ? 'ring-2 ring-orange-500 border-orange-500' : ''}`} onClick={() => handleKPIClick('in_progress')}>
-          <CardContent className="p-3 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-slate-600">In Progress</p>
-                <p className="text-lg sm:text-2xl font-bold text-orange-600">{summaryStats.inProgressWorks}</p>
-              </div>
-              <div className="h-8 w-8 sm:h-12 sm:w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Clock className="h-4 w-4 sm:h-6 sm:w-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className={`border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${activeKPI === 'not_started' ? 'ring-2 ring-gray-500 border-gray-500' : ''}`} onClick={() => handleKPIClick('not_started')}>
-          <CardContent className="p-3 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-slate-600">Not Started</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-600">{summaryStats.notStartedWorks}</p>
-              </div>
-              <div className="h-8 w-8 sm:h-12 sm:w-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                <Play className="h-4 w-4 sm:h-6 sm:w-6 text-gray-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className={`border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${activeKPI === 'blocked' ? 'ring-2 ring-red-500 border-red-500' : ''}`} onClick={() => handleKPIClick('blocked')}>
-          <CardContent className="p-3 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-slate-600">Blocked</p>
-                <p className="text-lg sm:text-2xl font-bold text-red-600">{summaryStats.blockedWorks}</p>
-              </div>
-              <div className="h-8 w-8 sm:h-12 sm:w-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="h-4 w-4 sm:h-6 sm:w-6 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
 
       {/* Date Filter */}
@@ -488,13 +519,12 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
       {/* Filters and Sorting */}
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-3 sm:p-6">
-          <DashboardFilters 
+          <DashboardFilters
             works={getHistoricalProgress}
             userRole={profile.role}
-            selectedScheme={selectedScheme}
-            selectedWorkCategory={selectedWorkCategory}
             onFilterChange={handleFilterChange}
             onSortChange={handleSortChange}
+            onFilterStateChange={handleFilterStateChange}
           />
         </CardContent>
       </Card>
@@ -510,7 +540,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
               </CardDescription>
             </div>
             <div>
-              <ExportToExcelButton selectedScheme={selectedScheme} filteredWorks={filteredWorks} />
+              <ExportToExcelButton selectedScheme={selectedSchemes.length > 0 ? selectedSchemes.join(', ') : 'All'} filteredWorks={filteredWorks} />
             </div>
           </div>
         </CardHeader>

@@ -3,6 +3,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { google } from "googleapis";
 import { getSettings } from "@/app/(main)/admin/settings/actions";
@@ -99,18 +100,18 @@ export async function updateWorkProgress(formData: FormData) {
     const actualCompletionDate = formData.get("actualCompletionDate") as string;
     const { data: { user } } = await supabase.auth.getUser();
     if (!workId || !user) return { error: "Work ID or User is missing." };
-    
+
     const workIdNumber = parseInt(workId, 10);
     const progressNumber = parseInt(progress, 10);
     const billAmountNumber = billAmount ? parseFloat(billAmount) : null;
-    
+
     const { data: currentWork, error: fetchError } = await supabase
         .from("works")
         .select("progress_percentage, scheme_sr_no, bill_no, bill_amount_with_tax")
         .eq("id", workIdNumber)
         .single();
     if (fetchError || !currentWork) return { error: "Could not fetch current work details." };
-    
+
     const { error: updateError } = await supabase.from("works").update({
         progress_percentage: progressNumber,
         remark: remark,
@@ -120,24 +121,24 @@ export async function updateWorkProgress(formData: FormData) {
         actual_completion_date: actualCompletionDate || null
     }).eq("id", workIdNumber);
     if (updateError) return { error: `Database Error: ${updateError.message}` };
-    
+
     // Get user's full name from profile using admin client to bypass RLS
     const { data: profile } = await supabaseAdmin.from("profiles").select("full_name").eq("id", user.id).single();
-    
+
     // Use full name if available and not empty, otherwise use email
     const displayName = (profile?.full_name && profile.full_name.trim() !== '') ? profile.full_name : user.email;
-    
-    // Insert progress log using admin client to bypass RLS
-    const { error: logError } = await supabaseAdmin.from("progress_logs").insert({ 
-        work_id: workIdNumber, 
-        user_id: user.id, 
+
+    // Insert progress log using admin client to bypass RLS - this now includes full profile info for validation
+    const { error: logError } = await supabaseAdmin.from("progress_logs").insert({
+        work_id: workIdNumber,
+        user_id: user.id,
         user_email: user.email, // Always store email
-        previous_progress: currentWork.progress_percentage, 
-        new_progress: progressNumber, 
+        previous_progress: currentWork.progress_percentage,
+        new_progress: progressNumber,
         remark: remark,
         expected_completion_date: expectedCompletionDate || null
     });
-    
+
     if (logError) {
         console.error("Failed to insert progress log:", logError);
         return { error: `Progress updated but logging failed: ${logError.message}` };
@@ -404,4 +405,121 @@ export async function updateBillingDetails(data: {
   revalidatePath("/dashboard");
 
   return { success: "Billing details updated successfully!" };
+}
+
+// New function to fetch work details for the work detail page
+export async function fetchWorkDetails(workId: number) {
+  const { client: supabase, admin: supabaseAdmin } = await createSupabaseServerClient();
+
+  // Check authentication
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return redirect("/login");
+  }
+
+  // Fetch work with attachments
+  const workPromise = supabase
+    .from("works")
+    .select(`*, attachments (*)`)
+    .eq("id", workId)
+    .single();
+
+  // Fetch all users for mentions
+  const usersPromise = supabaseAdmin.from("profiles").select('id, full_name, role, region, division, subdivision, circle, zone');
+
+  // Fetch current user's profile
+  const profilePromise = supabase.from("profiles").select('role').eq('id', user.id).single();
+
+  // Fetch progress logs (use admin client to avoid accidental RLS/relationship issues)
+  // We select the core columns and user identifiers. The UI will fall back to user_email when
+  // profile joins are not available. Using the admin client ensures logs inserted via the
+  // service role are visible here.
+  const progressLogsPromise = supabaseAdmin
+    .from("progress_logs")
+    .select(
+      `id, work_id, user_id, user_email, previous_progress, new_progress, remark, created_at`
+    )
+    .eq('work_id', workId)
+    .order('created_at', { ascending: false });
+
+  // Fetch comments
+  const commentsPromise = supabase
+    .from('comments')
+    .select('*')
+    .eq('work_id', workId)
+    .order('created_at', { ascending: false });
+
+  // Fetch payment logs
+  const paymentLogsPromise = supabase
+    .from('payment_logs')
+    .select('id, work_id, user_id, created_at, user_email, previous_bill_no, previous_bill_amount, new_bill_no, new_bill_amount, remark')
+    .eq('work_id', workId)
+    .order('created_at', { ascending: false });
+
+  const [
+    { data: workRow, error: workError },
+    { data: allUsers },
+    { data: currentUserProfile },
+    { data: progressLogs },
+    { data: paymentLogs },
+    { data: comments }
+  ] = await Promise.all([workPromise, usersPromise, profilePromise, progressLogsPromise, paymentLogsPromise, commentsPromise]);
+
+  if (workError || !workRow) {
+    console.error('Work fetch failed:', {
+      workId,
+      workError: workError ? {
+        message: workError.message || 'No message',
+        code: workError.code || 'No code',
+        details: workError.details || 'No details',
+        hint: workError.hint || 'No hint'
+      } : 'No error object',
+      workRow,
+      workRowExists: !!workRow
+    });
+
+    if (process.env.NODE_ENV === 'development') {
+      throw new Error(`Work not found or fetch error. workId=${workId}`);
+    }
+    throw new Error('Work not found');
+  }
+
+  const work = workRow as any;
+  const allUsersData = (allUsers || []) as any[];
+  const currentUserProfileData = currentUserProfile as any;
+  const progressLogsData = (progressLogs || []) as any[];
+  const paymentLogsData = (paymentLogs || []) as any[];
+
+  // Build mention users list scoped to this work's hierarchy
+  const usersForMentions = allUsersData ? allUsersData
+    .filter(u => {
+      const role = (u.role || '').toString();
+      if (role === 'superadmin') return true;
+      const matchesJe = role === 'je' && u.region && u.region === work.je_name;
+      const matchesSubDiv = role === 'sub_division_head' && u.subdivision && u.subdivision === work.civil_sub_division;
+      const matchesDiv = role === 'division_head' && u.division && u.division === work.civil_division;
+      const matchesCircle = role === 'circle_head' && u.circle && u.circle === work.civil_circle;
+      const matchesZone = role === 'zone_head' && u.zone && u.zone === work.civil_zone;
+      return matchesJe || matchesSubDiv || matchesDiv || matchesCircle || matchesZone;
+    })
+    .map(u => ({ id: u.id, display: u.full_name || 'Unknown' })) : [];
+
+  const currentUserRole = currentUserProfileData?.role || 'user';
+
+  // Calculate billing summary
+  const totalBillAmount = paymentLogsData?.reduce((sum: number, log: any) => sum + (log.new_bill_amount || 0), 0) || 0;
+  const latestBill = paymentLogsData && paymentLogsData.length > 0 ? paymentLogsData[0] : null;
+  const latestBillNumber = latestBill?.new_bill_no || 'N/A';
+
+  return {
+    work,
+    usersForMentions,
+    currentUserRole,
+    currentUserId: user.id,
+    totalBillAmount,
+    latestBillNumber,
+    paymentLogs: paymentLogs || [],
+    progressLogs: progressLogs || [],
+    comments: comments || []
+  };
 }

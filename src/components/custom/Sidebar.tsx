@@ -16,7 +16,7 @@ type UserDetails = {
 };
 
 const allNavItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
+  { href: "/dashboard", label: "Progress Dashboard", icon: LayoutDashboard, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/analytics", label: "Analytics", icon: BarChart, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/admin/users", label: "User Management", icon: Users, roles: ['superadmin'] },
   { href: "/admin/settings", label: "System Settings", icon: Settings, roles: ['superadmin'] },

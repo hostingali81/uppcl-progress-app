@@ -104,11 +104,16 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks }: ExportToE
       {/* Column selector popover */}
       {open && (
         <div className="absolute right-0 mt-2 w-[360px] max-h-[360px] overflow-auto bg-white border border-slate-200 rounded shadow-lg p-3 z-50">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-start justify-between mb-2">
             <div className="text-sm font-medium">Select columns to export</div>
             <div className="flex items-center gap-2">
               <button className="text-xs text-blue-600 hover:underline" onClick={selectAll}>Select all</button>
               <button className="text-xs text-slate-600 hover:underline" onClick={clearAll}>Clear</button>
+              {/* Move action buttons to the top next to Select/Clear as requested */}
+              <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button variant="outline" size="sm" onClick={() => handleExport()} disabled={isPending}>
+                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Export'}
+              </Button>
             </div>
           </div>
 
@@ -121,10 +126,7 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks }: ExportToE
             ))}
           </div>
 
-          <div className="flex items-center justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button variant="outline" size="sm" onClick={() => handleExport()}>Export</Button>
-          </div>
+          {/* Buttons moved to header for easier access; keep this area for messages only */}
           {message && (
             <div className={`mt-2 text-xs p-2 rounded border ${
               message.startsWith('Error') 

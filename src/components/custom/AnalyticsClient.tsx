@@ -5,7 +5,10 @@ import { AnalyticsCharts } from "./AnalyticsCharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Filter, X, Info } from "lucide-react";
+import { ExportToExcelButton } from "@/components/custom/ExportToExcelButton";
+
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Filter, X, Info, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { Work } from "@/lib/types";
 
@@ -44,9 +47,12 @@ export function AnalyticsClient({
   colors 
 }: AnalyticsClientProps) {
   const [filteredWorks, setFilteredWorks] = useState<Work[]>(works);
+  const [sort, setSort] = useState<{ column: string; direction: 'asc' | 'desc' }>({ column: '', direction: 'asc' });
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [selectedSchemes, setSelectedSchemes] = useState<string[]>([]);
   const [selectedWorkCategories, setSelectedWorkCategories] = useState<string[]>([]);
+  const [schemesDropdownOpen, setSchemesDropdownOpen] = useState<boolean>(false);
+  const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState<boolean>(false);
 
   // Get base works filtered only by selected scheme and category
   const getBaseFilteredWorks = useCallback((): Work[] => {
@@ -199,6 +205,201 @@ export function AnalyticsClient({
     return isMobile ? 20 : 50;
   };
 
+  // Compute displayed works after applying sorting
+  const displayedWorks = (() => {
+    if (!filteredWorks) return [] as Work[];
+    if (!sort.column) return filteredWorks;
+    const sorted = [...filteredWorks].sort((a: Work, b: Work) => {
+      const aVal = a[sort.column as keyof Work];
+      const bVal = b[sort.column as keyof Work];
+
+      // Normalize values
+      const normalize = (v: any) => {
+        if (v === null || v === undefined) return '';
+        if (typeof v === 'string') return v.toLowerCase();
+        return v;
+      };
+
+      const na = normalize(aVal);
+      const nb = normalize(bVal);
+
+      if (na < nb) return sort.direction === 'asc' ? -1 : 1;
+      if (na > nb) return sort.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  })();
+
+  const handleSort = (column: string) => {
+    setSort(prev => {
+      if (prev.column === column) {
+        return { column, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { column, direction: 'asc' };
+    });
+  };
+
+  // Get available schemes and categories
+  const getAvailableSchemes = useCallback(() => {
+    return Array.from(new Set(works.map(w => w.scheme_name)))
+      .filter((scheme): scheme is string => scheme !== null && scheme !== '')
+      .sort();
+  }, [works]);
+
+  const getAvailableCategories = useCallback(() => {
+    return Array.from(new Set(works.map(w => w.work_category)))
+      .filter((category): category is string => category !== null && category !== '')
+      .sort();
+  }, [works]);
+
+  // Handle scheme selection
+  const handleSchemeToggle = useCallback((scheme: string, checked: boolean) => {
+    let newSelectedSchemes: string[];
+    if (checked) {
+      newSelectedSchemes = [...selectedSchemes, scheme];
+    } else {
+      newSelectedSchemes = selectedSchemes.filter(s => s !== scheme);
+    }
+    setSelectedSchemes(newSelectedSchemes);
+
+    // Apply filters
+    let filtered = works.filter(w => {
+      const matchesScheme = newSelectedSchemes.length === 0 || newSelectedSchemes.includes(w.scheme_name || '');
+      const matchesCategory = selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '');
+      return matchesScheme && matchesCategory;
+    });
+
+    if (activeFilter !== 'all') {
+      switch (activeFilter) {
+        case 'completed':
+          filtered = filtered.filter(work => (work.progress_percentage || 0) === 100);
+          break;
+        case 'in_progress':
+          filtered = filtered.filter(work => {
+            const progress = work.progress_percentage || 0;
+            return progress > 0 && progress < 100;
+          });
+          break;
+        case 'not_started':
+          filtered = filtered.filter(work => (work.progress_percentage || 0) === 0);
+          break;
+        case 'blocked':
+          filtered = filtered.filter(work => work.is_blocked);
+          break;
+      }
+    }
+
+    setFilteredWorks(filtered);
+  }, [selectedSchemes, selectedWorkCategories, works, activeFilter, setSelectedSchemes, setFilteredWorks]);
+
+  // Handle category selection
+  const handleCategoryToggle = useCallback((category: string, checked: boolean) => {
+    let newSelectedCategories: string[];
+    if (checked) {
+      newSelectedCategories = [...selectedWorkCategories, category];
+    } else {
+      newSelectedCategories = selectedWorkCategories.filter(c => c !== category);
+    }
+    setSelectedWorkCategories(newSelectedCategories);
+
+    // Apply filters
+    let filtered = works.filter(w => {
+      const matchesScheme = selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '');
+      const matchesCategory = newSelectedCategories.length === 0 || newSelectedCategories.includes(w.work_category || '');
+      return matchesScheme && matchesCategory;
+    });
+
+    if (activeFilter !== 'all') {
+      switch (activeFilter) {
+        case 'completed':
+          filtered = filtered.filter(work => (work.progress_percentage || 0) === 100);
+          break;
+        case 'in_progress':
+          filtered = filtered.filter(work => {
+            const progress = work.progress_percentage || 0;
+            return progress > 0 && progress < 100;
+          });
+          break;
+        case 'not_started':
+          filtered = filtered.filter(work => (work.progress_percentage || 0) === 0);
+          break;
+        case 'blocked':
+          filtered = filtered.filter(work => work.is_blocked);
+          break;
+      }
+    }
+
+    setFilteredWorks(filtered);
+  }, [selectedSchemes, selectedWorkCategories, works, activeFilter, setSelectedWorkCategories, setFilteredWorks]);
+
+  // Handle select all for schemes
+  const handleSelectAllSchemes = useCallback((allSelected: boolean) => {
+    const newSelectedSchemes = allSelected ? getAvailableSchemes() : [];
+    setSelectedSchemes(newSelectedSchemes);
+
+    let filtered = works.filter(w => {
+      const matchesScheme = newSelectedSchemes.length === 0 || newSelectedSchemes.includes(w.scheme_name || '');
+      const matchesCategory = selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '');
+      return matchesScheme && matchesCategory;
+    });
+
+    if (activeFilter !== 'all') {
+      switch (activeFilter) {
+        case 'completed':
+          filtered = filtered.filter(work => (work.progress_percentage || 0) === 100);
+          break;
+        case 'in_progress':
+          filtered = filtered.filter(work => {
+            const progress = work.progress_percentage || 0;
+            return progress > 0 && progress < 100;
+          });
+          break;
+        case 'not_started':
+          filtered = filtered.filter(work => (work.progress_percentage || 0) === 0);
+          break;
+        case 'blocked':
+          filtered = filtered.filter(work => work.is_blocked);
+          break;
+      }
+    }
+
+    setFilteredWorks(filtered);
+  }, [getAvailableSchemes, selectedWorkCategories, works, activeFilter, setSelectedSchemes, setFilteredWorks]);
+
+  // Handle select all for categories
+  const handleSelectAllCategories = useCallback((allSelected: boolean) => {
+    const newSelectedCategories = allSelected ? getAvailableCategories() : [];
+    setSelectedWorkCategories(newSelectedCategories);
+
+    let filtered = works.filter(w => {
+      const matchesScheme = selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '');
+      const matchesCategory = newSelectedCategories.length === 0 || newSelectedCategories.includes(w.work_category || '');
+      return matchesScheme && matchesCategory;
+    });
+
+    if (activeFilter !== 'all') {
+      switch (activeFilter) {
+        case 'completed':
+          filtered = filtered.filter(work => (work.progress_percentage || 0) === 100);
+          break;
+        case 'in_progress':
+          filtered = filtered.filter(work => {
+            const progress = work.progress_percentage || 0;
+            return progress > 0 && progress < 100;
+          });
+          break;
+        case 'not_started':
+          filtered = filtered.filter(work => (work.progress_percentage || 0) === 0);
+          break;
+        case 'blocked':
+          filtered = filtered.filter(work => work.is_blocked);
+          break;
+      }
+    }
+
+    setFilteredWorks(filtered);
+  }, [getAvailableCategories, selectedSchemes, works, activeFilter, setSelectedWorkCategories, setFilteredWorks]);
+
   const handleKPIClick = (filterType: 'all' | 'completed' | 'in_progress' | 'not_started' | 'blocked') => {
     // First get scheme and category filtered works
     let baseWorks = works.filter(w => {
@@ -294,58 +495,70 @@ export function AnalyticsClient({
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="flex-1">
-      <label className="text-sm font-medium text-slate-700 mb-1.5 block">NAME OF SCHEME</label>
-      <select 
-        multiple
-        value={selectedSchemes}
-        onChange={(e) => {
-          const opts = Array.from(e.target.selectedOptions).map(o => o.value);
-          setSelectedSchemes(opts);
-          
-          // Apply both category and scheme filters
-          let filtered = works.filter(w => {
-            const matchesScheme = opts.length === 0 || opts.includes(w.scheme_name || '');
-            const matchesCategory = selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '');
-            return matchesScheme && matchesCategory;
-          });
-
-          // Reapply KPI filter if active
-          if (activeFilter !== 'all') {
-            switch (activeFilter) {
-              case 'completed':
-                filtered = filtered.filter(work => (work.progress_percentage || 0) === 100);
-                break;
-              case 'in_progress':
-                filtered = filtered.filter(work => {
-                  const progress = work.progress_percentage || 0;
-                  return progress > 0 && progress < 100;
-                });
-                break;
-              case 'not_started':
-                filtered = filtered.filter(work => (work.progress_percentage || 0) === 0);
-                break;
-              case 'blocked':
-                filtered = filtered.filter(work => work.is_blocked);
-                break;
-            }
-          }
-          
-          setFilteredWorks(filtered);
-        }}
-        className="w-full sm:w-[300px] min-h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-      >
-        {Array.from(new Set(works.map(w => w.scheme_name)))
-          .filter((scheme): scheme is string => scheme !== null && scheme !== '')
-          .sort()
-          .map(scheme => (
-            <option key={scheme} value={scheme}>{scheme}</option>
-          ))
-        }
-      </select>
+              <label className="text-sm font-medium text-slate-700 mb-2 block">NAME OF SCHEME</label>
+              <DropdownMenu
+                open={schemesDropdownOpen}
+                onOpenChange={(open) => {
+                  // Close dropdown only when explicitly requested or when clicking outside
+                  // Don't close on individual item selection due to onSelect event prevention
+                  setSchemesDropdownOpen(open);
+                }}
+              >
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-[300px] justify-between bg-white border-slate-200 hover:bg-slate-50 text-sm h-11 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  >
+                    <span className="truncate">{selectedSchemes.length === 0 ? 'All Schemes' : `${selectedSchemes.length} scheme${selectedSchemes.length === 1 ? '' : 's'} selected`}</span>
+                    <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[300px] max-h-[400px] overflow-y-auto shadow-lg border-slate-200 rounded-lg" align="start">
+                  <div className="px-3 py-2 border-b border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-slate-900">Select Schemes</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSelectAllSchemes(selectedSchemes.length !== getAvailableSchemes().length)}
+                        className="text-xs h-7 px-2 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                      >
+                        {selectedSchemes.length === getAvailableSchemes().length ? 'Deselect All' : 'Select All'}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="py-1">
+                    {getAvailableSchemes().map((scheme) => (
+                      <DropdownMenuCheckboxItem
+                        key={scheme}
+                        checked={selectedSchemes.includes(scheme)}
+                        onCheckedChange={(checked) => handleSchemeToggle(scheme, checked)}
+                        onSelect={(event) => event.preventDefault()} // Prevent dropdown from closing on individual selection
+                        className="cursor-pointer px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:text-blue-900 transition-colors"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <span className={`w-4 h-4 rounded border-2 border-slate-300 bg-white flex items-center justify-center transition-colors ${
+                            selectedSchemes.includes(scheme)
+                              ? 'bg-blue-500 border-blue-500'
+                              : 'hover:border-blue-300'
+                          }`}>
+                            {selectedSchemes.includes(scheme) && (
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 0 0-.708.708l3.5 3.5a1.5 1.5 0 0 0 2.112 0l7-7a.5.5 0 0 1 .708 0z"/>
+                              </svg>
+                            )}
+                          </span>
+                          <span className="text-sm truncate">{scheme}</span>
+                        </div>
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <span className="font-medium">{selectedSchemes.length === 0 ? 'All Schemes' : `${selectedSchemes.length} selected`}</span>
-              <span>•</span>
+            <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-md">
+              <span className="font-medium">{selectedSchemes.length === 0 ? 'All Schemes' : `${selectedSchemes.length} scheme${selectedSchemes.length === 1 ? '' : 's'}`}</span>
+              <span className="text-slate-400">•</span>
               <span>{works.filter(w => selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '')).length} works</span>
             </div>
           </div>
@@ -353,58 +566,70 @@ export function AnalyticsClient({
           {/* Work Category Selector */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mt-4">
             <div className="flex-1">
-              <label className="text-sm font-medium text-slate-700 mb-1.5 block">WORK CATEGORY</label>
-              <select 
-                multiple
-                value={selectedWorkCategories}
-                onChange={(e) => {
-                  const opts = Array.from(e.target.selectedOptions).map(o => o.value);
-                  setSelectedWorkCategories(opts);
-                  
-                  // Apply both category and scheme filters
-                  let filtered = works.filter(w => {
-                    const matchesScheme = selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '');
-                    const matchesCategory = opts.length === 0 || opts.includes(w.work_category || '');
-                    return matchesScheme && matchesCategory;
-                  });
-
-                  // Reapply KPI filter if active
-                  if (activeFilter !== 'all') {
-                    switch (activeFilter) {
-                      case 'completed':
-                        filtered = filtered.filter(work => (work.progress_percentage || 0) === 100);
-                        break;
-                      case 'in_progress':
-                        filtered = filtered.filter(work => {
-                          const progress = work.progress_percentage || 0;
-                          return progress > 0 && progress < 100;
-                        });
-                        break;
-                      case 'not_started':
-                        filtered = filtered.filter(work => (work.progress_percentage || 0) === 0);
-                        break;
-                      case 'blocked':
-                        filtered = filtered.filter(work => work.is_blocked);
-                        break;
-                    }
-                  }
-                  
-                  setFilteredWorks(filtered);
+              <label className="text-sm font-medium text-slate-700 mb-2 block">WORK CATEGORY</label>
+              <DropdownMenu
+                open={categoriesDropdownOpen}
+                onOpenChange={(open) => {
+                  // Close dropdown only when explicitly requested or when clicking outside
+                  // Don't close on individual item selection due to onSelect event prevention
+                  setCategoriesDropdownOpen(open);
                 }}
-                className="w-full sm:w-[300px] min-h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                {Array.from(new Set(works.map(w => w.work_category)))
-                  .filter((category): category is string => category !== null && category !== '')
-                  .sort()
-                  .map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))
-                }
-              </select>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-[300px] justify-between bg-white border-slate-200 hover:bg-slate-50 text-sm h-11 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  >
+                    <span className="truncate">{selectedWorkCategories.length === 0 ? 'All Categories' : `${selectedWorkCategories.length} categor${selectedWorkCategories.length === 1 ? 'y' : 'ies'} selected`}</span>
+                    <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[300px] max-h-[400px] overflow-y-auto shadow-lg border-slate-200 rounded-lg" align="start">
+                  <div className="px-3 py-2 border-b border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-slate-900">Select Categories</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSelectAllCategories(selectedWorkCategories.length !== getAvailableCategories().length)}
+                        className="text-xs h-7 px-2 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                      >
+                        {selectedWorkCategories.length === getAvailableCategories().length ? 'Deselect All' : 'Select All'}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="py-1">
+                    {getAvailableCategories().map((category) => (
+                      <DropdownMenuCheckboxItem
+                        key={category}
+                        checked={selectedWorkCategories.includes(category)}
+                        onCheckedChange={(checked) => handleCategoryToggle(category, checked)}
+                        onSelect={(event) => event.preventDefault()} // Prevent dropdown from closing on individual selection
+                        className="cursor-pointer px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:text-blue-900 transition-colors"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <span className={`w-4 h-4 rounded border-2 border-slate-300 bg-white flex items-center justify-center transition-colors ${
+                            selectedWorkCategories.includes(category)
+                              ? 'bg-blue-500 border-blue-500'
+                              : 'hover:border-blue-300'
+                          }`}>
+                            {selectedWorkCategories.includes(category) && (
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 0 0-.708.708l3.5 3.5a1.5 1.5 0 0 0 2.112 0l7-7a.5.5 0 0 1 .708 0z"/>
+                              </svg>
+                            )}
+                          </span>
+                          <span className="text-sm truncate">{category}</span>
+                        </div>
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <span className="font-medium">{selectedWorkCategories.length === 0 ? 'All Categories' : `${selectedWorkCategories.length} selected`}</span>
-              <span>•</span>
+            <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-md">
+              <span className="font-medium">{selectedWorkCategories.length === 0 ? 'All Categories' : `${selectedWorkCategories.length} categor${selectedWorkCategories.length === 1 ? 'y' : 'ies'}`}</span>
+              <span className="text-slate-400">•</span>
               <span>{works.filter(w => selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '')).length} works</span>
             </div>
           </div>
@@ -427,38 +652,46 @@ export function AnalyticsClient({
       {/* Filtered Works Table */}
       {activeFilter !== 'all' && (
         <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="border-b border-slate-200">
-            <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                {filteredWorks.length}
-              </Badge>
-              {getFilterLabel(activeFilter)}
-            </CardTitle>
+          <CardHeader className="border-b border-slate-200 flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                  {filteredWorks.length}
+                </Badge>
+                {getFilterLabel(activeFilter)}
+              </CardTitle>
+            </div>
+            <div>
+              <ExportToExcelButton selectedScheme={selectedSchemes.length > 0 ? selectedSchemes.join(', ') : 'All'} filteredWorks={displayedWorks} />
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
-                      Scheme No.
+                    <th onClick={() => handleSort('scheme_sr_no')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        Scheme No.
+                        {sort.column === 'scheme_sr_no' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                      </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
-                      Work Name
+                    <th onClick={() => handleSort('work_name')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
+                      <div className="flex items-center gap-2">Work Name {sort.column === 'work_name' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
-                      District
+                    <th onClick={() => handleSort('district_name')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
+                      <div className="flex items-center gap-2">District {sort.column === 'district_name' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
-                      Progress
+                    <th onClick={() => handleSort('progress_percentage')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
+                      <div className="flex items-center gap-2">Progress {sort.column === 'progress_percentage' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
-                      Amount
+                    <th onClick={() => handleSort('agreement_amount')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
+                      <div className="flex items-center gap-2">Amount {sort.column === 'agreement_amount' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
-                  {filteredWorks.map((work) => (
+                  {displayedWorks.map((work) => (
                     <tr key={work.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 text-sm text-slate-900">
                         {work.scheme_sr_no}
