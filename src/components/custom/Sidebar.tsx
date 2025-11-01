@@ -3,8 +3,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart, LayoutDashboard, LogOut, Settings, User, Users } from "lucide-react";
+import { BarChart, LayoutDashboard, LogOut, Settings, User, Users, FolderOpen, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { LogoutButton } from "./LogoutButton";
@@ -18,6 +19,7 @@ type UserDetails = {
 const allNavItems = [
   { href: "/dashboard", label: "Progress Dashboard", icon: LayoutDashboard, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/analytics", label: "Analytics", icon: BarChart, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
+  { href: "/reports", label: "Reports", icon: FileText, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/admin/users", label: "User Management", icon: Users, roles: ['superadmin'] },
   { href: "/admin/settings", label: "System Settings", icon: Settings, roles: ['superadmin'] },
   { href: "/profile", label: "My Profile", icon: User, roles: ['je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
@@ -36,6 +38,11 @@ const NavLink = ({ item }: { item: typeof allNavItems[0] }) => {
 
 export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
   const navItems = allNavItems.filter(item => item.roles.includes(userDetails.role));
+  const [schemes, setSchemes] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/schemes').then(r => r.json()).then(data => setSchemes(data.schemes || []));
+  }, []);
 
   return (
     <aside className="hidden md:flex md:flex-col md:w-64 border-r border-slate-200 bg-white/80 backdrop-blur-sm shadow-sm">
@@ -47,6 +54,23 @@ export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
           {navItems.map((item) => (
             <NavLink key={item.href} item={item} />
           ))}
+          {schemes.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-500 uppercase">
+                <FolderOpen className="h-4 w-4" />
+                Schemes
+              </div>
+              {schemes.map((scheme) => (
+                <Link
+                  key={scheme}
+                  href={`/schemes/${encodeURIComponent(scheme)}`}
+                  className="flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                >
+                  <span className="truncate">{scheme}</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </nav>
       </div>
       <div className="mt-auto p-4 border-t border-slate-200">

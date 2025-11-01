@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
-import { ExportToExcelButton } from "@/components/custom/ExportToExcelButton";
+
 import { DashboardFilters } from "@/components/custom/DashboardFilters";
 import { DateFilter } from "@/components/custom/DateFilter";
 import { AlertTriangle, TrendingUp, Clock, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown, Play, Info, ChevronDown, Filter, X } from "lucide-react";
@@ -180,7 +180,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
 
   // Function to get responsive truncation length
   const getTruncationLength = (isMobile: boolean = false): number => {
-    return isMobile ? 20 : 120;
+    return isMobile ? 15 : 40;
   };
 
   // Helper function to check if tooltip should be shown
@@ -516,6 +516,55 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
         selectedDate={selectedDate}
       />
 
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <Card 
+          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'all' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
+          onClick={() => handleKPIClick('all')}
+        >
+          <CardContent className="p-3 sm:p-4">
+            <div className="text-xs sm:text-sm text-slate-600">Total Works</div>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalWorks}</div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'completed' ? 'ring-2 ring-green-500' : 'hover:shadow-md'}`}
+          onClick={() => handleKPIClick('completed')}
+        >
+          <CardContent className="p-3 sm:p-4">
+            <div className="text-xs sm:text-sm text-slate-600">Completed</div>
+            <div className="text-xl sm:text-2xl font-bold text-green-600 mt-1">{summaryStats.completedWorks}</div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'in_progress' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
+          onClick={() => handleKPIClick('in_progress')}
+        >
+          <CardContent className="p-3 sm:p-4">
+            <div className="text-xs sm:text-sm text-slate-600">In Progress</div>
+            <div className="text-xl sm:text-2xl font-bold text-blue-600 mt-1">{summaryStats.inProgressWorks}</div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'not_started' ? 'ring-2 ring-orange-500' : 'hover:shadow-md'}`}
+          onClick={() => handleKPIClick('not_started')}
+        >
+          <CardContent className="p-3 sm:p-4">
+            <div className="text-xs sm:text-sm text-slate-600">Not Started</div>
+            <div className="text-xl sm:text-2xl font-bold text-orange-600 mt-1">{summaryStats.notStartedWorks}</div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'blocked' ? 'ring-2 ring-red-500' : 'hover:shadow-md'}`}
+          onClick={() => handleKPIClick('blocked')}
+        >
+          <CardContent className="p-3 sm:p-4">
+            <div className="text-xs sm:text-sm text-slate-600">Blocked</div>
+            <div className="text-xl sm:text-2xl font-bold text-red-600 mt-1">{summaryStats.blockedWorks}</div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Filters and Sorting */}
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-3 sm:p-6">
@@ -532,16 +581,11 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
       {/* Works Table */}
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="border-b border-slate-200 p-3 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg sm:text-xl font-semibold text-slate-900">Works Overview</CardTitle>
-              <CardDescription className="text-sm text-slate-600">
-                Detailed list of all works assigned to you ({filteredWorks.length} works)
-              </CardDescription>
-            </div>
-            <div>
-              <ExportToExcelButton selectedScheme={selectedSchemes.length > 0 ? selectedSchemes.join(', ') : 'All'} filteredWorks={filteredWorks} />
-            </div>
+          <div>
+            <CardTitle className="text-lg sm:text-xl font-semibold text-slate-900">Works Overview</CardTitle>
+            <CardDescription className="text-sm text-slate-600">
+              Detailed list of all works assigned to you ({filteredWorks.length} works)
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -550,7 +594,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
               <TableHeader>
                 <TableRow className="border-slate-200">
                   <TableHead 
-                    className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[180px] sm:min-w-[200px]"
+                    className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[150px] sm:min-w-[180px]"
                     onClick={() => handleSort('work_name')}
                   >
                     <div className="flex items-center gap-2">
@@ -559,7 +603,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[35px] sm:min-w-[50px]"
+                    className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none w-[80px] sm:w-[100px]"
                     onClick={() => handleSort('district_name')}
                   >
                     <div className="flex items-center gap-2">
@@ -568,7 +612,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="text-right font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[50px] sm:min-w-[70px]"
+                    className="text-right font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none w-[90px] sm:w-[110px]"
                     onClick={() => handleSort('progress_percentage')}
                   >
                     <div className="flex items-center justify-end gap-2">
@@ -582,7 +626,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                 {paginatedData && paginatedData.length > 0 ? (
                   paginatedData.map((work: Work) => (
                     <TableRow key={work.id} className="hover:bg-slate-50 transition-colors">
-                      <TableCell className="min-w-[180px] sm:min-w-[200px]">
+                      <TableCell className="min-w-[150px] sm:min-w-[180px]">
                         <div className="flex items-center gap-2">
                           {work.is_blocked && (
                             <span title="This work is blocked" className="flex items-center">
@@ -610,12 +654,12 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="min-w-[35px] sm:min-w-[50px]">
+                      <TableCell className="w-[80px] sm:w-[100px]">
                         <span className="text-slate-600 truncate block text-xs sm:text-sm">
                           {work.district_name || 'No district'}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right min-w-[50px] sm:min-w-[70px]">
+                      <TableCell className="text-right w-[90px] sm:w-[110px]">
                         <div className="flex items-center justify-end gap-2">
                           <div className="w-12 sm:w-16 bg-slate-200 rounded-full h-2 relative overflow-hidden">
                             <div 

@@ -2,12 +2,12 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart, LayoutDashboard, LogOut, Menu, Settings, User, Users } from "lucide-react";
+import { BarChart, LayoutDashboard, LogOut, Menu, Settings, User, Users, FolderOpen, FileText } from "lucide-react";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LogoutButton } from "./LogoutButton";
 
 type UserDetails = {
@@ -19,6 +19,7 @@ type UserDetails = {
 const allNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/analytics", label: "Analytics", icon: BarChart, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
+  { href: "/reports", label: "Reports", icon: FileText, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/profile", label: "My Profile", icon: User, roles: ['je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/admin/users", label: "User Management", icon: Users, roles: ['superadmin'] },
   { href: "/admin/settings", label: "System Settings", icon: Settings, roles: ['superadmin'] },
@@ -37,7 +38,12 @@ const NavLinkMobile = ({ href, label, icon: Icon, onClick }: { href: string, lab
 
 export function Header({ userDetails }: { userDetails: UserDetails }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [schemes, setSchemes] = useState<string[]>([]);
   const navItems = allNavItems.filter(item => item.roles.includes(userDetails.role));
+
+  useEffect(() => {
+    fetch('/api/schemes').then(r => r.json()).then(data => setSchemes(data.schemes || []));
+  }, []);
 
 
   return (
@@ -69,6 +75,24 @@ export function Header({ userDetails }: { userDetails: UserDetails }) {
                 {navItems.map((item) => (
                   <NavLinkMobile key={item.href} href={item.href} label={item.label} icon={item.icon} onClick={() => setIsOpen(false)} />
                 ))}
+                {schemes.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <div className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-500 uppercase">
+                      <FolderOpen className="h-4 w-4" />
+                      Schemes
+                    </div>
+                    {schemes.map((scheme) => (
+                      <Link
+                        key={scheme}
+                        href={`/schemes/${encodeURIComponent(scheme)}`}
+                        onClick={() => setIsOpen(false)}
+                        className="flex items-center space-x-3 rounded-lg px-4 py-3 text-base font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent"
+                      >
+                        <span className="truncate">{scheme}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </nav>
             </div>
             <SheetFooter className="p-4 border-t border-slate-200 bg-slate-50">

@@ -5,7 +5,7 @@ import type { Work } from "@/lib/types";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Filter, X, Check, ChevronDown, X as CloseX } from "lucide-react";
+import { Filter, X, Check, ChevronDown, X as CloseX, ChevronRight } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 
 type FilterState = {
@@ -18,6 +18,16 @@ type FilterState = {
   search: string;
   scheme: string[];
   workCategory: string[];
+  district: string[];
+  distZone: string[];
+  distCircle: string[];
+  distDivision: string[];
+  distSubDivision: string[];
+  siteName: string[];
+  mbStatus: string[];
+  tecoStatus: string[];
+  ficoStatus: string[];
+  firmName: string[];
 };
 
 
@@ -139,8 +149,19 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
     status: [],
     search: '',
     scheme: [],
-    workCategory: []
+    workCategory: [],
+    district: [],
+    distZone: [],
+    distCircle: [],
+    distDivision: [],
+    distSubDivision: [],
+    siteName: [],
+    mbStatus: [],
+    tecoStatus: [],
+    ficoStatus: [],
+    firmName: []
   });
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
 
   // ✅ DROPDOWN CLOSING ISSUE SUCCESSFULLY RESOLVED
 
@@ -161,7 +182,10 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
 
   // Apply filters when debounced search changes
   useEffect(() => {
-    handleFilterChange('search', debouncedSearch);
+    if (debouncedSearch !== filters.search) {
+      handleFilterChange('search', debouncedSearch);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
 
   // Removed unused sort state
@@ -372,6 +396,26 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
       newFilters.scheme = Array.isArray(value) ? value : toggleArrayValue(newFilters.scheme, value);
     } else if (key === 'workCategory') {
       newFilters.workCategory = Array.isArray(value) ? value : toggleArrayValue(newFilters.workCategory, value);
+    } else if (key === 'district') {
+      newFilters.district = Array.isArray(value) ? value : toggleArrayValue(newFilters.district, value);
+    } else if (key === 'distZone') {
+      newFilters.distZone = Array.isArray(value) ? value : toggleArrayValue(newFilters.distZone, value);
+    } else if (key === 'distCircle') {
+      newFilters.distCircle = Array.isArray(value) ? value : toggleArrayValue(newFilters.distCircle, value);
+    } else if (key === 'distDivision') {
+      newFilters.distDivision = Array.isArray(value) ? value : toggleArrayValue(newFilters.distDivision, value);
+    } else if (key === 'distSubDivision') {
+      newFilters.distSubDivision = Array.isArray(value) ? value : toggleArrayValue(newFilters.distSubDivision, value);
+    } else if (key === 'siteName') {
+      newFilters.siteName = Array.isArray(value) ? value : toggleArrayValue(newFilters.siteName, value);
+    } else if (key === 'mbStatus') {
+      newFilters.mbStatus = Array.isArray(value) ? value : toggleArrayValue(newFilters.mbStatus, value);
+    } else if (key === 'tecoStatus') {
+      newFilters.tecoStatus = Array.isArray(value) ? value : toggleArrayValue(newFilters.tecoStatus, value);
+    } else if (key === 'ficoStatus') {
+      newFilters.ficoStatus = Array.isArray(value) ? value : toggleArrayValue(newFilters.ficoStatus, value);
+    } else if (key === 'firmName') {
+      newFilters.firmName = Array.isArray(value) ? value : toggleArrayValue(newFilters.firmName, value);
     } else if (key === 'search') {
       newFilters.search = Array.isArray(value) ? value.join(',') : value;
     }
@@ -393,7 +437,17 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
         (newFilters.circle.length === 0 || newFilters.circle.includes(work.civil_circle || '')) &&
         (newFilters.division.length === 0 || newFilters.division.includes(work.civil_division || '')) &&
         (newFilters.subDivision.length === 0 || newFilters.subDivision.includes(work.civil_sub_division || '')) &&
-        (newFilters.je.length === 0 || newFilters.je.includes(work.je_name || ''))
+        (newFilters.je.length === 0 || newFilters.je.includes(work.je_name || '')) &&
+        (newFilters.district.length === 0 || newFilters.district.includes(work.district_name || '')) &&
+        (newFilters.distZone.length === 0 || newFilters.distZone.includes(work.distribution_zone || '')) &&
+        (newFilters.distCircle.length === 0 || newFilters.distCircle.includes(work.distribution_circle || '')) &&
+        (newFilters.distDivision.length === 0 || newFilters.distDivision.includes(work.distribution_division || '')) &&
+        (newFilters.distSubDivision.length === 0 || newFilters.distSubDivision.includes(work.distribution_sub_division || '')) &&
+        (newFilters.siteName.length === 0 || newFilters.siteName.includes(work.site_name || '')) &&
+        (newFilters.mbStatus.length === 0 || newFilters.mbStatus.includes(work.mb_status || '')) &&
+        (newFilters.tecoStatus.length === 0 || newFilters.tecoStatus.includes(work.teco_status || '')) &&
+        (newFilters.ficoStatus.length === 0 || newFilters.ficoStatus.includes(work.fico_status || '')) &&
+        (newFilters.firmName.length === 0 || newFilters.firmName.includes(work.firm_name_and_contact || ''))
       );
 
       if (!passesBasicFilters) return false;
@@ -436,7 +490,17 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
       status: [], 
       search: '', 
       scheme: [],
-      workCategory: []
+      workCategory: [],
+      district: [],
+      distZone: [],
+      distCircle: [],
+      distDivision: [],
+      distSubDivision: [],
+      siteName: [],
+      mbStatus: [],
+      tecoStatus: [],
+      ficoStatus: [],
+      firmName: []
     });
     onFilterChange(works);
   };
@@ -461,7 +525,17 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
         (newFilters.circle.length === 0 || newFilters.circle.includes(work.civil_circle || '')) &&
         (newFilters.division.length === 0 || newFilters.division.includes(work.civil_division || '')) &&
         (newFilters.subDivision.length === 0 || newFilters.subDivision.includes(work.civil_sub_division || '')) &&
-        (newFilters.je.length === 0 || newFilters.je.includes(work.je_name || ''))
+        (newFilters.je.length === 0 || newFilters.je.includes(work.je_name || '')) &&
+        (newFilters.district.length === 0 || newFilters.district.includes(work.district_name || '')) &&
+        (newFilters.distZone.length === 0 || newFilters.distZone.includes(work.distribution_zone || '')) &&
+        (newFilters.distCircle.length === 0 || newFilters.distCircle.includes(work.distribution_circle || '')) &&
+        (newFilters.distDivision.length === 0 || newFilters.distDivision.includes(work.distribution_division || '')) &&
+        (newFilters.distSubDivision.length === 0 || newFilters.distSubDivision.includes(work.distribution_sub_division || '')) &&
+        (newFilters.siteName.length === 0 || newFilters.siteName.includes(work.site_name || '')) &&
+        (newFilters.mbStatus.length === 0 || newFilters.mbStatus.includes(work.mb_status || '')) &&
+        (newFilters.tecoStatus.length === 0 || newFilters.tecoStatus.includes(work.teco_status || '')) &&
+        (newFilters.ficoStatus.length === 0 || newFilters.ficoStatus.includes(work.fico_status || '')) &&
+        (newFilters.firmName.length === 0 || newFilters.firmName.includes(work.firm_name_and_contact || ''))
       );
 
       if (!passesBasicFilters) return false;
@@ -509,7 +583,17 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
     ...filters.je,
     ...filters.status,
     ...filters.scheme,
-    ...filters.workCategory
+    ...filters.workCategory,
+    ...filters.district,
+    ...filters.distZone,
+    ...filters.distCircle,
+    ...filters.distDivision,
+    ...filters.distSubDivision,
+    ...filters.siteName,
+    ...filters.mbStatus,
+    ...filters.tecoStatus,
+    ...filters.ficoStatus,
+    ...filters.firmName
   ].filter(Boolean).length + (filters.search ? 1 : 0);
 
   return (
@@ -616,7 +700,90 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
           onChange={(values) => handleFilterChange('status', values)}
           width="w-[160px] sm:w-[200px]"
         />
+
+        {/* More Filters Toggle */}
+        <EnhancedButton
+          variant="outline"
+          size="sm"
+          onClick={() => setShowMoreFilters(!showMoreFilters)}
+          className="border-slate-200 hover:bg-slate-50 text-xs sm:text-sm"
+        >
+          {showMoreFilters ? 'Less' : 'More'} Filters
+          <ChevronRight className={`h-4 w-4 ml-1 transition-transform ${showMoreFilters ? 'rotate-90' : ''}`} />
+        </EnhancedButton>
       </div>
+
+      {/* Additional Filters */}
+      {showMoreFilters && (
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 pt-2 border-t border-slate-200">
+          <MultiSelect
+            placeholder="District"
+            options={[...new Set(works.map(w => w.district_name).filter(Boolean))].sort()}
+            selectedValues={filters.district}
+            onChange={(values) => handleFilterChange('district', values)}
+          />
+          <MultiSelect
+            placeholder="Distribution Zone"
+            options={[...new Set(works.map(w => w.distribution_zone).filter(Boolean))].sort()}
+            selectedValues={filters.distZone}
+            onChange={(values) => handleFilterChange('distZone', values)}
+            width="w-[160px] sm:w-[200px]"
+          />
+          <MultiSelect
+            placeholder="Distribution Circle"
+            options={[...new Set(works.map(w => w.distribution_circle).filter(Boolean))].sort()}
+            selectedValues={filters.distCircle}
+            onChange={(values) => handleFilterChange('distCircle', values)}
+            width="w-[160px] sm:w-[200px]"
+          />
+          <MultiSelect
+            placeholder="Distribution Division"
+            options={[...new Set(works.map(w => w.distribution_division).filter(Boolean))].sort()}
+            selectedValues={filters.distDivision}
+            onChange={(values) => handleFilterChange('distDivision', values)}
+            width="w-[160px] sm:w-[200px]"
+          />
+          <MultiSelect
+            placeholder="Distribution Sub-Division"
+            options={[...new Set(works.map(w => w.distribution_sub_division).filter(Boolean))].sort()}
+            selectedValues={filters.distSubDivision}
+            onChange={(values) => handleFilterChange('distSubDivision', values)}
+            width="w-[180px] sm:w-[220px]"
+          />
+          <MultiSelect
+            placeholder="Site Name"
+            options={[...new Set(works.map(w => w.site_name).filter(Boolean))].sort()}
+            selectedValues={filters.siteName}
+            onChange={(values) => handleFilterChange('siteName', values)}
+            width="w-[160px] sm:w-[200px]"
+          />
+          <MultiSelect
+            placeholder="MB Status"
+            options={[...new Set(works.map(w => w.mb_status).filter(Boolean))].sort()}
+            selectedValues={filters.mbStatus}
+            onChange={(values) => handleFilterChange('mbStatus', values)}
+          />
+          <MultiSelect
+            placeholder="TECO Status"
+            options={[...new Set(works.map(w => w.teco_status).filter(Boolean))].sort()}
+            selectedValues={filters.tecoStatus}
+            onChange={(values) => handleFilterChange('tecoStatus', values)}
+          />
+          <MultiSelect
+            placeholder="FICO Status"
+            options={[...new Set(works.map(w => w.fico_status).filter(Boolean))].sort()}
+            selectedValues={filters.ficoStatus}
+            onChange={(values) => handleFilterChange('ficoStatus', values)}
+          />
+          <MultiSelect
+            placeholder="Firm Name"
+            options={[...new Set(works.map(w => w.firm_name_and_contact).filter(Boolean))].sort()}
+            selectedValues={filters.firmName}
+            onChange={(values) => handleFilterChange('firmName', values)}
+            width="w-[180px] sm:w-[220px]"
+          />
+        </div>
+      )}
 
       {/* Active Filters Display */}
       {activeFiltersCount > 0 && (
@@ -715,6 +882,86 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
                 title={`Remove filter: JE - ${v}`}
               >
                 <CloseX className="h-3 w-3 text-pink-700" />
+              </button>
+            </Badge>
+          ))}
+          {filters.district.map(v => (
+            <Badge key={`dist-${v}`} variant="secondary" className="bg-cyan-100 text-cyan-700 pr-1 flex items-center gap-1">
+              District: {v}
+              <button onClick={() => removeFilterValue('district', v)} className="hover:bg-cyan-200 rounded-full p-0.5 transition-colors">
+                <CloseX className="h-3 w-3 text-cyan-700" />
+              </button>
+            </Badge>
+          ))}
+          {filters.distZone.map(v => (
+            <Badge key={`dz-${v}`} variant="secondary" className="bg-lime-100 text-lime-700 pr-1 flex items-center gap-1">
+              Dist.Zone: {v}
+              <button onClick={() => removeFilterValue('distZone', v)} className="hover:bg-lime-200 rounded-full p-0.5 transition-colors">
+                <CloseX className="h-3 w-3 text-lime-700" />
+              </button>
+            </Badge>
+          ))}
+          {filters.distCircle.map(v => (
+            <Badge key={`dc-${v}`} variant="secondary" className="bg-amber-100 text-amber-700 pr-1 flex items-center gap-1">
+              Dist.Circle: {v}
+              <button onClick={() => removeFilterValue('distCircle', v)} className="hover:bg-amber-200 rounded-full p-0.5 transition-colors">
+                <CloseX className="h-3 w-3 text-amber-700" />
+              </button>
+            </Badge>
+          ))}
+          {filters.distDivision.map(v => (
+            <Badge key={`dd-${v}`} variant="secondary" className="bg-rose-100 text-rose-700 pr-1 flex items-center gap-1">
+              Dist.Div: {v}
+              <button onClick={() => removeFilterValue('distDivision', v)} className="hover:bg-rose-200 rounded-full p-0.5 transition-colors">
+                <CloseX className="h-3 w-3 text-rose-700" />
+              </button>
+            </Badge>
+          ))}
+          {filters.distSubDivision.map(v => (
+            <Badge key={`dsd-${v}`} variant="secondary" className="bg-violet-100 text-violet-700 pr-1 flex items-center gap-1">
+              Dist.SubDiv: {v}
+              <button onClick={() => removeFilterValue('distSubDivision', v)} className="hover:bg-violet-200 rounded-full p-0.5 transition-colors">
+                <CloseX className="h-3 w-3 text-violet-700" />
+              </button>
+            </Badge>
+          ))}
+          {filters.siteName.map(v => (
+            <Badge key={`site-${v}`} variant="secondary" className="bg-fuchsia-100 text-fuchsia-700 pr-1 flex items-center gap-1">
+              Site: {v}
+              <button onClick={() => removeFilterValue('siteName', v)} className="hover:bg-fuchsia-200 rounded-full p-0.5 transition-colors">
+                <CloseX className="h-3 w-3 text-fuchsia-700" />
+              </button>
+            </Badge>
+          ))}
+          {filters.mbStatus.map(v => (
+            <Badge key={`mb-${v}`} variant="secondary" className="bg-sky-100 text-sky-700 pr-1 flex items-center gap-1">
+              MB: {v}
+              <button onClick={() => removeFilterValue('mbStatus', v)} className="hover:bg-sky-200 rounded-full p-0.5 transition-colors">
+                <CloseX className="h-3 w-3 text-sky-700" />
+              </button>
+            </Badge>
+          ))}
+          {filters.tecoStatus.map(v => (
+            <Badge key={`teco-${v}`} variant="secondary" className="bg-emerald-100 text-emerald-700 pr-1 flex items-center gap-1">
+              TECO: {v}
+              <button onClick={() => removeFilterValue('tecoStatus', v)} className="hover:bg-emerald-200 rounded-full p-0.5 transition-colors">
+                <CloseX className="h-3 w-3 text-emerald-700" />
+              </button>
+            </Badge>
+          ))}
+          {filters.ficoStatus.map(v => (
+            <Badge key={`fico-${v}`} variant="secondary" className="bg-red-100 text-red-700 pr-1 flex items-center gap-1">
+              FICO: {v}
+              <button onClick={() => removeFilterValue('ficoStatus', v)} className="hover:bg-red-200 rounded-full p-0.5 transition-colors">
+                <CloseX className="h-3 w-3 text-red-700" />
+              </button>
+            </Badge>
+          ))}
+          {filters.firmName.map(v => (
+            <Badge key={`firm-${v}`} variant="secondary" className="bg-slate-100 text-slate-700 pr-1 flex items-center gap-1">
+              Firm: {v}
+              <button onClick={() => removeFilterValue('firmName', v)} className="hover:bg-slate-200 rounded-full p-0.5 transition-colors">
+                <CloseX className="h-3 w-3 text-slate-700" />
               </button>
             </Badge>
           ))}
