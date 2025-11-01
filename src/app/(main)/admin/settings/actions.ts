@@ -320,9 +320,16 @@ export async function syncWithGoogleSheet() {
       if (deleteError) { throw new Error(`Failed to delete old works: ${deleteError.message}`); }
     }
 
-  const dataToUpsert = sheetRows
+  const allWorks = sheetRows
     .map((row) => mapRowToWork(row as (string | number)[], headers))
     .filter((work: any) => work.scheme_sr_no && String(work.scheme_sr_no).trim() !== '');
+
+    // Remove duplicates - keep only the last occurrence of each scheme_sr_no
+    const uniqueWorks = new Map();
+    allWorks.forEach((work: any) => {
+      uniqueWorks.set(work.scheme_sr_no, work);
+    });
+    const dataToUpsert = Array.from(uniqueWorks.values());
 
     console.log(`Total rows processed: ${rows.length - 1}`);
     console.log(`Valid works to upsert: ${dataToUpsert.length}`);

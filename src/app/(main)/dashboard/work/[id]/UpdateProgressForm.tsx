@@ -93,7 +93,7 @@ export function UpdateProgressForm({
           </div>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto w-[95vw] sm:max-w-[500px]">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
@@ -147,7 +147,7 @@ export function UpdateProgressForm({
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Expected Completion Date */}
             <div className="space-y-3">
               <Label htmlFor="expectedCompletionDate" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
@@ -317,19 +317,19 @@ export function UpdateProgressForm({
              </div>
           )}
           
-          <DialogFooter className="gap-3">
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 w-full">
             <Button 
               type="button" 
               variant="outline" 
               onClick={() => setIsOpen(false)}
-              className="border-slate-200 hover:bg-slate-50"
+              className="w-full sm:w-auto border-slate-200 hover:bg-slate-50"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={isPending} 
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+              className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
             >
               {isPending ? (
                 <>

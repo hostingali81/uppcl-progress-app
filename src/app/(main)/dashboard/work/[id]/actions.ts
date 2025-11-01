@@ -91,7 +91,7 @@ async function updateGoogleSheet(
 }
 
 export async function updateWorkProgress(formData: FormData): Promise<{ error?: string; success?: string }> {
-  const { admin: supabase, client } = await createSupabaseServerClient();
+  const { client: supabase, admin: supabaseAdmin } = await createSupabaseServerClient();
 
   const workId = formData.get("workId");
   const progress = formData.get("progress");
@@ -110,12 +110,12 @@ export async function updateWorkProgress(formData: FormData): Promise<{ error?: 
   }
 
   // Get authenticated user
-  const { data: { user }, error: authError } = await client.auth.getUser();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
     return { error: "Authentication required." };
   }
 
-  const { data: currentWork, error: fetchError } = await (supabase as any)
+  const { data: currentWork, error: fetchError } = await supabaseAdmin
     .from("works")
     .select("*")
     .eq("id", workIdNumber)
@@ -125,7 +125,7 @@ export async function updateWorkProgress(formData: FormData): Promise<{ error?: 
     return { error: "Could not fetch current work details." };
   }
 
-  const { error: updateError } = await (supabase as any)
+  const { error: updateError } = await supabaseAdmin
     .from("works")
     .update({
       progress_percentage: progressNumber,
@@ -142,8 +142,8 @@ export async function updateWorkProgress(formData: FormData): Promise<{ error?: 
     return { error: "Failed to update work progress." };
   }
 
-  // Get user's profile and handle logging
-  const { data: userProfile } = await (supabase as any)
+  // Get user's profile
+  const { data: userProfile } = await supabaseAdmin
     .from("profiles")
     .select("full_name")
     .eq("id", user.id)
@@ -151,27 +151,43 @@ export async function updateWorkProgress(formData: FormData): Promise<{ error?: 
 
   const userDisplayName = userProfile?.full_name || user.email;
 
-  // Log progress update
-  const { error: progressLogError } = await (supabase as any)
-    .from("progress_logs")
-    .insert({
-      work_id: workIdNumber,
-      user_id: user.id,
-      user_email: user.email,
-      previous_progress: currentWork.progress_percentage,
-      new_progress: progressNumber,
-      remark: remark || "",
-      expected_completion_date: expectedCompletionDate
-    });
+  // Log progress update - skip if fails, don't block the main update
+  try {
+    const { data: progressLogData, error: progressLogError } = await supabaseAdmin
+      .from("progress_logs")
+      .insert({
+        work_id: workIdNumber,
+        user_id: user.id,
+        user_email: user.email || userDisplayName,
+        previous_progress: currentWork.progress_percentage || 0,
+        new_progress: progressNumber,
+        remark: remark || ""
+      })
+      .select()
+      .single();
 
-  if (progressLogError) {
-    console.error("Failed to insert progress log:", progressLogError);
-    return { error: "Progress updated but logging failed." };
+    if (progressLogError) {
+      console.error("Progress log insert error:", progressLogError);
+    } else if (progressLogData) {
+      // Link recent attachments to this progress log
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      await supabaseAdmin
+        .from("attachments")
+        .update({ progress_log_id: progressLogData.id })
+        .eq("work_id", workIdNumber)
+        .eq("uploader_id", user.id)
+        .gte("created_at", fiveMinutesAgo)
+        .is("progress_log_id", null);
+    }
+  } catch (logError) {
+    console.error("Progress logging failed:", logError);
   }
+
+
 
   // Log payment update if bill details provided
   if (billNo || billAmountNumber) {
-    const { error: paymentLogError } = await (supabase as any)
+    const { error: paymentLogError } = await supabaseAdmin
       .from("payment_logs")
       .insert({
         work_id: workIdNumber,
@@ -232,12 +248,12 @@ export async function generateUploadUrl(fileName: string, fileType: string) {
   } catch (error: unknown) { return { error: `Failed to generate upload URL: ${error instanceof Error ? error.message : 'Unknown error'}` }; }
 }
 
-export async function addAttachmentToWork(workId: number, fileUrl: string, fileName: string) {
+export async function addAttachmentToWork(workId: number, fileUrl: string, fileName: string, attachmentType: string = 'site_photo') {
   const { client: supabase } = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) { return { error: "Authentication required." }; }
   const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
-  const { error } = await supabase.from("attachments").insert({ work_id: workId, file_url: fileUrl, file_name: fileName, uploader_id: user.id, uploader_full_name: profile?.full_name || user.email });
+  const { error } = await supabase.from("attachments").insert({ work_id: workId, file_url: fileUrl, file_name: fileName, uploader_id: user.id, uploader_full_name: profile?.full_name || user.email, attachment_type: attachmentType });
   if (error) { return { error: `Could not save attachment: ${error.message}` }; }
   revalidatePath(`/(main)/dashboard/work/${workId}`);
   return { success: "File attached successfully!" };
@@ -270,13 +286,40 @@ export async function deleteAttachment(attachmentId: number, workId: number) {
 }
 
 export async function addComment(workId: number, content: string) {
-  const { client: supabase } = await createSupabaseServerClient();
+  const { client: supabase, admin: supabaseAdmin } = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) { return { error: "Authentication required." }; }
   if (!content || content.trim() === '') { return { error: "Comment cannot be empty." }; }
   const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
-  const { error } = await supabase.from("comments").insert({ work_id: workId, user_id: user.id, user_full_name: profile?.full_name || user.email, content: content });
+  const { data: commentData, error } = await supabase.from("comments").insert({ work_id: workId, user_id: user.id, user_full_name: profile?.full_name || user.email, content: content }).select().single();
   if (error) { return { error: `Could not post comment: ${error.message}` }; }
+  
+  // Extract mentions from content
+  const mentionRegex = /@([\w\s]+)/g;
+  const mentions = content.match(mentionRegex);
+  
+  if (mentions && commentData) {
+    // Get all users to find mentioned user IDs
+    const { data: allUsers } = await supabaseAdmin.from("profiles").select("id, full_name");
+    
+    for (const mention of mentions) {
+      const mentionedName = mention.substring(1).trim();
+      const mentionedUser = allUsers?.find(u => u.full_name === mentionedName);
+      
+      if (mentionedUser && mentionedUser.id !== user.id) {
+        // Create notification
+        await supabaseAdmin.from("notifications").insert({
+          user_id: mentionedUser.id,
+          work_id: workId,
+          comment_id: commentData.id,
+          type: 'mention',
+          message: `${profile?.full_name || user.email} mentioned you in a comment`,
+          created_by: user.id
+        });
+      }
+    }
+  }
+  
   revalidatePath(`/(main)/dashboard/work/${workId}`);
   return { success: "Comment posted." };
 }
@@ -458,15 +501,12 @@ export async function fetchWorkDetails(workId: number) {
     .single();
 
   // Fetch all users for mentions
-  const usersPromise = supabaseAdmin.from("profiles").select('id, full_name, role, region, division, subdivision, circle, zone');
+  const usersPromise = supabaseAdmin.from("profiles").select('id, full_name').not('full_name', 'is', null);
 
   // Fetch current user's profile
   const profilePromise = supabase.from("profiles").select('role').eq('id', user.id).single();
 
-  // Fetch progress logs (use admin client to avoid accidental RLS/relationship issues)
-  // We select the core columns and user identifiers. The UI will fall back to user_email when
-  // profile joins are not available. Using the admin client ensures logs inserted via the
-  // service role are visible here.
+  // Fetch progress logs with attachments
   const progressLogsPromise = supabaseAdmin
     .from("progress_logs")
     .select(
@@ -474,6 +514,13 @@ export async function fetchWorkDetails(workId: number) {
     )
     .eq('work_id', workId)
     .order('created_at', { ascending: false });
+
+  // Fetch attachments linked to progress logs separately
+  const progressAttachmentsPromise = supabaseAdmin
+    .from("attachments")
+    .select('id, file_url, file_name, created_at, attachment_type, progress_log_id')
+    .eq('work_id', workId)
+    .not('progress_log_id', 'is', null);
 
   // Fetch comments
   const commentsPromise = supabase
@@ -494,9 +541,10 @@ export async function fetchWorkDetails(workId: number) {
     { data: allUsers },
     { data: currentUserProfile },
     { data: progressLogs },
+    { data: progressAttachments },
     { data: paymentLogs },
     { data: comments }
-  ] = await Promise.all([workPromise, usersPromise, profilePromise, progressLogsPromise, paymentLogsPromise, commentsPromise]);
+  ] = await Promise.all([workPromise, usersPromise, profilePromise, progressLogsPromise, progressAttachmentsPromise, paymentLogsPromise, commentsPromise]);
 
   if (workError || !workRow) {
     console.error('Work fetch failed:', {
@@ -521,21 +569,21 @@ export async function fetchWorkDetails(workId: number) {
   const allUsersData = (allUsers || []) as any[];
   const currentUserProfileData = currentUserProfile as any;
   const progressLogsData = (progressLogs || []) as any[];
+  const progressAttachmentsData = (progressAttachments || []) as any[];
   const paymentLogsData = (paymentLogs || []) as any[];
 
-  // Build mention users list scoped to this work's hierarchy
-  const usersForMentions = allUsersData ? allUsersData
-    .filter(u => {
-      const role = (u.role || '').toString();
-      if (role === 'superadmin') return true;
-      const matchesJe = role === 'je' && u.region && u.region === work.je_name;
-      const matchesSubDiv = role === 'sub_division_head' && u.subdivision && u.subdivision === work.civil_sub_division;
-      const matchesDiv = role === 'division_head' && u.division && u.division === work.civil_division;
-      const matchesCircle = role === 'circle_head' && u.circle && u.circle === work.civil_circle;
-      const matchesZone = role === 'zone_head' && u.zone && u.zone === work.civil_zone;
-      return matchesJe || matchesSubDiv || matchesDiv || matchesCircle || matchesZone;
-    })
-    .map(u => ({ id: u.id, display: u.full_name || 'Unknown' })) : [];
+  // Link attachments to progress logs
+  const progressLogsWithAttachments = progressLogsData.map(log => ({
+    ...log,
+    attachments: progressAttachmentsData.filter(att => att.progress_log_id === log.id)
+  }));
+
+  // Build mention users list - include all users
+  const usersForMentions = allUsersData && allUsersData.length > 0 ? allUsersData
+    .filter(u => u.full_name && u.id !== user.id) // Exclude current user
+    .map(u => ({ id: u.id, display: u.full_name })) : [];
+
+  console.log('Mention users available:', usersForMentions.length, usersForMentions.slice(0, 3));
 
   const currentUserRole = currentUserProfileData?.role || 'user';
 
@@ -552,7 +600,7 @@ export async function fetchWorkDetails(workId: number) {
     totalBillAmount,
     latestBillNumber,
     paymentLogs: paymentLogs || [],
-    progressLogs: progressLogs || [],
+    progressLogs: progressLogsWithAttachments || [],
     comments: comments || []
   };
 }

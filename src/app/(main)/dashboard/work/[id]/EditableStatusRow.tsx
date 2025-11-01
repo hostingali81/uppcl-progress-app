@@ -18,8 +18,8 @@ interface EditableStatusRowProps {
 
 interface EditableDetailRowProps {
   label: string;
-  fieldName: 'distribution_zone' | 'distribution_circle' | 'distribution_division' | 'distribution_sub_division';
-  currentValue?: string | null;
+  fieldName: string;
+  currentValue?: string | number | null;
   workId: number;
 }
 

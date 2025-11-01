@@ -35,27 +35,26 @@ interface WorkDetailClientProps {
     comments: any[];
 }
 
-// Enhanced detail row component with modern styling
+// Enhanced editable detail row component
 type DetailRowProps = {
     label: string;
     value: string | number | null | undefined;
-    onClick?: () => void;
+    fieldName?: string;
+    workId?: number;
+    type?: 'text' | 'number' | 'date';
 }
 
-function DetailRow({ label, value, onClick }: DetailRowProps) {
-    if (value === null || value === undefined || value === '') return null;
-
-    const baseClasses = "group flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 transition-colors duration-200 border-b border-slate-100 last:border-b-0";
-    const clickableClasses = onClick ? "cursor-pointer" : "";
-
-    return (
-        <div className={`${baseClasses} ${clickableClasses}`} onClick={onClick}>
-            <dt className="text-sm font-medium text-slate-600 flex-shrink-0 min-w-[140px]">{label}</dt>
-            <dd className={`text-sm text-slate-900 font-medium text-right flex-1 ml-4 ${onClick ? 'hover:text-blue-600 transition-colors duration-200' : ''}`}>
-                {String(value)}
-            </dd>
-        </div>
-    );
+function DetailRow({ label, value, fieldName, workId, type = 'text' }: DetailRowProps) {
+    if (!fieldName || !workId) {
+        if (value === null || value === undefined || value === '') return null;
+        return (
+            <div className="group flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 transition-colors duration-200 border-b border-slate-100 last:border-b-0">
+                <dt className="text-sm font-medium text-slate-600 flex-shrink-0 min-w-[140px]">{label}</dt>
+                <dd className="text-sm text-slate-900 font-medium text-right flex-1 ml-4">{String(value)}</dd>
+            </div>
+        );
+    }
+    return <EditableDetailRow label={label} fieldName={fieldName as any} currentValue={value} workId={workId} />;
 }
 
 // Progress indicator component
@@ -189,10 +188,10 @@ export default function WorkDetailClient({
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                <DetailRow label="Scheme Name" value={work.scheme_name} />
-                                <DetailRow label="Scheme Sr. No." value={work.scheme_sr_no} />
-                                <DetailRow label="Work Category" value={work.work_category} />
-                                <DetailRow label="Site Name" value={work.site_name} />
+                                <DetailRow label="Scheme Name" value={work.scheme_name} fieldName="scheme_name" workId={work.id} />
+                                <DetailRow label="Scheme Sr. No." value={work.scheme_sr_no} fieldName="scheme_sr_no" workId={work.id} />
+                                <DetailRow label="Work Category" value={work.work_category} fieldName="work_category" workId={work.id} />
+                                <DetailRow label="Site Name" value={work.site_name} fieldName="site_name" workId={work.id} />
                             </div>
                         </CardContent>
                     </Card>
@@ -212,20 +211,12 @@ export default function WorkDetailClient({
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                {/* Primary zone/civil hierarchy */}
-                                <DetailRow label="Civil Zone" value={work.civil_zone} />
-                                <DetailRow label="Civil Circle" value={work.civil_circle} />
-                                <DetailRow label="Civil Division" value={work.civil_division} />
-                                <DetailRow label="Civil Sub-Division" value={work.civil_sub_division} />
-
-                                {/* Legacy administrative fields (Zone, Circle, Division, Sub-Division) */}
-                                <DetailRow label="Zone Name" value={work.zone_name} />
-                                <DetailRow label="Circle Name" value={work.circle_name} />
-                                <DetailRow label="Division Name" value={work.division_name} />
-                                <DetailRow label="Sub-Division Name" value={work.sub_division_name} />
-
-                                <DetailRow label="District Name" value={work.district_name} />
-                                <DetailRow label="JE Name" value={work.je_name} />
+                                <DetailRow label="Civil Zone" value={work.civil_zone} fieldName="civil_zone" workId={work.id} />
+                                <DetailRow label="Civil Circle" value={work.civil_circle} fieldName="civil_circle" workId={work.id} />
+                                <DetailRow label="Civil Division" value={work.civil_division} fieldName="civil_division" workId={work.id} />
+                                <DetailRow label="Civil Sub-Division" value={work.civil_sub_division} fieldName="civil_sub_division" workId={work.id} />
+                                <DetailRow label="District Name" value={work.district_name} fieldName="district_name" workId={work.id} />
+                                <DetailRow label="JE Name" value={work.je_name} fieldName="je_name" workId={work.id} />
                             </div>
                         </CardContent>
                     </Card>
@@ -248,9 +239,9 @@ export default function WorkDetailClient({
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                                <DetailRow label="Sanction Amount including Tax" value={formatAmountFromLacs(work.amount_as_per_bp_lacs ?? work.sanction_amount_lacs)} />
-                                                <DetailRow label="Agreement Amount" value={work.agreement_amount != null ? formatCurrency(work.agreement_amount) : null} />
-                                                <DetailRow label="BOQ Amount" value={work.boq_amount != null ? formatCurrency(work.boq_amount) : null} />
+                                <DetailRow label="Sanction Amount (Lacs)" value={work.sanction_amount_lacs} fieldName="sanction_amount_lacs" workId={work.id} type="number" />
+                                <DetailRow label="Agreement Amount" value={work.agreement_amount} fieldName="agreement_amount" workId={work.id} type="number" />
+                                <DetailRow label="BOQ Amount" value={work.boq_amount} fieldName="boq_amount" workId={work.id} type="number" />
                             </div>
                         </CardContent>
                     </Card>
@@ -270,11 +261,11 @@ export default function WorkDetailClient({
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                <DetailRow label="Date of Start (As per Agr./ Actual)" value={formatDateDDMMYYYY(work.start_date)} />
-                                <DetailRow label="Scheduled Date of Completion" value={formatDateDDMMYYYY(work.scheduled_completion_date)} />
-                                <DetailRow label="Expected Date of Completion" value={formatDateDDMMYYYY(work.expected_completion_date)} />
-                                <DetailRow label="Actual Date of Completion" value={formatDateDDMMYYYY(work.actual_completion_date)} />
-                                <DetailRow label="Remark" value={work.remark} />
+                                <DetailRow label="Date of Start" value={work.start_date} fieldName="start_date" workId={work.id} type="date" />
+                                <DetailRow label="Scheduled Date of Completion" value={work.scheduled_completion_date} fieldName="scheduled_completion_date" workId={work.id} type="date" />
+                                <DetailRow label="Expected Date of Completion" value={work.expected_completion_date} fieldName="expected_completion_date" workId={work.id} type="date" />
+                                <DetailRow label="Actual Date of Completion" value={work.actual_completion_date} fieldName="actual_completion_date" workId={work.id} type="date" />
+                                <DetailRow label="Remark" value={work.remark} fieldName="remark" workId={work.id} />
                             </div>
                         </CardContent>
                     </Card>
@@ -297,16 +288,16 @@ export default function WorkDetailClient({
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                <DetailRow label="Tender No." value={work.tender_no} />
-                                <DetailRow label="NIT Date" value={work.nit_date} />
-                                <DetailRow label="LOI No. and Date" value={work.loi_no_and_date} />
-                                <DetailRow label="Part 2 Opening Date" value={work.part2_opening_date} />
-                                <DetailRow label="Agreement No. and Date" value={work.agreement_no_and_date} />
-                                <DetailRow label="Weightage" value={work.weightage} />
-                                <DetailRow label="Rate as per Ag. (% above/ below)" value={work.rate_as_per_ag} />
-                                <DetailRow label="Firm Name and Contact" value={work.firm_name_and_contact} />
-                                <DetailRow label="Firm Contact No." value={work.firm_contact_no} />
-                                <DetailRow label="Firm Email" value={work.firm_email} />
+                                <DetailRow label="Tender No." value={work.tender_no} fieldName="tender_no" workId={work.id} />
+                                <DetailRow label="NIT Date" value={work.nit_date} fieldName="nit_date" workId={work.id} type="date" />
+                                <DetailRow label="LOI No. and Date" value={work.loi_no_and_date} fieldName="loi_no_and_date" workId={work.id} />
+                                <DetailRow label="Part 2 Opening Date" value={work.part2_opening_date} fieldName="part2_opening_date" workId={work.id} type="date" />
+                                <DetailRow label="Agreement No. and Date" value={work.agreement_no_and_date} fieldName="agreement_no_and_date" workId={work.id} />
+                                <DetailRow label="Weightage" value={work.weightage} fieldName="weightage" workId={work.id} type="number" />
+                                <DetailRow label="Rate as per Ag." value={work.rate_as_per_ag} fieldName="rate_as_per_ag" workId={work.id} />
+                                <DetailRow label="Firm Name and Contact" value={work.firm_name_and_contact} fieldName="firm_name_and_contact" workId={work.id} />
+                                <DetailRow label="Firm Contact No." value={work.firm_contact_no} fieldName="firm_contact_no" workId={work.id} />
+                                <DetailRow label="Firm Email" value={work.firm_email} fieldName="firm_email" workId={work.id} />
                             </div>
                         </CardContent>
                     </Card>
@@ -350,7 +341,7 @@ export default function WorkDetailClient({
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="divide-y divide-slate-100">
-                            <DetailRow label="WBS Code" value={work.wbs_code} />
+                            <DetailRow label="WBS Code" value={work.wbs_code} fieldName="wbs_code" workId={work.id} />
                             <EditableStatusRow label="MB Status" fieldName="mb_status" currentValue={work.mb_status} workId={work.id} />
                             <EditableStatusRow label="TECO Status" fieldName="teco_status" currentValue={work.teco_status || work.teco} workId={work.id} />
                             <EditableStatusRow label="FICO Status" fieldName="fico_status" currentValue={work.fico_status || work.fico} workId={work.id} />

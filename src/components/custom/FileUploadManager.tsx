@@ -36,6 +36,42 @@ const getFileType = (url: string) => {
   return 'other';
 };
 
+// Attachment Card Component
+function AttachmentCard({ att, currentUserId, isPending, handleDelete }: { att: Attachment; currentUserId: string; isPending: boolean; handleDelete: (id: number) => void }) {
+  return (
+    <div className="relative group border border-slate-200 rounded-lg p-2 flex flex-col justify-between bg-white hover:shadow-md transition-shadow">
+      <Link href={att.file_url} target="_blank" rel="noopener noreferrer" className="grow">
+        <div className="relative aspect-square w-full overflow-hidden flex items-center justify-center bg-slate-100 rounded-md mb-2">
+          {getFileType(att.file_url) === 'image' ? (
+            <Image src={att.file_url} alt={att.file_name || 'Uploaded image'} fill className="object-cover" sizes="(max-width: 768px) 50vw, 20vw" />
+          ) : (
+            <div className="text-center p-2">
+              {getFileType(att.file_url) === 'pdf' ? <FileText className="h-8 w-8 mx-auto text-red-500" /> : <ImageIcon className="h-8 w-8 mx-auto text-slate-500" />}
+            </div>
+          )}
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all" />
+        </div>
+      </Link>
+      <div className="text-xs mt-auto">
+        <p className="font-medium truncate text-slate-900">{att.file_name || "Untitled"}</p>
+        <p className="text-slate-500 flex items-center gap-1"><User size={12} /> {att.uploader_full_name?.split(' ')[0] || 'N/A'}</p>
+      </div>
+      {(currentUserId === att.uploader_id) && (
+        <Button
+          variant="destructive"
+          size="icon"
+          className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity bg-red-600 hover:bg-red-700"
+          onClick={() => handleDelete(att.id)}
+          disabled={isPending}
+          aria-label="Delete file"
+        >
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={14} />}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function FileUploadManager({ workId, attachments, currentUserId }: FileUploadManagerProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isPending, startTransition] = useTransition();
@@ -56,6 +92,9 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
       setMessage({ text: "Please select at least one file to upload.", type: 'error' });
       return;
     }
+
+    const formData = new FormData(event.currentTarget);
+    const attachmentType = formData.get('attachmentType') as string;
 
     // Maximum file size (10MB)
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -159,7 +198,7 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
           return;
         }
 
-        const { error: dbError } = await addAttachmentToWork(workId, result.success!.publicFileUrl, file.name);
+        const { error: dbError } = await addAttachmentToWork(workId, result.success!.publicFileUrl, file.name, attachmentType);
         if (dbError) {
           setMessage({ text: `Failed to save attachment to DB: ${dbError}`, type: 'error' });
           return;
@@ -224,6 +263,17 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
           {/* Upload Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="attachment-type" className="text-sm font-medium text-slate-700">File Type</Label>
+              <select 
+                id="attachment-type" 
+                name="attachmentType"
+                className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+              >
+                <option value="site_photo">Site Photograph</option>
+                <option value="document">Other Document</option>
+              </select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="file-upload" className="text-sm font-medium text-slate-700">Select Files</Label>
               <Input 
                 id="file-upload" 
@@ -275,42 +325,30 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
 
           {/* Existing Attachments */}
           {attachments && attachments.length > 0 && (
-            <div className="pt-4 border-t border-slate-200">
-              <h4 className="text-lg font-semibold text-slate-900 mb-4">Current Attachments ({attachmentCount})</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {attachments.map((att) => (
-                  <div key={att.id} className="relative group border border-slate-200 rounded-lg p-2 flex flex-col justify-between bg-white hover:shadow-md transition-shadow">
-                    <Link href={att.file_url} target="_blank" rel="noopener noreferrer" className="grow">
-                      <div className="relative aspect-square w-full overflow-hidden flex items-center justify-center bg-slate-100 rounded-md mb-2">
-                        {getFileType(att.file_url) === 'image' ? (
-                          <Image src={att.file_url} alt={att.file_name || 'Uploaded image'} fill className="object-cover" sizes="(max-width: 768px) 50vw, 20vw" />
-                        ) : (
-                          <div className="text-center p-2">
-                            {getFileType(att.file_url) === 'pdf' ? <FileText className="h-8 w-8 mx-auto text-red-500" /> : <ImageIcon className="h-8 w-8 mx-auto text-slate-500" />}
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all" />
-                      </div>
-                    </Link>
-                    <div className="text-xs mt-auto">
-                      <p className="font-medium truncate text-slate-900">{att.file_name || "Untitled"}</p>
-                      <p className="text-slate-500 flex items-center gap-1"><User size={12} /> {att.uploader_full_name?.split(' ')[0] || 'N/A'}</p>
-                    </div>
-                    {(currentUserId === att.uploader_id) && (
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity bg-red-600 hover:bg-red-700"
-                        onClick={() => handleDelete(att.id)}
-                        disabled={isPending}
-                        aria-label="Delete file"
-                      >
-                        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={14} />}
-                      </Button>
-                    )}
+            <div className="pt-4 border-t border-slate-200 space-y-6">
+              {/* Site Photographs */}
+              {attachments.filter(a => (a as any).attachment_type === 'site_photo' || !(a as any).attachment_type).length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold text-slate-900 mb-4">Site Photographs ({attachments.filter(a => (a as any).attachment_type === 'site_photo' || !(a as any).attachment_type).length})</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {attachments.filter(a => (a as any).attachment_type === 'site_photo' || !(a as any).attachment_type).map((att) => (
+                      <AttachmentCard key={att.id} att={att} currentUserId={currentUserId} isPending={isPending} handleDelete={handleDelete} />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
+              
+              {/* Other Documents */}
+              {attachments.filter(a => (a as any).attachment_type === 'document').length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold text-slate-900 mb-4">Other Documents ({attachments.filter(a => (a as any).attachment_type === 'document').length})</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {attachments.filter(a => (a as any).attachment_type === 'document').map((att) => (
+                      <AttachmentCard key={att.id} att={att} currentUserId={currentUserId} isPending={isPending} handleDelete={handleDelete} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

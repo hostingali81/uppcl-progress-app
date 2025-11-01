@@ -670,12 +670,6 @@ export function AnalyticsClient({
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th onClick={() => handleSort('scheme_sr_no')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        Scheme No.
-                        {sort.column === 'scheme_sr_no' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
-                      </div>
-                    </th>
                     <th onClick={() => handleSort('work_name')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
                       <div className="flex items-center gap-2">Work Name {sort.column === 'work_name' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
                     </th>
@@ -685,17 +679,14 @@ export function AnalyticsClient({
                     <th onClick={() => handleSort('progress_percentage')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
                       <div className="flex items-center gap-2">Progress {sort.column === 'progress_percentage' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
                     </th>
-                    <th onClick={() => handleSort('agreement_amount')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
-                      <div className="flex items-center gap-2">Amount {sort.column === 'agreement_amount' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
+                    <th onClick={() => handleSort('scheme_name')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
+                      <div className="flex items-center gap-2">Scheme Name {sort.column === 'scheme_name' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
                   {displayedWorks.map((work) => (
                     <tr key={work.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 text-sm text-slate-900">
-                        {work.scheme_sr_no}
-                      </td>
                       <td className="px-4 py-3 text-sm text-slate-900">
                         <div className="flex items-center gap-1">
                           <span className="truncate flex-1 min-w-0" title={work.work_name ?? undefined}>
@@ -731,7 +722,7 @@ export function AnalyticsClient({
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-900">
-                        ₹{work.agreement_amount?.toLocaleString() || 'N/A'}
+                        {work.scheme_name}
                       </td>
                     </tr>
                   ))}

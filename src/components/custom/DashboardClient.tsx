@@ -545,7 +545,6 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {/* Mobile-first responsive table */}
           <div className="overflow-x-auto">
             <Table className="min-w-[300px] sm:min-w-[400px]">
               <TableHeader>

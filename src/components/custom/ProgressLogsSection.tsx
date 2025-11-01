@@ -135,10 +135,10 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
                 <div className="mt-3 pt-3 border-t border-slate-100">
                   <div className="flex items-center gap-2 mb-2">
                     <Camera className="h-4 w-4 text-slate-400" />
-                    <span className="text-sm font-medium text-slate-600">Attached Photos</span>
+                    <span className="text-sm font-medium text-slate-600">Site Photos ({log.attachments.filter((a: any) => a.attachment_type === 'site_photo' || !a.attachment_type).length})</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {log.attachments.map((attachment) => (
+                    {log.attachments.filter((a: any) => a.attachment_type === 'site_photo' || !a.attachment_type).map((attachment: any) => (
                       <a
                         key={attachment.id}
                         href={attachment.file_url}
