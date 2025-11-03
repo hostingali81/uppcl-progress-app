@@ -118,7 +118,7 @@ export function EditableStatusRow({ label, fieldName, currentValue, workId }: Ed
 // Text input version for location and other details
 export function EditableDetailRow({ label, fieldName, currentValue, workId }: EditableDetailRowProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [value, setValue] = useState<string>(currentValue || '');
+  const [value, setValue] = useState<string>(String(currentValue || ''));
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 

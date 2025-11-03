@@ -9,7 +9,7 @@ export async function GET() {
     .select("scheme_name")
     .not("scheme_name", "is", null);
   
-  const schemes = Array.from(new Set(data?.map(w => w.scheme_name).filter(Boolean)));
+  const schemes = Array.from(new Set(data?.map((w: { scheme_name: string | null }) => w.scheme_name).filter(Boolean)));
   
   return NextResponse.json({ schemes });
 }

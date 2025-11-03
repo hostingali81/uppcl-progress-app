@@ -143,7 +143,7 @@ export function EditableWorkTable({ works, onUpdate }: EditableWorkTableProps) {
               <TableRow key={work.id} className="hover:bg-slate-50 border-b">
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    {work.is_blocked && <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" title="Blocked" />}
+                    {work.is_blocked && <span title="Blocked"><AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" /></span>}
                     <Link 
                       href={`/dashboard/work/${work.id}`} 
                       className="text-blue-600 hover:underline text-xs sm:text-sm flex items-center gap-1"

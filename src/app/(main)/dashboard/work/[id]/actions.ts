@@ -304,7 +304,7 @@ export async function addComment(workId: number, content: string) {
     
     for (const mention of mentions) {
       const mentionedName = mention.substring(1).trim();
-      const mentionedUser = allUsers?.find(u => u.full_name === mentionedName);
+      const mentionedUser = allUsers?.find((u: { id: string; full_name: string | null }) => u.full_name === mentionedName);
       
       if (mentionedUser && mentionedUser.id !== user.id) {
         // Create notification

@@ -112,11 +112,12 @@ export function ReportsClient({ works, profile }: ReportsClientProps) {
                     <h3 className="font-semibold text-slate-900">Excel Report</h3>
                     <p className="text-sm text-slate-600 mt-1">Export data as Excel spreadsheet</p>
                   </div>
-                  <ExportToExcelButton 
-                    selectedScheme="All" 
-                    filteredWorks={filteredWorks}
-                    className="w-full"
-                  />
+                  <div className="w-full">
+                    <ExportToExcelButton 
+                      selectedScheme="All" 
+                      filteredWorks={filteredWorks}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -131,11 +132,12 @@ export function ReportsClient({ works, profile }: ReportsClientProps) {
                     <h3 className="font-semibold text-slate-900">PDF Report</h3>
                     <p className="text-sm text-slate-600 mt-1">Export data as PDF document</p>
                   </div>
-                  <ExportToPDFButton 
-                    selectedScheme="All" 
-                    filteredWorks={filteredWorks}
-                    className="w-full"
-                  />
+                  <div className="w-full">
+                    <ExportToPDFButton 
+                      selectedScheme="All" 
+                      filteredWorks={filteredWorks}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
