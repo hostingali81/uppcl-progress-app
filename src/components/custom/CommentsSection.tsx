@@ -1,19 +1,16 @@
-// src/components/custom/CommentsSection.tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { addComment, editComment, deleteComment } from "@/app/(main)/dashboard/work/[id]/actions";
-import { Loader2, User, MoreHorizontal, MessageSquareX, Edit3 } from "lucide-react";
-import { MentionsInput, Mention } from "react-mentions";
+import { Loader2, User, MoreHorizontal, MessageSquare, Edit3, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-// Updated type definitions
 type Comment = {
   id: number;
-  user_id: string; // ID of the commenter
+  user_id: string;
   user_full_name: string | null;
   content: string;
   created_at: string;
@@ -27,8 +24,8 @@ interface CommentsSectionProps {
   workId: number;
   comments: Comment[] | null;
   mentionUsers: MentionUser[];
-  currentUserId: string; // Current logged-in user's ID
-  currentUserRole: string; // Current logged-in user's role
+  currentUserId: string;
+  currentUserRole: string;
 }
 
 function formatTimeAgo(dateString: string) {
@@ -47,27 +44,62 @@ function formatTimeAgo(dateString: string) {
     return "just now";
 }
 
-const mentionStyle = {
-  control: { backgroundColor: '#fff', fontSize: 14, fontWeight: 'normal', border: '1px solid hsl(214.3 31.8% 91.4%)', borderRadius: '0.375rem' },
-  '&multiLine': { control: { minHeight: 80 }, highlighter: { padding: 12 }, input: { padding: 12, outline: 'none' } },
-  suggestions: {
-    list: { backgroundColor: 'white', border: '1px solid rgba(0,0,0,0.15)', borderRadius: '0.375rem', fontSize: 14, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' },
-    item: { padding: '5px 15px', '&focused': { backgroundColor: 'hsl(210 40% 96.1%)' } },
-  },
-};
-
 export function CommentsSection({ workId, comments, mentionUsers, currentUserId, currentUserRole }: CommentsSectionProps) {
   const [isPending, startTransition] = useTransition();
   const [commentContent, setCommentContent] = useState("");
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState("");
+  const [mentionPosition, setMentionPosition] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handlePostSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    console.log('mentionUsers:', mentionUsers);
+  }, [mentionUsers]);
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    setCommentContent(value);
+
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+      const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+      if (!textAfterAt.includes(' ')) {
+        setMentionSearch(textAfterAt);
+        setMentionPosition(lastAtIndex);
+        setShowMentions(true);
+        return;
+      }
+    }
+    setShowMentions(false);
+  };
+
+  const insertMention = (userName: string) => {
+    const before = commentContent.substring(0, mentionPosition);
+    const after = commentContent.substring(mentionPosition + mentionSearch.length + 1);
+    const newContent = before + '@' + userName + ' ' + after;
+    setCommentContent(newContent);
+    setShowMentions(false);
+    textareaRef.current?.focus();
+  };
+
+  const filteredUsers = mentionUsers.filter(u => 
+    u.display.toLowerCase().includes(mentionSearch.toLowerCase())
+  );
+
+  const handlePostSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!commentContent.trim()) return;
+    
     startTransition(async () => {
-      await addComment(workId, commentContent);
-      setCommentContent("");
+      const result = await addComment(workId, commentContent);
+      if (result?.success) {
+        setCommentContent("");
+      }
     });
   };
 
@@ -89,86 +121,106 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
   };
 
   return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardHeader className="border-b border-slate-200">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
-            <MessageSquareX className="h-5 w-5 text-blue-600" />
+    <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
+      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+            <MessageSquare className="h-5 w-5 text-white" />
           </div>
-          <CardTitle className="text-lg font-semibold text-slate-900">Discussion & Updates</CardTitle>
+          <div>
+            <CardTitle className="text-xl font-bold text-slate-900">Discussion & Updates</CardTitle>
+            <p className="text-sm text-slate-600">Share updates and collaborate with your team</p>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-6">
-        <form onSubmit={handlePostSubmit} className="flex flex-col gap-2">
-          <MentionsInput
-            value={commentContent}
-            onChange={(event) => setCommentContent(event.target.value)}
-            placeholder="Type '@' to tag someone..."
-            style={mentionStyle}
-            disabled={isPending}
-            className="w-full"
-            a11ySuggestionsListLabel={"Suggested mentions"}
-          >
-            <Mention
-              trigger="@"
-              data={mentionUsers}
-              markup="@__display__"
-              displayTransform={(id, display) => `@${display}`}
-              style={{ backgroundColor: 'hsl(210 40% 96.1%)', fontWeight: '600' }}
+        <form onSubmit={handlePostSubmit} className="flex flex-col gap-3 mb-6">
+          <div className="relative">
+            <Textarea
+              ref={textareaRef}
+              value={commentContent}
+              onChange={handleTextChange}
+              placeholder="Write a comment... (Type '@' to mention someone)"
+              disabled={isPending}
+              className="w-full min-h-[100px] resize-none"
+              rows={4}
             />
-          </MentionsInput>
+            {showMentions && filteredUsers.length > 0 && (
+              <div className="absolute z-10 w-64 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {filteredUsers.map((user) => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => insertMention(user.display)}
+                    className="w-full px-4 py-2 text-left hover:bg-blue-50 flex items-center gap-2 text-sm"
+                  >
+                    <User className="h-4 w-4 text-slate-400" />
+                    <span className="font-medium text-slate-700">{user.display}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {mentionUsers.length > 0 && (
+            <div className="text-xs text-slate-500">
+              💡 Type @ to mention: {mentionUsers.slice(0, 3).map(u => u.display).join(', ')}{mentionUsers.length > 3 ? ` +${mentionUsers.length - 3} more` : ''}
+            </div>
+          )}
           <Button type="submit" disabled={isPending || !commentContent.trim()} className="self-end bg-blue-600 hover:bg-blue-700 text-white">
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Post Comment
           </Button>
         </form>
 
-        <div className="mt-6 space-y-4">
+        <div className="space-y-4">
           {!comments || comments.length === 0 ? (
-            <p className="text-sm text-center text-slate-500 py-4">No comments yet. Start the conversation!</p>
+            <div className="text-center py-8 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
+              <MessageSquare className="h-12 w-12 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm text-slate-500">No comments yet. Start the conversation!</p>
+            </div>
           ) : (
             [...comments].reverse().map((comment) => (
-              <div key={comment.id} className="flex gap-3">
-                <div className="shrink-0 h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center">
-                    <User className="h-6 w-6 text-slate-500" />
+              <div key={comment.id} className="flex gap-3 p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                <div className="shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <User className="h-6 w-6 text-blue-600" />
                 </div>
-                <div className="flex-1 bg-slate-50 rounded-lg px-4 py-2 relative group">
-                  <div className="flex justify-between items-center">
-                    <p className="font-semibold text-sm">{comment.is_deleted ? 'A user' : (comment.user_full_name || "Unknown User")}</p>
-                    <div className="text-xs text-slate-500 flex items-center">
-                       {comment.is_edited && !comment.is_deleted && <span className="mr-2 italic">(edited)</span>}
+                <div className="flex-1 relative group">
+                  <div className="flex justify-between items-start mb-1">
+                    <p className="font-semibold text-sm text-slate-900">{comment.is_deleted ? 'A user' : (comment.user_full_name || "Unknown User")}</p>
+                    <div className="text-xs text-slate-500 flex items-center gap-2">
+                       {comment.is_edited && !comment.is_deleted && <span className="italic">(edited)</span>}
                        {formatTimeAgo(comment.created_at)}
                     </div>
                   </div>
                   
                   {editingCommentId === comment.id ? (
                     <div className="mt-2">
-                        <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="bg-white border-slate-200" autoFocus />
-                        <div className="flex justify-end gap-2 mt-2">
-                            <Button size="sm" variant="ghost" onClick={() => setEditingCommentId(null)} className="border-slate-200">Cancel</Button>
+                        <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="bg-white border-slate-200 mb-2" autoFocus />
+                        <div className="flex justify-end gap-2">
+                            <Button size="sm" variant="ghost" onClick={() => setEditingCommentId(null)}>Cancel</Button>
                             <Button size="sm" onClick={() => handleSaveEdit(comment.id)} disabled={isPending || !editText.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
                                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Save
                             </Button>
                         </div>
                     </div>
                   ) : (
-                    <p className={`text-sm mt-1 whitespace-pre-wrap ${comment.is_deleted ? 'text-slate-500 italic' : 'text-slate-700'}`}>
+                    <p className={`text-sm whitespace-pre-wrap ${comment.is_deleted ? 'text-slate-500 italic' : 'text-slate-700'}`}>
                         {comment.content}
                     </p>
                   )}
 
                   {!comment.is_deleted && !editingCommentId && (currentUserId === comment.user_id || currentUserRole === 'superadmin') && (
-                    <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-slate-100"><MoreHorizontal size={16}/></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-slate-200"><MoreHorizontal size={16}/></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => { setEditingCommentId(comment.id); setEditText(comment.content); }}>
                                     <Edit3 className="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleDelete(comment.id)} className="text-red-600 focus:bg-red-50 focus:text-red-600">
-                                    <MessageSquareX className="mr-2 h-4 w-4" /> Delete
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>

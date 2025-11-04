@@ -33,6 +33,7 @@ interface WorkDetailClientProps {
     paymentLogs: any[];
     progressLogs: any[];
     comments: any[];
+    suggestions?: Record<string, string[]>;
 }
 
 // Enhanced editable detail row component
@@ -42,9 +43,10 @@ type DetailRowProps = {
     fieldName?: string;
     workId?: number;
     type?: 'text' | 'number' | 'date';
+    suggestions?: string[];
 }
 
-function DetailRow({ label, value, fieldName, workId, type = 'text' }: DetailRowProps) {
+function DetailRow({ label, value, fieldName, workId, type = 'text', suggestions }: DetailRowProps) {
     if (!fieldName || !workId) {
         if (value === null || value === undefined || value === '') return null;
         return (
@@ -54,7 +56,7 @@ function DetailRow({ label, value, fieldName, workId, type = 'text' }: DetailRow
             </div>
         );
     }
-    return <EditableDetailRow label={label} fieldName={fieldName as any} currentValue={value} workId={workId} />;
+    return <EditableDetailRow label={label} fieldName={fieldName as any} currentValue={value} workId={workId} suggestions={suggestions} />;
 }
 
 // Progress indicator component
@@ -108,7 +110,8 @@ export default function WorkDetailClient({
     latestBillNumber,
     paymentLogs,
     progressLogs,
-    comments
+    comments,
+    suggestions = {}
 }: WorkDetailClientProps) {
     const [refreshKey, setRefreshKey] = useState(0);
 
@@ -188,9 +191,9 @@ export default function WorkDetailClient({
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                <DetailRow label="Scheme Name" value={work.scheme_name} fieldName="scheme_name" workId={work.id} />
+                                <DetailRow label="Scheme Name" value={work.scheme_name} fieldName="scheme_name" workId={work.id} suggestions={suggestions.scheme_name} />
                                 <DetailRow label="Scheme Sr. No." value={work.scheme_sr_no} fieldName="scheme_sr_no" workId={work.id} />
-                                <DetailRow label="Work Category" value={work.work_category} fieldName="work_category" workId={work.id} />
+                                <DetailRow label="Work Category" value={work.work_category} fieldName="work_category" workId={work.id} suggestions={suggestions.work_category} />
                                 <DetailRow label="Site Name" value={work.site_name} fieldName="site_name" workId={work.id} />
                             </div>
                         </CardContent>
@@ -215,7 +218,7 @@ export default function WorkDetailClient({
                                 <DetailRow label="Civil Circle" value={work.civil_circle} fieldName="civil_circle" workId={work.id} />
                                 <DetailRow label="Civil Division" value={work.civil_division} fieldName="civil_division" workId={work.id} />
                                 <DetailRow label="Civil Sub-Division" value={work.civil_sub_division} fieldName="civil_sub_division" workId={work.id} />
-                                <DetailRow label="District Name" value={work.district_name} fieldName="district_name" workId={work.id} />
+                                <DetailRow label="District Name" value={work.district_name} fieldName="district_name" workId={work.id} suggestions={suggestions.district_name} />
                                 <DetailRow label="JE Name" value={work.je_name} fieldName="je_name" workId={work.id} />
                             </div>
                         </CardContent>
@@ -295,7 +298,7 @@ export default function WorkDetailClient({
                                 <DetailRow label="Agreement No. and Date" value={work.agreement_no_and_date} fieldName="agreement_no_and_date" workId={work.id} />
                                 <DetailRow label="Weightage" value={work.weightage} fieldName="weightage" workId={work.id} type="number" />
                                 <DetailRow label="Rate as per Ag." value={work.rate_as_per_ag} fieldName="rate_as_per_ag" workId={work.id} />
-                                <DetailRow label="Firm Name and Contact" value={work.firm_name_and_contact} fieldName="firm_name_and_contact" workId={work.id} />
+                                <DetailRow label="Firm Name and Contact" value={work.firm_name_and_contact} fieldName="firm_name_and_contact" workId={work.id} suggestions={suggestions.firm_name_and_contact} />
                                 <DetailRow label="Firm Contact No." value={work.firm_contact_no} fieldName="firm_contact_no" workId={work.id} />
                                 <DetailRow label="Firm Email" value={work.firm_email} fieldName="firm_email" workId={work.id} />
                             </div>
@@ -317,10 +320,10 @@ export default function WorkDetailClient({
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                    <EditableDetailRow label="Distribution Zone" fieldName="distribution_zone" currentValue={work.distribution_zone} workId={work.id} />
-                                    <EditableDetailRow label="Distribution Circle" fieldName="distribution_circle" currentValue={work.distribution_circle} workId={work.id} />
-                                    <EditableDetailRow label="Distribution Division" fieldName="distribution_division" currentValue={work.distribution_division} workId={work.id} />
-                                    <EditableDetailRow label="Distribution Sub-Division" fieldName="distribution_sub_division" currentValue={work.distribution_sub_division} workId={work.id} />
+                                    <EditableDetailRow label="Distribution Zone" fieldName="distribution_zone" currentValue={work.distribution_zone} workId={work.id} suggestions={suggestions.distribution_zone} />
+                                    <EditableDetailRow label="Distribution Circle" fieldName="distribution_circle" currentValue={work.distribution_circle} workId={work.id} suggestions={suggestions.distribution_circle} />
+                                    <EditableDetailRow label="Distribution Division" fieldName="distribution_division" currentValue={work.distribution_division} workId={work.id} suggestions={suggestions.distribution_division} />
+                                    <EditableDetailRow label="Distribution Sub-Division" fieldName="distribution_sub_division" currentValue={work.distribution_sub_division} workId={work.id} suggestions={suggestions.distribution_sub_division} />
                                 </div>
                             </CardContent>
                     </Card>

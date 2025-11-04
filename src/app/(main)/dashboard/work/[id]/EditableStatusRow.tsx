@@ -21,6 +21,7 @@ interface EditableDetailRowProps {
   fieldName: string;
   currentValue?: string | number | null;
   workId: number;
+  suggestions?: string[];
 }
 
 export function EditableStatusRow({ label, fieldName, currentValue, workId }: EditableStatusRowProps) {
@@ -116,11 +117,13 @@ export function EditableStatusRow({ label, fieldName, currentValue, workId }: Ed
 }
 
 // Text input version for location and other details
-export function EditableDetailRow({ label, fieldName, currentValue, workId }: EditableDetailRowProps) {
+export function EditableDetailRow({ label, fieldName, currentValue, workId, suggestions = [] }: EditableDetailRowProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [value, setValue] = useState<string>(String(currentValue || ''));
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>(suggestions);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -174,13 +177,49 @@ export function EditableDetailRow({ label, fieldName, currentValue, workId }: Ed
           <form onSubmit={handleSubmit} className="space-y-4">
             <input type="hidden" name="workId" value={workId} />
             <Label className="text-sm font-medium">{label}</Label>
-            <Input
-              name={fieldName}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder={`Enter ${label.toLowerCase()}`}
-              className="w-full"
-            />
+            <div className="relative">
+              <Input
+                name={fieldName}
+                value={value}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  setValue(newValue);
+                  if (suggestions.length > 0) {
+                    const filtered = suggestions.filter(s => 
+                      s.toLowerCase().includes(newValue.toLowerCase())
+                    );
+                    setFilteredSuggestions(filtered);
+                    setShowSuggestions(newValue.length > 0 && filtered.length > 0);
+                  }
+                }}
+                onFocus={() => {
+                  if (suggestions.length > 0 && value.length > 0) {
+                    setShowSuggestions(true);
+                  }
+                }}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                placeholder={`Enter ${label.toLowerCase()}`}
+                className="w-full"
+                autoComplete="off"
+              />
+              {showSuggestions && filteredSuggestions.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                  {filteredSuggestions.slice(0, 10).map((suggestion, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setValue(suggestion);
+                        setShowSuggestions(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {message && (
               <div className={`p-3 rounded ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>{message.text}</div>

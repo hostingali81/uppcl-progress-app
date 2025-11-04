@@ -320,7 +320,7 @@ export async function addComment(workId: number, content: string) {
     }
   }
   
-  revalidatePath(`/(main)/dashboard/work/${workId}`);
+  revalidatePath(`/dashboard/work/${workId}`);
   return { success: "Comment posted." };
 }
 
@@ -329,7 +329,21 @@ export async function editComment(commentId: number, newContent: string) {
   if (!newContent || newContent.trim() === '') { return { error: "Comment cannot be empty." }; }
   const { error } = await supabase.from("comments").update({ content: newContent, is_edited: true }).eq("id", commentId);
   if (error) { return { error: `Could not update comment: ${error.message}` }; }
-  revalidatePath(`/(main)/dashboard/work/[id]`);
+
+  // Fetch the comment to obtain the work id so we can revalidate the correct work page
+  try {
+    const { data: updatedComment } = await supabase.from('comments').select('work_id').eq('id', commentId).single();
+    const workId = (updatedComment as any)?.work_id;
+    if (workId) {
+      revalidatePath(`/dashboard/work/${workId}`);
+    } else {
+      // Fallback - revalidate dashboard list if work id unavailable
+      revalidatePath('/dashboard');
+    }
+  } catch (e) {
+    // Non-fatal - ensure at least the dashboard is revalidated
+    revalidatePath('/dashboard');
+  }
   return { success: "Comment updated." };
 }
 
@@ -337,7 +351,19 @@ export async function deleteComment(commentId: number) {
   const { client: supabase } = await createSupabaseServerClient();
   const { error } = await supabase.from("comments").update({ content: "This comment has been deleted.", is_deleted: true }).eq("id", commentId);
   if (error) { return { error: `Could not delete comment: ${error.message}` }; }
-  revalidatePath(`/(main)/dashboard/work/[id]`);
+
+  // Revalidate the work page corresponding to this comment
+  try {
+    const { data: updatedComment } = await supabase.from('comments').select('work_id').eq('id', commentId).single();
+    const workId = (updatedComment as any)?.work_id;
+    if (workId) {
+      revalidatePath(`/dashboard/work/${workId}`);
+    } else {
+      revalidatePath('/dashboard');
+    }
+  } catch (e) {
+    revalidatePath('/dashboard');
+  }
   return { success: "Comment deleted." };
 }
 
@@ -484,6 +510,22 @@ export async function updateBillingDetails(data: {
 }
 
 // New function to fetch work details for the work detail page
+// Fetch unique values for autocomplete suggestions
+export async function fetchFieldSuggestions(fieldName: string) {
+  const { admin: supabaseAdmin } = await createSupabaseServerClient();
+  
+  const { data } = await supabaseAdmin
+    .from('works')
+    .select(fieldName)
+    .not(fieldName, 'is', null)
+    .limit(100);
+  
+  if (!data) return [];
+  
+  const uniqueValues = [...new Set(data.map((row: any) => row[fieldName]).filter(Boolean))];
+  return uniqueValues.sort();
+}
+
 export async function fetchWorkDetails(workId: number) {
   const { client: supabase, admin: supabaseAdmin } = await createSupabaseServerClient();
 
@@ -501,7 +543,7 @@ export async function fetchWorkDetails(workId: number) {
     .single();
 
   // Fetch all users for mentions
-  const usersPromise = supabaseAdmin.from("profiles").select('id, full_name').not('full_name', 'is', null);
+  const usersPromise = supabaseAdmin.from("profiles").select('id, full_name');
 
   // Fetch current user's profile
   const profilePromise = supabase.from("profiles").select('role').eq('id', user.id).single();
@@ -580,7 +622,7 @@ export async function fetchWorkDetails(workId: number) {
 
   // Build mention users list - include all users
   const usersForMentions = allUsersData && allUsersData.length > 0 ? allUsersData
-    .filter(u => u.full_name && u.id !== user.id) // Exclude current user
+    .filter(u => u.id !== user.id && u.full_name) // Exclude current user and null names
     .map(u => ({ id: u.id, display: u.full_name })) : [];
 
   console.log('Mention users available:', usersForMentions.length, usersForMentions.slice(0, 3));

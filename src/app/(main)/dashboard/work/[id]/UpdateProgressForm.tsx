@@ -78,11 +78,12 @@ export function UpdateProgressForm({
       <DialogTrigger asChild>
         <Button 
           variant="outline" 
-          className="flex items-center gap-2 border-slate-200 hover:bg-blue-50 hover:border-blue-300 text-slate-700 hover:text-blue-700"
+          className="flex items-center gap-2 border-slate-200 hover:bg-blue-50 hover:border-blue-300 text-slate-700 hover:text-blue-700 sm:h-9 sm:px-4 sm:py-2 sm:text-sm max-sm:h-8 max-sm:px-2 max-sm:py-1 max-sm:text-xs max-[480px]:px-1 max-[480px]:text-[10px]"
         >
-          <Edit3 className="h-4 w-4" />
-          Update Progress
-          <div className="ml-2 flex items-center gap-1">
+          <Edit3 className="h-4 w-4 max-sm:h-3 max-sm:w-3" />
+          <span className="max-[480px]:hidden">Update Progress</span>
+          <span className="sm:hidden max-[480px]:block">Update</span>
+          <div className="ml-2 flex items-center gap-1 max-sm:hidden">
             <span className="text-xs font-medium">{progress}%</span>
             <div className="w-8 bg-slate-200 rounded-full h-1">
               <div 
@@ -93,8 +94,8 @@ export function UpdateProgressForm({
           </div>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto w-[95vw] sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="max-h-[90vh] w-[95vw] sm:max-w-[500px] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <div className="flex items-center gap-3 mb-2">
             <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
               <TrendingUp className="h-4 w-4 text-white" />
@@ -106,7 +107,7 @@ export function UpdateProgressForm({
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto flex-1 pr-2">
           <input type="hidden" name="workId" value={workId} />
           
           {/* Current Progress Display */}
@@ -317,34 +318,39 @@ export function UpdateProgressForm({
              </div>
           )}
           
-          <DialogFooter className="flex flex-col sm:flex-row gap-3 w-full">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setIsOpen(false)}
-              className="w-full sm:w-auto border-slate-200 hover:bg-slate-50"
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={isPending} 
-              className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Update Progress
-                </>
-              )}
-            </Button>
-          </DialogFooter>
         </form>
+        <DialogFooter className="flex flex-col sm:flex-row gap-3 w-full flex-shrink-0 pt-4 border-t">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => setIsOpen(false)}
+            className="w-full sm:w-auto border-slate-200 hover:bg-slate-50"
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={isPending} 
+            className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+            onClick={(e) => {
+              e.preventDefault();
+              const form = e.currentTarget.closest('form');
+              if (form) form.requestSubmit();
+            }}
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Update Progress
+              </>
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
