@@ -9,7 +9,7 @@ import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-
 interface PhotoViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  photos: { id: number; file_url: string; file_name?: string; uploader_full_name?: string; created_at: string }[];
+  photos: { id: number; file_url: string; file_name?: string; uploader_full_name?: string | null; created_at: string }[];
   currentPhotoIndex: number;
   onPhotoChange: (index: number) => void;
 }

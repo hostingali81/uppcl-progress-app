@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
     console.log("File data received:", {
       fileDataType: typeof fileData,
       fileDataConstructor: (fileData as any)?.constructor?.name,
-      isFile: fileData instanceof File,
-      isBlob: fileData instanceof Blob,
+      isFile: (fileData as any) instanceof File,
+      isBlob: (fileData as any) instanceof Blob,
       fileName: (fileData as any)?.name,
       fileType: (fileData as any)?.type,
       fileSize: (fileData as any)?.size
@@ -45,14 +45,14 @@ export async function POST(request: NextRequest) {
     let fileName: string;
     let fileType: string;
 
-    if (fileData instanceof File) {
-      fileBlob = fileData;
-      fileName = fileData.name;
-      fileType = fileData.type;
-    } else if (fileData instanceof Blob) {
-      fileBlob = fileData;
+    if ((fileData as any) instanceof File) {
+      fileBlob = fileData as File;
+      fileName = (fileData as File).name;
+      fileType = (fileData as File).type;
+    } else if ((fileData as any) instanceof Blob) {
+      fileBlob = fileData as Blob;
       fileName = `uploaded-file-${Date.now()}`;
-      fileType = fileData.type || 'application/octet-stream';
+      fileType = (fileData as Blob).type || 'application/octet-stream';
     } else if (typeof fileData === 'string') {
       // Handle as string (might be base64 or something)
       return NextResponse.json({ error: "String file data not supported" }, { status: 400 });
