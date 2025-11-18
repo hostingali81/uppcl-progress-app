@@ -45,10 +45,22 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [allPhotos, setAllPhotos] = useState<any[]>([]);
 
-  // Format user display name from the data
+  // Format user display name from the data - PRIORITIZE user_full_name
   const getUserDisplayName = (log: ProgressLog) => {
+    // First try user_full_name (from the progress_logs table)
+    const userFullName = (log as any).user_full_name;
+    if (userFullName && userFullName.trim()) {
+      return userFullName;
+    }
+    
+    // Fallback to profiles full_name
     const profileName = log.profiles?.full_name;
-    return profileName || log.user_email || 'Unknown User';
+    if (profileName && profileName.trim()) {
+      return profileName;
+    }
+    
+    // Final fallback to email
+    return log.user_email || 'Unknown User';
   };
 
   // Handle photo click to open modal
@@ -72,14 +84,14 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
     return (
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="border-b border-slate-200">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-purple-100 rounded-lg flex items-center justify-center">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="h-8 w-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
               <TrendingUp className="h-5 w-5 text-purple-600" />
             </div>
             <CardTitle className="text-lg font-semibold text-slate-900">Progress History</CardTitle>
           </div>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-3 sm:p-6">
           <div className="text-center py-8">
             <TrendingUp className="h-12 w-12 text-slate-300 mx-auto mb-4" />
             <p className="text-slate-500">No progress updates recorded yet.</p>
@@ -94,33 +106,33 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
     <>
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="border-b border-slate-200">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-purple-100 rounded-lg flex items-center justify-center">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="h-8 w-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
               <TrendingUp className="h-5 w-5 text-purple-600" />
             </div>
             <CardTitle className="text-lg font-semibold text-slate-900">Progress History</CardTitle>
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700 self-start sm:self-auto w-fit">
               {progressLogs.length} update{progressLogs.length !== 1 ? 's' : ''}
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-3 sm:p-6">
           <div className="space-y-4">
             {progressLogs.map((log) => {
               const sitePhotos = log.attachments?.filter((a: any) => a.attachment_type === 'site_photo' || !a.attachment_type) || [];
               
               return (
-                <div key={log.id} className="border border-slate-200 rounded-lg p-4 bg-white hover:shadow-sm transition-shadow">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">
+                <div key={log.id} className="border border-slate-200 rounded-lg p-3 sm:p-4 bg-white hover:shadow-sm transition-shadow">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3 gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="text-2xl flex-shrink-0">
                         {getProgressChangeIcon(log.previous_progress, log.new_progress)}
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
                           <Badge 
                             variant="secondary" 
-                            className={getProgressChangeColor(log.previous_progress, log.new_progress)}
+                            className={`${getProgressChangeColor(log.previous_progress, log.new_progress)} text-xs`}
                           >
                             {log.previous_progress !== null 
                               ? `${log.previous_progress}% → ${log.new_progress}%`
@@ -128,20 +140,20 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
                             }
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-slate-600">
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            <span>{getUserDisplayName(log)}</span>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm text-slate-600">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <User className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{getUserDisplayName(log)}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
+                            <Calendar className="h-3 w-3 flex-shrink-0" />
                             <span suppressHydrationWarning>{formatTimeAgo(log.created_at)}</span>
                           </div>
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium text-slate-900">
+                    <div className="text-right sm:text-left sm:flex-shrink-0">
+                      <div className="text-lg font-medium text-slate-900">
                         {log.new_progress}%
                       </div>
                       <div className="text-xs text-slate-500">
@@ -154,7 +166,7 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
                     <div className="mt-3 pt-3 border-t border-slate-100">
                       <div className="flex items-start gap-2">
                         <MessageSquare className="h-4 w-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                        <p className="text-sm text-slate-700 leading-relaxed">{log.remark}</p>
+                        <p className="text-sm text-slate-700 leading-relaxed break-words">{log.remark}</p>
                       </div>
                     </div>
                   )}
