@@ -1,12 +1,12 @@
 // src/components/custom/FileUploadManager.tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { addAttachmentToWork, generateUploadUrl, deleteAttachment } from "@/app/(main)/dashboard/work/[id]/actions";
+import { addAttachmentToWork, deleteAttachment } from "@/app/(main)/dashboard/work/[id]/actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, ImageIcon, Trash2, User, Loader2, Upload, Paperclip, X, CheckCircle, AlertCircle } from "lucide-react";
 import Image from "next/image";
@@ -77,6 +77,11 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -132,62 +137,43 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
     startTransition(async () => {
       let uploadCount = 0;
       for (const file of files) {
-        console.log('Generating upload URL for:', { fileName: file.name, fileType: file.type, fileSize: file.size });
-        const result = await generateUploadUrl(file.name, file.type);
-        
-        if (result.error) {
-          console.error('URL generation failed:', {
-            error: result.error,
-            fileName: file.name,
-            fileType: file.type
-          });
-          setMessage({ 
-            text: `Failed to prepare upload for ${file.name}: ${result.error}`, 
-            type: 'error' 
-          });
-          return;
-        }
-        
-        if (!result.success?.uploadUrl || !result.success?.publicFileUrl) {
-          console.error('Invalid URL generation response:', { result });
-          setMessage({ 
-            text: `System configuration error: Invalid upload URL generated for ${file.name}`, 
-            type: 'error' 
-          });
-          return;
-        }
+        console.log('Uploading file via API route for:', { fileName: file.name, fileType: file.type, fileSize: file.size });
+
+        // Create FormData for API upload
+        const uploadFormData = new FormData();
+        uploadFormData.append("file", file);
+        uploadFormData.append("workId", workId.toString());
+        uploadFormData.append("attachmentType", attachmentType);
+
+        console.log(`Starting file upload to /api/upload for ${file.name}...`);
 
         try {
-          console.log('Starting file upload to:', result.success!.uploadUrl);
-          const uploadResponse = await fetch(result.success!.uploadUrl, {
-            method: "PUT",
-            body: file,
-            headers: {
-              "Content-Type": file.type
-            }
+          const uploadResponse = await fetch("/api/upload", {
+            method: "POST",
+            body: uploadFormData,
           });
 
+          console.log('API upload response status for', file.name, ':', uploadResponse.status);
+
           if (!uploadResponse.ok) {
-            const errorText = await uploadResponse.text().catch(() => 'No error details available');
-            console.error('Upload failed:', {
-              status: uploadResponse.status,
-              statusText: uploadResponse.statusText,
-              errorText,
-              headers: Object.fromEntries(uploadResponse.headers.entries())
-            });
-            setMessage({ 
-              text: `Upload failed for ${file.name}. Status: ${uploadResponse.status} ${uploadResponse.statusText}. ${errorText}`, 
-              type: 'error' 
+            const errorData = await uploadResponse.json().catch(() => ({ error: 'Failed to upload file' }));
+            console.error('Upload failed for', file.name, ':', errorData.error);
+            setMessage({
+              text: `Upload failed for ${file.name}: ${errorData.error}`,
+              type: 'error'
             });
             return;
           }
-        } catch (uploadError: any) {
+
+          const uploadData = await uploadResponse.json();
+          console.log('File upload successful for', file.name, ':', uploadData);
+
+        } catch (uploadError: unknown) {
           const fileName = file?.name || 'the selected file';
-          const errorMessage = uploadError instanceof Error 
-            ? uploadError.message 
+          const errorMessage = uploadError instanceof Error
+            ? uploadError.message
             : 'An unknown error occurred during upload.';
 
-          // Log details separately to avoid issues with complex error objects
           console.error(`Upload error for ${fileName}:`, errorMessage);
           console.error('Full error object:', uploadError);
 
@@ -198,19 +184,14 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
           return;
         }
 
-        const { error: dbError } = await addAttachmentToWork(workId, result.success!.publicFileUrl, file.name, attachmentType);
-        if (dbError) {
-          setMessage({ text: `Failed to save attachment to DB: ${dbError}`, type: 'error' });
-          return;
-        }
         uploadCount++;
       }
-      
+
       setMessage({ text: `${uploadCount} file(s) uploaded successfully!`, type: 'success' });
       setFiles([]);
       const form = event.target as HTMLFormElement;
       form.reset();
-      
+
       setTimeout(() => {
         setIsOpen(false);
         setMessage(null);

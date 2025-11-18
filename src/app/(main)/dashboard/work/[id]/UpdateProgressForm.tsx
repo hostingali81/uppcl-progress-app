@@ -1,15 +1,35 @@
 // src/app/dashboard/work/[id]/UpdateProgressForm.tsx
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { FileUploader } from "react-drag-drop-files";
-import { generateUploadUrl, addAttachmentToWork } from "./actions";
+
+// Native file input component instead of FileUploader library
+const NativeFileInput = ({ onChange, multiple = false, accept = "", disabled = false, children }: {
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  multiple?: boolean;
+  accept?: string;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) => (
+  <label className="cursor-pointer">
+    <input
+      type="file"
+      multiple={multiple}
+      accept={accept}
+      disabled={disabled}
+      onChange={onChange}
+      style={{ display: 'none' }}
+    />
+    {children}
+  </label>
+);
+
 import { updateWorkProgress } from "./actions";
 import { TrendingUp, Save, CheckCircle, AlertCircle, Loader2, Target, MessageSquare, Edit3 } from "lucide-react";
 
@@ -34,7 +54,7 @@ export function UpdateProgressForm({
   currentExpectedCompletionDate,
   currentActualCompletionDate,
 }: UpdateProgressFormProps) {
-  const [isPending, startTransition] = useTransition();
+  const [isPending] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [progress, setProgress] = useState(currentProgress || 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -44,33 +64,86 @@ export function UpdateProgressForm({
     uploadedFiles: []
   });
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setMessage(null);
-
-    const formData = new FormData(event.currentTarget);
-    
-    startTransition(async () => {
-      const result = await updateWorkProgress(formData);
-      if (result?.error) {
-        setMessage({ text: result.error, type: 'error' });
-      } else {
-        setMessage({ text: result.success || 'Progress updated successfully!', type: 'success' });
-        setProgress(Number(formData.get('progress')));
-        setTimeout(() => {
-          setIsOpen(false);
-          setMessage(null);
-        }, 1500);
-      }
-    });
-  };
-
   const getProgressColor = (p: number) => {
     if (p >= 100) return 'from-green-500 to-emerald-600';
     if (p >= 75) return 'from-blue-500 to-indigo-600';
     if (p >= 50) return 'from-yellow-500 to-amber-600';
     if (p >= 25) return 'from-orange-500 to-red-600';
     return 'from-red-500 to-pink-600';
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    
+    if (files.length === 0) return;
+
+    // File validation
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        setUploadState(prev => ({
+          ...prev,
+          uploading: false,
+          error: `File ${file.name} is too large. Maximum size is 5MB.`
+        }));
+        return;
+      }
+      
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        setUploadState(prev => ({
+          ...prev,
+          uploading: false,
+          error: `File ${file.name} has unsupported format. Allowed types: JPG, PNG, WEBP`
+        }));
+        return;
+      }
+    }
+
+    // Upload each file
+    for (const file of files) {
+      try {
+        setUploadState(prev => ({ ...prev, uploading: true, error: null }));
+
+        // Create FormData for API upload
+        const uploadFormData = new FormData();
+        uploadFormData.append("file", file);
+        uploadFormData.append("workId", workId.toString());
+
+        console.log("Uploading file via API route...", file.name);
+
+        // Upload via Next.js API route
+        const uploadResponse = await fetch("/api/upload", {
+          method: "POST",
+          body: uploadFormData,
+        });
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json();
+          throw new Error(errorData.error || "Failed to upload file");
+        }
+
+        const uploadData = await uploadResponse.json();
+        console.log("File upload successful via API!", uploadData);
+
+        setUploadState(prev => ({
+          ...prev,
+          uploading: false,
+          uploadedFiles: [...prev.uploadedFiles, {
+            url: uploadData.publicFileUrl,
+            name: uploadData.fileName
+          }]
+        }));
+      } catch (error: unknown) {
+        console.error("Upload error:", error);
+        setUploadState(prev => ({
+          ...prev,
+          uploading: false,
+          error: error instanceof Error ? error.message : "Failed to upload file"
+        }));
+      }
+    }
   };
 
   return (
@@ -107,9 +180,9 @@ export function UpdateProgressForm({
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto flex-1 pr-2">
+        <form action={updateWorkProgress} className="space-y-6 overflow-y-auto flex-1 pr-2">
           <input type="hidden" name="workId" value={workId} />
-          
+
           {/* Current Progress Display */}
           <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200">
             <div className="flex items-center justify-between mb-3">
@@ -120,13 +193,13 @@ export function UpdateProgressForm({
               <span className="text-lg font-bold text-slate-900">{progress}%</span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-              <div 
+              <div
                 className={`h-2 rounded-full transition-all duration-1000 ease-out bg-gradient-to-r ${getProgressColor(progress)}`}
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
-          
+
           <div className="space-y-3">
             <Label htmlFor="progress" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
               <Target className="h-4 w-4" />
@@ -147,7 +220,7 @@ export function UpdateProgressForm({
               <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-500 font-medium">%</span>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Expected Completion Date */}
             <div className="space-y-3">
@@ -165,7 +238,7 @@ export function UpdateProgressForm({
                 className="border-slate-200 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
-            
+
             {/* Actual Completion Date */}
             <div className="space-y-3">
               <Label htmlFor="actualCompletionDate" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
@@ -207,69 +280,24 @@ export function UpdateProgressForm({
               </svg>
               Progress Photos
             </Label>
-            <FileUploader
-              handleChange={async (fileOrFiles: File | File[]) => {
-                const file = Array.isArray(fileOrFiles) ? fileOrFiles[0] : fileOrFiles;
-                try {
-                  setUploadState(prev => ({ ...prev, uploading: true, error: null }));
-                  
-                  // Generate upload URL
-                  const result = await generateUploadUrl(file.name, file.type);
-                  if (result.error) {
-                    throw new Error(result.error);
-                  }
-
-                  // Upload to R2
-                  if (!result.success) throw new Error("Failed to get upload URL");
-                  const { uploadUrl, publicFileUrl } = result.success;
-                  const uploadResponse = await fetch(uploadUrl, {
-                    method: "PUT",
-                    body: file,
-                    headers: {
-                      "Content-Type": file.type
-                    }
-                  });
-
-                  if (!uploadResponse.ok) {
-                    throw new Error("Failed to upload file");
-                  }
-
-                  // Add attachment record
-                  const attachResult = await addAttachmentToWork(workId, publicFileUrl, file.name);
-                  if (attachResult.error) {
-                    throw new Error(attachResult.error);
-                  }
-
-                  setUploadState(prev => ({
-                    ...prev,
-                    uploading: false,
-                    uploadedFiles: [...prev.uploadedFiles, { url: publicFileUrl, name: file.name }]
-                  }));
-                } catch (error: unknown) {
-                  setUploadState(prev => ({
-                    ...prev,
-                    uploading: false,
-                    error: error instanceof Error ? error.message : "Failed to upload file"
-                  }));
-                }
-              }}
-              name="photos"
-              types={["JPG", "JPEG", "PNG", "WEBP"]}
+            <NativeFileInput
               multiple={true}
-              maxSize={5}
+              accept="image/*"
+              disabled={uploadState.uploading}
+              onChange={handleFileUpload}
             >
               <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-slate-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
                 <p className="text-sm text-slate-600 mb-1">
-                  Drag & drop photos here or click to browse
+                  Click to browse or drag & drop photos here
                 </p>
                 <p className="text-xs text-slate-500">
-                  Supports: JPG, PNG, WEBP (Max: 5MB)
+                  Supports: JPG, PNG, WEBP (Max: 5MB each)
                 </p>
               </div>
-            </FileUploader>
+            </NativeFileInput>
 
             {/* Preview uploaded files */}
             {uploadState.uploadedFiles.length > 0 && (
@@ -302,11 +330,11 @@ export function UpdateProgressForm({
               <div className="text-sm text-red-600">{uploadState.error}</div>
             )}
           </div>
-          
+
           {message && (
              <div className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-300 ${
-               message.type === 'error' 
-                 ? 'text-red-700 bg-red-50 border-red-200' 
+               message.type === 'error'
+                 ? 'text-red-700 bg-red-50 border-red-200'
                  : 'text-green-700 bg-green-50 border-green-200'
              }`}>
                {message.type === 'error' ? (
@@ -317,40 +345,36 @@ export function UpdateProgressForm({
                <span className="font-medium">{message.text}</span>
              </div>
           )}
-          
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsOpen(false)}
+              className="border-slate-200 hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isPending}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Update Progress
+                </>
+              )}
+            </Button>
+          </div>
         </form>
-        <DialogFooter className="flex flex-col sm:flex-row gap-3 w-full flex-shrink-0 pt-4 border-t">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={() => setIsOpen(false)}
-            className="w-full sm:w-auto border-slate-200 hover:bg-slate-50"
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            disabled={isPending} 
-            className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
-            onClick={(e) => {
-              e.preventDefault();
-              const form = e.currentTarget.closest('form');
-              if (form) form.requestSubmit();
-            }}
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Updating...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Update Progress
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );

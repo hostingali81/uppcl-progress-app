@@ -52,6 +52,7 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
   const [showMentions, setShowMentions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState("");
   const [mentionPosition, setMentionPosition] = useState(0);
+  const [mentionedUsers, setMentionedUsers] = useState<MentionUser[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -78,11 +79,16 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
     setShowMentions(false);
   };
 
-  const insertMention = (userName: string) => {
+  const insertMention = (user: MentionUser) => {
     const before = commentContent.substring(0, mentionPosition);
     const after = commentContent.substring(mentionPosition + mentionSearch.length + 1);
-    const newContent = before + '@' + userName + ' ' + after;
+    const newContent = `${before}@${user.display} ${after}`;
     setCommentContent(newContent);
+
+    if (!mentionedUsers.some(u => u.id === user.id)) {
+      setMentionedUsers([...mentionedUsers, user]);
+    }
+
     setShowMentions(false);
     textareaRef.current?.focus();
   };
@@ -94,11 +100,16 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
   const handlePostSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!commentContent.trim()) return;
-    
+
+    const mentionedIds = mentionedUsers
+      .filter(user => commentContent.includes(`@${user.display}`))
+      .map(user => user.id);
+
     startTransition(async () => {
-      const result = await addComment(workId, commentContent);
+      const result = await addComment(workId, commentContent, mentionedIds);
       if (result?.success) {
         setCommentContent("");
+        setMentionedUsers([]);
       }
     });
   };
@@ -151,7 +162,7 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
                   <button
                     key={user.id}
                     type="button"
-                    onClick={() => insertMention(user.display)}
+                    onClick={() => insertMention(user)}
                     className="w-full px-4 py-2 text-left hover:bg-blue-50 flex items-center gap-2 text-sm"
                   >
                     <User className="h-4 w-4 text-slate-400" />

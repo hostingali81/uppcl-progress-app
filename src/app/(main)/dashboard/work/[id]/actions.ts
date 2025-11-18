@@ -90,7 +90,9 @@ async function updateGoogleSheet(
     }
 }
 
-export async function updateWorkProgress(formData: FormData): Promise<{ error?: string; success?: string }> {
+export async function updateWorkProgress(formData: FormData) {
+  console.log("Starting updateWorkProgress");
+
   const { client: supabase, admin: supabaseAdmin } = await createSupabaseServerClient();
 
   const workId = formData.get("workId");
@@ -101,18 +103,24 @@ export async function updateWorkProgress(formData: FormData): Promise<{ error?: 
   const expectedCompletionDate = formData.get("expectedCompletionDate") as string | null;
   const actualCompletionDate = formData.get("actualCompletionDate") as string | null;
 
+  console.log("Form data:", { workId, progress, remark, billNo, billAmount, expectedCompletionDate, actualCompletionDate });
+
   const workIdNumber = Number(workId);
   const progressNumber = Number(progress);
   const billAmountNumber = billAmount ? Number(billAmount) : null;
 
+  console.log("Parsed data:", { workIdNumber, progressNumber, billAmountNumber });
+
   if (isNaN(workIdNumber) || isNaN(progressNumber)) {
-    return { error: "Invalid work ID or progress value." };
+    redirect(`/dashboard/work/${workId}?error=${encodeURIComponent("Invalid work ID or progress value.")}`);
   }
 
   // Get authenticated user
   const { data: { user }, error: authError } = await supabase.auth.getUser();
+  console.log("Auth result:", { user: !!user, authError });
+
   if (authError || !user) {
-    return { error: "Authentication required." };
+    redirect(`/dashboard/work/${workId}?error=${encodeURIComponent("Authentication required.")}`);
   }
 
   const { data: currentWork, error: fetchError } = await supabaseAdmin
@@ -121,25 +129,32 @@ export async function updateWorkProgress(formData: FormData): Promise<{ error?: 
     .eq("id", workIdNumber)
     .single();
 
+  console.log("Current work fetch:", { currentWork: !!currentWork, fetchError });
+
   if (fetchError || !currentWork) {
-    return { error: "Could not fetch current work details." };
+    console.error("Could not fetch current work details:", fetchError);
+    redirect(`/dashboard/work/${workId}?error=${encodeURIComponent("Could not fetch current work details.")}`);
   }
+
+  const updateData = {
+    progress_percentage: progressNumber,
+    remark,
+    bill_no: billNo || null,
+    bill_amount_with_tax: billAmountNumber,
+    expected_completion_date: expectedCompletionDate || null,
+    actual_completion_date: actualCompletionDate || null,
+  };
+
+  console.log("Update data:", updateData);
 
   const { error: updateError } = await supabaseAdmin
     .from("works")
-    .update({
-      progress_percentage: progressNumber,
-      remark,
-      bill_no: billNo || null,
-      bill_amount_with_tax: billAmountNumber,
-      expected_completion_date: expectedCompletionDate || null,
-      actual_completion_date: actualCompletionDate || null,
-    })
+    .update(updateData)
     .eq("id", workIdNumber);
 
   if (updateError) {
     console.error("Error updating work:", updateError);
-    return { error: "Failed to update work progress." };
+    redirect(`/dashboard/work/${workId}?error=${encodeURIComponent("Failed to update work progress.")}`);
   }
 
   // Get user's profile
@@ -158,7 +173,8 @@ export async function updateWorkProgress(formData: FormData): Promise<{ error?: 
       .insert({
         work_id: workIdNumber,
         user_id: user.id,
-        user_email: user.email || userDisplayName,
+        user_email: user.email,
+        user_full_name: userDisplayName,
         previous_progress: currentWork.progress_percentage || 0,
         new_progress: progressNumber,
         remark: remark || ""
@@ -202,7 +218,7 @@ export async function updateWorkProgress(formData: FormData): Promise<{ error?: 
 
     if (paymentLogError) {
       console.error("Failed to insert payment log:", paymentLogError);
-      return { error: "Progress and payment updated but payment logging failed." };
+      // Continue, don't fail the whole update
     }
   }
 
@@ -218,35 +234,11 @@ export async function updateWorkProgress(formData: FormData): Promise<{ error?: 
   }
 
   revalidatePath(`/dashboard/work/${workId}`);
-  return { success: "Progress updated successfully!" };
+  redirect(`/dashboard/work/${workId}?success=${encodeURIComponent("Progress updated successfully!")}`);
 }
 
-export async function generateUploadUrl(fileName: string, fileType: string) {
-  try {
-    const { client: supabase } = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { return { error: "Authentication required." }; }
-    const settings = await getSettings(supabase);
-    const accountId = settings.cloudflare_account_id;
-    const accessKeyId = settings.cloudflare_access_key_id;
-    const secretAccessKey = settings.cloudflare_secret_access_key;
-    const bucketName = settings.cloudflare_r2_bucket_name;
-    const publicUrl = settings.cloudflare_public_r2_url;
-    if (!accountId || !accessKeyId || !secretAccessKey || !bucketName || !publicUrl) { return { error: "Cloudflare R2 settings are not configured." }; }
-    const s3Client = new S3Client({ region: "auto", endpoint: `https://${accountId}.r2.cloudflarestorage.com`, credentials: { accessKeyId, secretAccessKey }, });
-    const uniqueKey = `uploads/${crypto.randomUUID()}-${fileName}`;
-    const command = new PutObjectCommand({ 
-      Bucket: bucketName, 
-      Key: uniqueKey, 
-      ContentType: fileType,
-    });
-    const uploadUrl = await getSignedUrl(s3Client, command, { 
-      expiresIn: 3600, // Increase expiry to 1 hour
-    });
-    const publicFileUrl = `${publicUrl}/${uniqueKey}`;
-    return { success: { uploadUrl, publicFileUrl } };
-  } catch (error: unknown) { return { error: `Failed to generate upload URL: ${error instanceof Error ? error.message : 'Unknown error'}` }; }
-}
+// File upload is now handled directly in the /api/upload route
+// This avoids any issues with FormData serialization between client and server action
 
 export async function addAttachmentToWork(workId: number, fileUrl: string, fileName: string, attachmentType: string = 'site_photo') {
   const { client: supabase } = await createSupabaseServerClient();
@@ -285,41 +277,49 @@ export async function deleteAttachment(attachmentId: number, workId: number) {
   return { success: "File deleted successfully." };
 }
 
-export async function addComment(workId: number, content: string) {
+export async function addComment(workId: number, content: string, mentionedUserIds: string[] = []) {
   const { client: supabase, admin: supabaseAdmin } = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) { return { error: "Authentication required." }; }
   if (!content || content.trim() === '') { return { error: "Comment cannot be empty." }; }
+
   const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
-  const { data: commentData, error } = await supabase.from("comments").insert({ work_id: workId, user_id: user.id, user_full_name: profile?.full_name || user.email, content: content }).select().single();
-  if (error) { return { error: `Could not post comment: ${error.message}` }; }
-  
-  // Extract mentions from content
-  const mentionRegex = /@([\w\s]+)/g;
-  const mentions = content.match(mentionRegex);
-  
-  if (mentions && commentData) {
-    // Get all users to find mentioned user IDs
-    const { data: allUsers } = await supabaseAdmin.from("profiles").select("id, full_name");
-    
-    for (const mention of mentions) {
-      const mentionedName = mention.substring(1).trim();
-      const mentionedUser = allUsers?.find((u: { id: string; full_name: string | null }) => u.full_name === mentionedName);
-      
-      if (mentionedUser && mentionedUser.id !== user.id) {
-        // Create notification
-        await supabaseAdmin.from("notifications").insert({
-          user_id: mentionedUser.id,
-          work_id: workId,
-          comment_id: commentData.id,
-          type: 'mention',
-          message: `${profile?.full_name || user.email} mentioned you in a comment`,
-          created_by: user.id
-        });
+  const userDisplayName = profile?.full_name || user.email || 'A user';
+
+  const { data: commentData, error } = await supabase.from("comments").insert({
+    work_id: workId,
+    user_id: user.id,
+    user_full_name: userDisplayName,
+    content: content
+  }).select().single();
+
+  if (error) {
+    console.error("Error posting comment:", error);
+    return { error: `Could not post comment: ${error.message}` };
+  }
+
+  // Create notifications for mentioned users
+  if (mentionedUserIds.length > 0 && commentData) {
+    const notifications = mentionedUserIds
+      .filter(id => id !== user.id) // Don't notify user for mentioning themselves
+      .map(mentionedId => ({
+        user_id: mentionedId,
+        work_id: workId,
+        comment_id: commentData.id,
+        type: 'mention' as const,
+        message: `${userDisplayName} mentioned you in a comment.`,
+        created_by: user.id
+      }));
+
+    if (notifications.length > 0) {
+      const { error: notificationError } = await supabaseAdmin.from("notifications").insert(notifications);
+      if (notificationError) {
+        console.error("Error creating notifications for mentions:", notificationError);
+        // Non-fatal error, so we don't return an error to the user
       }
     }
   }
-  
+
   revalidatePath(`/dashboard/work/${workId}`);
   return { success: "Comment posted." };
 }
@@ -543,7 +543,7 @@ export async function fetchWorkDetails(workId: number) {
     .single();
 
   // Fetch all users for mentions
-  const usersPromise = supabaseAdmin.from("profiles").select('id, full_name');
+  const usersPromise = supabaseAdmin.from("profiles").select('id, full_name, email');
 
   // Fetch current user's profile
   const profilePromise = supabase.from("profiles").select('role').eq('id', user.id).single();
@@ -622,8 +622,9 @@ export async function fetchWorkDetails(workId: number) {
 
   // Build mention users list - include all users
   const usersForMentions = allUsersData && allUsersData.length > 0 ? allUsersData
-    .filter(u => u.id !== user.id && u.full_name) // Exclude current user and null names
-    .map(u => ({ id: u.id, display: u.full_name })) : [];
+    .filter(u => u.id !== user.id) // Exclude current user
+    .map(u => ({ id: u.id, display: u.full_name || u.email })) // Use full_name, fallback to email
+    .filter(u => u.display) : []; // Ensure display name exists
 
   console.log('Mention users available:', usersForMentions.length, usersForMentions.slice(0, 3));
 

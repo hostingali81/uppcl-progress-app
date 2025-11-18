@@ -1,10 +1,12 @@
 // src/components/custom/ProgressLogsSection.tsx
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, User, Calendar, MessageSquare, Camera } from "lucide-react";
 import type { ProgressLog } from "@/lib/types";
+import { PhotoViewerModal } from "./PhotoViewerModal";
 
 interface ProgressLogsSectionProps {
   progressLogs: ProgressLog[];
@@ -38,10 +40,32 @@ function getProgressChangeIcon(previous: number | null, current: number) {
 }
 
 export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) {
+  // State for photo viewer modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [allPhotos, setAllPhotos] = useState<any[]>([]);
+
   // Format user display name from the data
   const getUserDisplayName = (log: ProgressLog) => {
     const profileName = log.profiles?.full_name;
     return profileName || log.user_email || 'Unknown User';
+  };
+
+  // Handle photo click to open modal
+  const handlePhotoClick = (photos: any[], index: number) => {
+    setAllPhotos(photos);
+    setCurrentPhotoIndex(index);
+    setIsModalOpen(true);
+  };
+
+  const handlePhotoChange = (index: number) => {
+    setCurrentPhotoIndex(index);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setAllPhotos([]);
+    setCurrentPhotoIndex(0);
   };
 
   if (!progressLogs || progressLogs.length === 0) {
@@ -67,99 +91,116 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
   }
 
   return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardHeader className="border-b border-slate-200">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 bg-purple-100 rounded-lg flex items-center justify-center">
-            <TrendingUp className="h-5 w-5 text-purple-600" />
-          </div>
-          <CardTitle className="text-lg font-semibold text-slate-900">Progress History</CardTitle>
-          <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-            {progressLogs.length} update{progressLogs.length !== 1 ? 's' : ''}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="p-6">
-        <div className="space-y-4">
-          {progressLogs.map((log) => (
-            <div key={log.id} className="border border-slate-200 rounded-lg p-4 bg-white hover:shadow-sm transition-shadow">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="text-2xl">
-                    {getProgressChangeIcon(log.previous_progress, log.new_progress)}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge 
-                        variant="secondary" 
-                        className={getProgressChangeColor(log.previous_progress, log.new_progress)}
-                      >
-                        {log.previous_progress !== null 
-                          ? `${log.previous_progress}% → ${log.new_progress}%`
-                          : `Started at ${log.new_progress}%`
-                        }
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-slate-600">
-                      <div className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        <span>{getUserDisplayName(log)}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>{formatTimeAgo(log.created_at)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium text-slate-900">
-                    {log.new_progress}%
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    Current
-                  </div>
-                </div>
-              </div>
-              
-              {log.remark && (
-                <div className="mt-3 pt-3 border-t border-slate-100">
-                  <div className="flex items-start gap-2">
-                    <MessageSquare className="h-4 w-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-slate-700 leading-relaxed">{log.remark}</p>
-                  </div>
-                </div>
-              )}
-              
-              {log.attachments && log.attachments.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-slate-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Camera className="h-4 w-4 text-slate-400" />
-                    <span className="text-sm font-medium text-slate-600">Site Photos ({log.attachments.filter((a: any) => a.attachment_type === 'site_photo' || !a.attachment_type).length})</span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {log.attachments.filter((a: any) => a.attachment_type === 'site_photo' || !a.attachment_type).map((attachment: any) => (
-                      <a
-                        key={attachment.id}
-                        href={attachment.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block aspect-video w-full overflow-hidden rounded-lg border border-slate-200 hover:border-blue-500 transition-colors"
-                      >
-                        <img
-                          src={attachment.file_url}
-                          alt={`Progress photo ${formatTimeAgo(attachment.created_at)}`}
-                          className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
-                        />
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
+    <>
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader className="border-b border-slate-200">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 bg-purple-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-purple-600" />
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            <CardTitle className="text-lg font-semibold text-slate-900">Progress History</CardTitle>
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+              {progressLogs.length} update{progressLogs.length !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            {progressLogs.map((log) => {
+              const sitePhotos = log.attachments?.filter((a: any) => a.attachment_type === 'site_photo' || !a.attachment_type) || [];
+              
+              return (
+                <div key={log.id} className="border border-slate-200 rounded-lg p-4 bg-white hover:shadow-sm transition-shadow">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="text-2xl">
+                        {getProgressChangeIcon(log.previous_progress, log.new_progress)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge 
+                            variant="secondary" 
+                            className={getProgressChangeColor(log.previous_progress, log.new_progress)}
+                          >
+                            {log.previous_progress !== null 
+                              ? `${log.previous_progress}% → ${log.new_progress}%`
+                              : `Started at ${log.new_progress}%`
+                            }
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-slate-600">
+                          <div className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            <span>{getUserDisplayName(log)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            <span suppressHydrationWarning>{formatTimeAgo(log.created_at)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-slate-900">
+                        {log.new_progress}%
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        Current
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {log.remark && (
+                    <div className="mt-3 pt-3 border-t border-slate-100">
+                      <div className="flex items-start gap-2">
+                        <MessageSquare className="h-4 w-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-slate-700 leading-relaxed">{log.remark}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {sitePhotos.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Camera className="h-4 w-4 text-slate-400" />
+                        <span className="text-sm font-medium text-slate-600">Site Photos ({sitePhotos.length})</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {sitePhotos.map((attachment: any, index: number) => (
+                          <div
+                            key={attachment.id}
+                            className="block aspect-video w-full overflow-hidden rounded-lg border border-slate-200 hover:border-blue-500 transition-all cursor-pointer group"
+                            onClick={() => handlePhotoClick(sitePhotos, index)}
+                          >
+                            <img
+                              src={attachment.file_url}
+                              alt={`Progress photo ${formatTimeAgo(attachment.created_at)}`}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              suppressHydrationWarning
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <span className="text-white text-sm font-medium">Click to view</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Photo Viewer Modal */}
+      <PhotoViewerModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        photos={allPhotos}
+        currentPhotoIndex={currentPhotoIndex}
+        onPhotoChange={handlePhotoChange}
+      />
+    </>
   );
 }

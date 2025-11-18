@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { ArrowLeft, FileText, MapPin, DollarSign, Calendar, Users, AlertTriangle, CheckCircle, Clock, TrendingUp, Building2, MapPin as LocationIcon, FileText as DocumentIcon, DollarSign as MoneyIcon, Calendar as CalendarIcon, Users as TeamIcon, Settings } from "lucide-react";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ClickableDetailRow } from './ClickableDetailRow';
 import EditableStatusRow, { EditableDetailRow } from './EditableStatusRow';
 import { EnhancedButton } from "@/components/ui/enhanced-button";
@@ -114,6 +115,23 @@ export default function WorkDetailClient({
     suggestions = {}
 }: WorkDetailClientProps) {
     const [refreshKey, setRefreshKey] = useState(0);
+    const searchParams = useSearchParams();
+    const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+    useEffect(() => {
+        const successMessage = searchParams.get('success');
+        const errorMessage = searchParams.get('error');
+
+        if (successMessage) {
+            setNotification({ type: 'success', message: decodeURIComponent(successMessage) });
+            const timer = setTimeout(() => setNotification(null), 5000);
+            return () => clearTimeout(timer);
+        } else if (errorMessage) {
+            setNotification({ type: 'error', message: decodeURIComponent(errorMessage) });
+            const timer = setTimeout(() => setNotification(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [searchParams]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
@@ -137,6 +155,24 @@ export default function WorkDetailClient({
                     </div>
                 </div>
             </div>
+
+            {/* Success/Error Notification */}
+            {notification && (
+                <div className="p-4 sm:p-6">
+                    <div className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-300 ${
+                        notification.type === 'error'
+                            ? 'text-red-700 bg-red-50 border-red-200'
+                            : 'text-green-700 bg-green-50 border-green-200'
+                    }`}>
+                        {notification.type === 'error' ? (
+                            <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                        ) : (
+                            <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                        )}
+                        <span className="font-medium">{notification.message}</span>
+                    </div>
+                </div>
+            )}
 
             {/* Main Content */}
             <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -320,12 +356,12 @@ export default function WorkDetailClient({
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                    <EditableDetailRow label="Distribution Zone" fieldName="distribution_zone" currentValue={work.distribution_zone} workId={work.id} suggestions={suggestions.distribution_zone} />
-                                    <EditableDetailRow label="Distribution Circle" fieldName="distribution_circle" currentValue={work.distribution_circle} workId={work.id} suggestions={suggestions.distribution_circle} />
-                                    <EditableDetailRow label="Distribution Division" fieldName="distribution_division" currentValue={work.distribution_division} workId={work.id} suggestions={suggestions.distribution_division} />
-                                    <EditableDetailRow label="Distribution Sub-Division" fieldName="distribution_sub_division" currentValue={work.distribution_sub_division} workId={work.id} suggestions={suggestions.distribution_sub_division} />
-                                </div>
-                            </CardContent>
+                                <EditableDetailRow label="Distribution Zone" fieldName="distribution_zone" currentValue={work.distribution_zone} workId={work.id} suggestions={suggestions.distribution_zone} />
+                                <EditableDetailRow label="Distribution Circle" fieldName="distribution_circle" currentValue={work.distribution_circle} workId={work.id} suggestions={suggestions.distribution_circle} />
+                                <EditableDetailRow label="Distribution Division" fieldName="distribution_division" currentValue={work.distribution_division} workId={work.id} suggestions={suggestions.distribution_division} />
+                                <EditableDetailRow label="Distribution Sub-Division" fieldName="distribution_sub_division" currentValue={work.distribution_sub_division} workId={work.id} suggestions={suggestions.distribution_sub_division} />
+                            </div>
+                        </CardContent>
                     </Card>
                 </div>
 
