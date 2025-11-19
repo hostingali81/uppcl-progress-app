@@ -17,7 +17,7 @@ interface AnalyticsClientProps {
   statusData: { name: string; value: number; }[];
   financialData: { name: string; value: number; }[];
   districtData: { name: string; total: number; }[];
-  monthlyData: { month: string; total: number; completed: number; completionRate: number; }[];
+  monthlyData: { week: string; total: number; completed: number; completionRate: number; }[];
   chartTitle: string;
   kpis: {
     totalWorks: number;
@@ -143,27 +143,40 @@ export function AnalyticsClient({
       .sort((a, b) => b.total - a.total); // Sort by total in descending order
   }, [getBaseFilteredWorks]);
 
-  // Recalculate monthly data based on filtered works
-  const getFilteredMonthlyData = useCallback(() => {
+  // Recalculate weekly data based on filtered works
+  const getFilteredWeeklyData = useCallback(() => {
     const baseWorks = getBaseFilteredWorks();
-    const monthlyTrend = baseWorks.reduce((acc, work) => {
+    const weeklyTrend = baseWorks.reduce((acc, work) => {
       if (work.created_at) {
-        const month = new Date(work.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        if (!acc[month]) acc[month] = { total: 0, completed: 0 };
-        acc[month].total++;
-        if ((work.progress_percentage || 0) === 100) acc[month].completed++;
+        const date = new Date(work.created_at);
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const day = date.getDate();
+
+        // Calculate week number (Sunday as start of week)
+        const weekStart = new Date(year, month, day - date.getDay());
+        const weekLabel = weekStart.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+
+        if (!acc[weekLabel]) acc[weekLabel] = { total: 0, completed: 0 };
+        acc[weekLabel].total++;
+        if ((work.progress_percentage || 0) === 100) acc[weekLabel].completed++;
       }
       return acc;
     }, {} as Record<string, { total: number; completed: number }>);
 
-    return Object.keys(monthlyTrend)
-      .map(month => ({
-        month,
-        total: monthlyTrend[month].total,
-        completed: monthlyTrend[month].completed,
-        completionRate: monthlyTrend[month].total > 0 ? (monthlyTrend[month].completed / monthlyTrend[month].total) * 100 : 0
+    return Object.keys(weeklyTrend)
+      .map(week => ({
+        week: week,
+        total: weeklyTrend[week].total,
+        completed: weeklyTrend[week].completed,
+        completionRate: weeklyTrend[week].total > 0 ? (weeklyTrend[week].completed / weeklyTrend[week].total) * 100 : 0
       }))
-      .slice(-6);
+      .sort((a, b) => new Date(a.week).getTime() - new Date(b.week).getTime())
+      .slice(-12); // Last 12 weeks
   }, [getBaseFilteredWorks]);
 
   // Recalculate KPIs based on scheme/category filtered works (base set)
@@ -641,7 +654,7 @@ export function AnalyticsClient({
         statusData={getFilteredStatusData()}
         financialData={getFilteredFinancialData()}
         districtData={getFilteredDistrictData()}
-        monthlyData={getFilteredMonthlyData()}
+        monthlyData={getFilteredWeeklyData()}
         chartTitle={chartTitle}
         kpis={getFilteredKPIs()}
         colors={colors}
@@ -649,89 +662,6 @@ export function AnalyticsClient({
         activeFilter={activeFilter}
       />
 
-      {/* Filtered Works Table */}
-      {activeFilter !== 'all' && (
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="border-b border-slate-200 flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                  {filteredWorks.length}
-                </Badge>
-                {getFilterLabel(activeFilter)}
-              </CardTitle>
-            </div>
-            <div>
-              <ExportToExcelButton selectedScheme={selectedSchemes.length > 0 ? selectedSchemes.join(', ') : 'All'} filteredWorks={displayedWorks} />
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th onClick={() => handleSort('work_name')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
-                      <div className="flex items-center gap-2">Work Name {sort.column === 'work_name' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
-                    </th>
-                    <th onClick={() => handleSort('district_name')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
-                      <div className="flex items-center gap-2">District {sort.column === 'district_name' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
-                    </th>
-                    <th onClick={() => handleSort('progress_percentage')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
-                      <div className="flex items-center gap-2">Progress {sort.column === 'progress_percentage' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
-                    </th>
-                    <th onClick={() => handleSort('scheme_name')} className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer">
-                      <div className="flex items-center gap-2">Scheme Name {sort.column === 'scheme_name' ? (sort.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}</div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-slate-200">
-                  {displayedWorks.map((work) => (
-                    <tr key={work.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 text-sm text-slate-900">
-                        <div className="flex items-center gap-1">
-                          <span className="truncate flex-1 min-w-0" title={work.work_name ?? undefined}>
-                            {truncateWorkName(work.work_name ?? null, getTruncationLength(false))}
-                          </span>
-                          {(work.work_name && work.work_name.length > getTruncationLength(false)) && (
-                            <Tooltip content={work.work_name ?? undefined}>
-                              <Info className="h-4 w-4 text-slate-400 hover:text-slate-600 cursor-help flex-shrink-0" />
-                            </Tooltip>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-900">
-                        {work.district_name}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 bg-slate-200 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full ${
-                                (work.progress_percentage || 0) === 100
-                                  ? 'bg-green-500'
-                                  : (work.progress_percentage || 0) > 0
-                                  ? 'bg-blue-500'
-                                  : 'bg-slate-400'
-                              }`}
-                              style={{ width: `${work.progress_percentage || 0}%` }}
-                            />
-                          </div>
-                          <span className="text-slate-900 font-medium">
-                            {work.progress_percentage}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-900">
-                        {work.scheme_name}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

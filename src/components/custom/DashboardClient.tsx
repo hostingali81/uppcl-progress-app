@@ -11,8 +11,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
 
-import { DashboardFilters } from "@/components/custom/DashboardFilters";
-import { DateFilter } from "@/components/custom/DateFilter";
+
+
 import { AlertTriangle, TrendingUp, Clock, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown, Play, Info, ChevronDown, Filter, X } from "lucide-react";
 
 import type { Work, ProgressLog } from "@/lib/types";
@@ -240,9 +240,21 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     return name.substring(0, maxLength) + '...';
   };
 
+  // Function to truncate remarks
+  const truncateRemarks = (remark?: string | null, maxLength: number = 40): string => {
+    if (!remark) return 'No remarks';
+    if (remark.length <= maxLength) return remark;
+    return remark.substring(0, maxLength) + '...';
+  };
+
   // Function to get responsive truncation length
   const getTruncationLength = (isMobile: boolean = false): number => {
     return isMobile ? 15 : 40;
+  };
+
+  // Function to get responsive truncation length for remarks
+  const getRemarksTruncationLength = (isMobile: boolean = false): number => {
+    return isMobile ? 20 : 50;
   };
 
   // Helper function to check if tooltip should be shown
@@ -252,6 +264,17 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     // Mobile mein tooltip show karna chahiye jab text 20+ characters ho
     return workName.length > getTruncationLength(true);
   };
+
+  // Helper function to get the last progress remark for a work
+  const getLastProgressRemark = useCallback((workId: string | number) => {
+    const workLogs = progressLogs.filter(log => log.work_id === Number(workId));
+    if (workLogs.length === 0) return 'No remarks';
+    // Get the most recent log by created_at
+    const latestLog = workLogs.sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )[0];
+    return latestLog.remark || 'No remarks';
+  }, [progressLogs]);
 
   // Calculate historical progress based on selected date
   const getHistoricalProgress = useMemo(() => {
@@ -471,24 +494,14 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
 
   // Calculate summary statistics based on selected scheme and category - memoized for performance
   const summaryStats = useMemo(() => {
-    // First filter works by selected schemes (multi-select)
-    const schemeWorks = selectedSchemes.length === 0
-      ? works
-      : works.filter(w => selectedSchemes.includes(w.scheme_name || ''));
-
-    // Then filter by selected categories (multi-select)
-    const filteredWorks = selectedWorkCategories.length === 0
-      ? schemeWorks
-      : schemeWorks.filter(w => selectedWorkCategories.includes(w.work_category || ''));
-
-    const totalWorks = filteredWorks?.length || 0;
-    const completedWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) === 100).length || 0;
-    const inProgressWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100).length || 0;
-    const notStartedWorks = filteredWorks?.filter(w => (w.progress_percentage || 0) === 0).length || 0;
-    const blockedWorks = filteredWorks?.filter(w => w.is_blocked).length || 0;
+    const totalWorks = works?.length || 0;
+    const completedWorks = works?.filter(w => (w.progress_percentage || 0) === 100).length || 0;
+    const inProgressWorks = works?.filter(w => (w.progress_percentage || 0) > 0 && (w.progress_percentage || 0) < 100).length || 0;
+    const notStartedWorks = works?.filter(w => (w.progress_percentage || 0) === 0).length || 0;
+    const blockedWorks = works?.filter(w => w.is_blocked).length || 0;
 
     return { totalWorks, completedWorks, inProgressWorks, notStartedWorks, blockedWorks };
-  }, [getHistoricalProgress, applyFilters]);
+  }, [works]);
 
   const handleKPIClick = useCallback((type: 'completed' | 'in_progress' | 'not_started' | 'blocked' | 'all') => {
     // Update active KPI then re-apply filters on top of the current historical base
@@ -572,11 +585,6 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
 
 
 
-      {/* Date Filter */}
-      <DateFilter 
-        onDateChange={handleDateChange}
-        selectedDate={selectedDate}
-      />
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
@@ -627,18 +635,6 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
         </Card>
       </div>
 
-      {/* Filters and Sorting */}
-      <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-3 sm:p-6">
-          <DashboardFilters
-            works={getHistoricalProgress}
-            userRole={profile.role}
-            onFilterChange={handleFilterChange}
-            onSortChange={handleSortChange}
-            onFilterStateChange={handleFilterStateChange}
-          />
-        </CardContent>
-      </Card>
 
       {/* Works Table */}
       <Card className="border-slate-200 shadow-sm">
@@ -655,7 +651,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
             <Table className="min-w-[300px] sm:min-w-[400px]">
               <TableHeader>
                 <TableRow className="border-slate-200">
-                  <TableHead 
+                  <TableHead
                     className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[150px] sm:min-w-[180px]"
                     onClick={() => handleSort('work_name')}
                   >
@@ -664,7 +660,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                       {getSortIcon('work_name')}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none w-[80px] sm:w-[100px]"
                     onClick={() => handleSort('district_name')}
                   >
@@ -673,7 +669,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                       {getSortIcon('district_name')}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className="text-right font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none w-[90px] sm:w-[110px]"
                     onClick={() => handleSort('progress_percentage')}
                   >
@@ -681,6 +677,9 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                       <span className="text-xs sm:text-sm">Progress</span>
                       {getSortIcon('progress_percentage')}
                     </div>
+                  </TableHead>
+                  <TableHead className="font-semibold text-slate-900 select-none min-w-[120px] sm:min-w-[150px]">
+                    <span className="text-xs sm:text-sm">Last Progress Remarks</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -724,7 +723,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                       <TableCell className="text-right w-[90px] sm:w-[110px]">
                         <div className="flex items-center justify-end gap-2">
                           <div className="w-12 sm:w-16 bg-slate-200 rounded-full h-2 relative overflow-hidden">
-                            <div 
+                            <div
                               className={`h-2 rounded-full transition-all duration-500 ${
                                 (work.progress_percentage || 0) === 100 ? 'bg-green-500' :
                                 (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
@@ -740,11 +739,21 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                           </span>
                         </div>
                       </TableCell>
+                      <TableCell className="min-w-[120px] sm:min-w-[150px]">
+                        <span className="text-slate-600 text-xs sm:text-sm line-clamp-2">
+                          <span className="truncate block sm:hidden">
+                            {truncateRemarks(getLastProgressRemark(work.id), getRemarksTruncationLength(true))}
+                          </span>
+                          <span className="truncate block hidden sm:block">
+                            {truncateRemarks(getLastProgressRemark(work.id), getRemarksTruncationLength(false))}
+                          </span>
+                        </span>
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-slate-500 py-12">
+                    <TableCell colSpan={4} className="text-center text-slate-500 py-12">
                       <div className="flex flex-col items-center gap-2">
                         <TrendingUp className="h-8 w-8 text-slate-400" />
                         <p className="text-lg font-medium">No works found</p>

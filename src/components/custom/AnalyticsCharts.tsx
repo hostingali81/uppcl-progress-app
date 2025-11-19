@@ -10,7 +10,7 @@ type AnalyticsChartsProps = {
   statusData: { name: string; value: number; }[];
   financialData: { name: string; value: number; }[];
   districtData: { name: string; total: number; }[];
-  monthlyData: { month: string; total: number; completed: number; completionRate: number; }[];
+  monthlyData: { week: string; total: number; completed: number; completionRate: number; }[];
   chartTitle: string;
   kpis: {
     totalWorks: number;
@@ -309,14 +309,14 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
               <div className="h-8 w-8 bg-orange-100 rounded-lg flex items-center justify-center">
                 <TrendingUp className="h-5 w-5 text-orange-600" />
               </div>
-              <CardTitle className="text-lg font-semibold text-slate-900">Monthly Progress Trend</CardTitle>
+              <CardTitle className="text-lg font-semibold text-slate-900">Weekly Progress Trend</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="p-6">
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <XAxis 
-                  dataKey="month" 
+                <XAxis
+                  dataKey="week"
                   tick={{ fontSize: 12, fill: '#64748b' }}
                   axisLine={{ stroke: '#e2e8f0' }}
                   tickLine={{ stroke: '#e2e8f0' }}

@@ -168,23 +168,38 @@ export default async function AnalyticsPage() {
 
   const districtData = Object.keys(districtCounts).map(name => ({ name, total: districtCounts[name] }));
 
-  // Monthly progress trend (last 6 months)
-  const monthlyTrend = worksData.reduce((acc, work) => {
+  // Weekly progress trend (last 12 weeks)
+  const weeklyTrend = worksData.reduce((acc, work) => {
     if (work.start_date) {
-      const month = new Date(work.start_date as any).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      if (!acc[month]) acc[month] = { total: 0, completed: 0 };
-      acc[month].total++;
-      if ((work.progress_percentage || 0) === 100) acc[month].completed++;
+      const date = new Date(work.start_date as any);
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const day = date.getDate();
+
+      // Calculate week number (Sunday as start of week)
+      const weekStart = new Date(year, month, day - date.getDay());
+      const weekLabel = weekStart.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+
+      if (!acc[weekLabel]) acc[weekLabel] = { total: 0, completed: 0 };
+      acc[weekLabel].total++;
+      if ((work.progress_percentage || 0) === 100) acc[weekLabel].completed++;
     }
     return acc;
   }, {} as Record<string, { total: number; completed: number }>);
 
-  const monthlyData = Object.keys(monthlyTrend).map(month => ({
-    month,
-    total: monthlyTrend[month].total,
-    completed: monthlyTrend[month].completed,
-    completionRate: monthlyTrend[month].total > 0 ? (monthlyTrend[month].completed / monthlyTrend[month].total) * 100 : 0
-  })).slice(-6); // Last 6 months
+  const monthlyData = Object.keys(weeklyTrend)
+    .map(week => ({
+      week: week,
+      total: weeklyTrend[week].total,
+      completed: weeklyTrend[week].completed,
+      completionRate: weeklyTrend[week].total > 0 ? (weeklyTrend[week].completed / weeklyTrend[week].total) * 100 : 0
+    }))
+    .sort((a, b) => new Date(a.week).getTime() - new Date(b.week).getTime())
+    .slice(-12); // Last 12 weeks
 
   // KPI calculations
   const totalWorks = worksData.length;
