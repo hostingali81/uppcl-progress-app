@@ -182,7 +182,6 @@ export default function WorkDetailClient({
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-2">
                             <h3 className="text-lg font-semibold text-slate-900">Quick Actions</h3>
-                            <span className="text-sm text-slate-500">Manage your work efficiently</span>
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
                             <UpdateProgressForm

@@ -4,7 +4,7 @@ import { useState, useTransition, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { addComment, editComment, deleteComment } from "@/app/(main)/dashboard/work/[id]/actions";
-import { Loader2, User, MoreHorizontal, MessageSquare, Edit3, Trash2 } from "lucide-react";
+import { Loader2, User, MoreHorizontal, MessageSquare, Edit3, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -54,6 +54,7 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
   const [mentionPosition, setMentionPosition] = useState(0);
   const [mentionedUsers, setMentionedUsers] = useState<MentionUser[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [showArchive, setShowArchive] = useState(false);
 
   useEffect(() => {
     console.log('mentionUsers:', mentionUsers);
@@ -190,7 +191,7 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
               <p className="text-sm text-slate-500">No comments yet. Start the conversation!</p>
             </div>
           ) : (
-            [...comments].reverse().map((comment) => (
+            (showArchive ? [...comments].reverse() : [...comments].reverse().slice(0, 4)).map((comment) => (
               <div key={comment.id} className="flex gap-3 p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
                 <div className="shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                     <User className="h-6 w-6 text-blue-600" />
@@ -240,6 +241,34 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
                 </div>
               </div>
             ))
+          )}
+
+          {/* Show Archive Button - Only when there are more than 4 comments */}
+          {!showArchive && comments && comments.length > 4 && (
+            <div className="text-center pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowArchive(true)}
+                className="text-slate-600 hover:text-slate-800 border-slate-300 hover:border-slate-400"
+              >
+                <ChevronDown className="h-4 w-4 mr-2" />
+                Show Archive/Old Data ({comments.length - 4} more)
+              </Button>
+            </div>
+          )}
+
+          {/* Show Less Button - Only when archive is shown */}
+          {showArchive && (
+            <div className="text-center pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowArchive(false)}
+                className="text-slate-600 hover:text-slate-800 border-slate-300 hover:border-slate-400"
+              >
+                <ChevronUp className="h-4 w-4 mr-2" />
+                Hide Archive
+              </Button>
+            </div>
           )}
         </div>
       </CardContent>

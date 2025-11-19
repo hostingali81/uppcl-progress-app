@@ -47,6 +47,16 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     search: string;
     scheme: string[];
     workCategory: string[];
+    district: string[];
+    distZone: string[];
+    distCircle: string[];
+    distDivision: string[];
+    distSubDivision: string[];
+    siteName: string[];
+    mbStatus: string[];
+    tecoStatus: string[];
+    ficoStatus: string[];
+    firmName: string[];
   }>({
     zone: [],
     circle: [],
@@ -56,7 +66,17 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     status: [],
     search: '',
     scheme: [],
-    workCategory: []
+    workCategory: [],
+    district: [],
+    distZone: [],
+    distCircle: [],
+    distDivision: [],
+    distSubDivision: [],
+    siteName: [],
+    mbStatus: [],
+    tecoStatus: [],
+    ficoStatus: [],
+    firmName: []
   });
 
   // Handle filter state changes from DashboardFilters component
@@ -70,6 +90,16 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     search: string;
     scheme: string[];
     workCategory: string[];
+    district: string[];
+    distZone: string[];
+    distCircle: string[];
+    distDivision: string[];
+    distSubDivision: string[];
+    siteName: string[];
+    mbStatus: string[];
+    tecoStatus: string[];
+    ficoStatus: string[];
+    firmName: string[];
   }) => {
     setRegionalFilters(filterState);
   };
@@ -93,6 +123,38 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     }
     if (effectiveCategories.length > 0) {
       filtered = filtered.filter(w => effectiveCategories.includes(w.work_category || ''));
+    }
+
+    // Additional filters from DashboardFilters (district, distZone, distCircle, distDivision, distSubDivision, siteName, mbStatus, tecoStatus, ficoStatus, firmName)
+    if (regionalFilters.district.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.district.includes(w.district_name || ''));
+    }
+    if (regionalFilters.distZone.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.distZone.includes(w.distribution_zone || ''));
+    }
+    if (regionalFilters.distCircle.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.distCircle.includes(w.distribution_circle || ''));
+    }
+    if (regionalFilters.distDivision.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.distDivision.includes(w.distribution_division || ''));
+    }
+    if (regionalFilters.distSubDivision.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.distSubDivision.includes(w.distribution_sub_division || ''));
+    }
+    if (regionalFilters.siteName.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.siteName.includes(w.site_name || ''));
+    }
+    if (regionalFilters.mbStatus.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.mbStatus.includes(w.mb_status || ''));
+    }
+    if (regionalFilters.tecoStatus.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.tecoStatus.includes(w.teco_status || ''));
+    }
+    if (regionalFilters.ficoStatus.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.ficoStatus.includes(w.fico_status || ''));
+    }
+    if (regionalFilters.firmName.length > 0) {
+      filtered = filtered.filter(w => regionalFilters.firmName.includes(w.firm_name_and_contact || ''));
     }
 
     // regional filters (zone/circle/division/subDivision/je)

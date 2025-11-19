@@ -4,7 +4,8 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, User, Calendar, MessageSquare, Camera } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, User, Calendar, MessageSquare, Camera, ChevronDown, ChevronUp } from "lucide-react";
 import type { ProgressLog } from "@/lib/types";
 import { PhotoViewerModal } from "./PhotoViewerModal";
 
@@ -44,6 +45,9 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [allPhotos, setAllPhotos] = useState<any[]>([]);
+
+  // State for showing archive data
+  const [showArchive, setShowArchive] = useState(false);
 
   // Format user display name from the data - PRIORITIZE user_full_name
   const getUserDisplayName = (log: ProgressLog) => {
@@ -118,7 +122,8 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
         </CardHeader>
         <CardContent className="p-3 sm:p-6">
           <div className="space-y-4">
-            {progressLogs.map((log) => {
+            {/* Show only last 4 updates by default */}
+            {(showArchive ? progressLogs : progressLogs.slice(0, 4)).map((log) => {
               const sitePhotos = log.attachments?.filter((a: any) => a.attachment_type === 'site_photo' || !a.attachment_type) || [];
               
               return (
@@ -201,6 +206,34 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
                 </div>
               );
             })}
+
+            {/* Show Archive Button - Only when there are more than 4 logs */}
+            {!showArchive && progressLogs.length > 4 && (
+              <div className="text-center pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowArchive(true)}
+                  className="text-slate-600 hover:text-slate-800 border-slate-300 hover:border-slate-400"
+                >
+                  <ChevronDown className="h-4 w-4 mr-2" />
+                  Show Archive/Old Data ({progressLogs.length - 4} more)
+                </Button>
+              </div>
+            )}
+
+            {/* Show Less Button - Only when archive is shown */}
+            {showArchive && (
+              <div className="text-center pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowArchive(false)}
+                  className="text-slate-600 hover:text-slate-800 border-slate-300 hover:border-slate-400"
+                >
+                  <ChevronUp className="h-4 w-4 mr-2" />
+                  Hide Archive
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

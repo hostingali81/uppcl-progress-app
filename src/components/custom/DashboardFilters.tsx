@@ -427,68 +427,18 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
       onFilterStateChange(newFilters);
     }
 
-    // Apply filters
-    let filteredWorks = works.filter(work => {
-      // Basic filters
-      const passesBasicFilters = (
-        (newFilters.scheme.length === 0 || newFilters.scheme.includes(work.scheme_name || '')) &&
-        (newFilters.workCategory.length === 0 || newFilters.workCategory.includes(work.work_category || '')) &&
-        (newFilters.zone.length === 0 || newFilters.zone.includes(work.civil_zone || '')) &&
-        (newFilters.circle.length === 0 || newFilters.circle.includes(work.civil_circle || '')) &&
-        (newFilters.division.length === 0 || newFilters.division.includes(work.civil_division || '')) &&
-        (newFilters.subDivision.length === 0 || newFilters.subDivision.includes(work.civil_sub_division || '')) &&
-        (newFilters.je.length === 0 || newFilters.je.includes(work.je_name || '')) &&
-        (newFilters.district.length === 0 || newFilters.district.includes(work.district_name || '')) &&
-        (newFilters.distZone.length === 0 || newFilters.distZone.includes(work.distribution_zone || '')) &&
-        (newFilters.distCircle.length === 0 || newFilters.distCircle.includes(work.distribution_circle || '')) &&
-        (newFilters.distDivision.length === 0 || newFilters.distDivision.includes(work.distribution_division || '')) &&
-        (newFilters.distSubDivision.length === 0 || newFilters.distSubDivision.includes(work.distribution_sub_division || '')) &&
-        (newFilters.siteName.length === 0 || newFilters.siteName.includes(work.site_name || '')) &&
-        (newFilters.mbStatus.length === 0 || newFilters.mbStatus.includes(work.mb_status || '')) &&
-        (newFilters.tecoStatus.length === 0 || newFilters.tecoStatus.includes(work.teco_status || '')) &&
-        (newFilters.ficoStatus.length === 0 || newFilters.ficoStatus.includes(work.fico_status || '')) &&
-        (newFilters.firmName.length === 0 || newFilters.firmName.includes(work.firm_name_and_contact || ''))
-      );
-
-      if (!passesBasicFilters) return false;
-
-      // Status filter
-      if (newFilters.status && newFilters.status.length > 0) {
-        const progress = work.progress_percentage || 0;
-        const matchesAnyStatus = newFilters.status.some(st => {
-          if (st === 'completed') return progress === 100;
-          if (st === 'in_progress') return progress > 0 && progress < 100;
-          if (st === 'not_started') return progress === 0;
-          if (st === 'blocked') return !!work.is_blocked;
-          return true;
-        });
-        if (!matchesAnyStatus) return false;
-      }
-
-      // Search filter
-      if (debouncedSearch) {
-        const searchLower = debouncedSearch.toLowerCase();
-        const matchesSearch = (
-          work.work_name?.toLowerCase().includes(searchLower) ||
-          work.wbs_code?.toLowerCase().includes(searchLower) ||
-          work.district_name?.toLowerCase().includes(searchLower)
-        );
-        if (!matchesSearch) return false;
-      }
-
-      return true;
-    });    onFilterChange(filteredWorks);
+    // Remove the duplicate filtering logic - let DashboardClient handle all filtering uniformly
   };
 
   const clearFilters = () => {
-    setFilters({ 
-      zone: [], 
-      circle: [], 
-      division: [], 
+    const clearedFilters = {
+      zone: [],
+      circle: [],
+      division: [],
       subDivision: [],
-      je: [], 
-      status: [], 
-      search: '', 
+      je: [],
+      status: [],
+      search: '',
       scheme: [],
       workCategory: [],
       district: [],
@@ -501,8 +451,13 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
       tecoStatus: [],
       ficoStatus: [],
       firmName: []
-    });
-    onFilterChange(works);
+    };
+    setFilters(clearedFilters);
+
+    // Notify parent about filter state change
+    if (onFilterStateChange) {
+      onFilterStateChange(clearedFilters);
+    }
   };
 
   // Remove individual filter value without affecting other filters of the same type
@@ -516,63 +471,10 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
 
     setFilters(newFilters);
 
-    // Re-apply filters
-    let filteredWorks = works.filter(work => {
-      const passesBasicFilters = (
-        (newFilters.scheme.length === 0 || newFilters.scheme.includes(work.scheme_name || '')) &&
-        (newFilters.workCategory.length === 0 || newFilters.workCategory.includes(work.work_category || '')) &&
-        (newFilters.zone.length === 0 || newFilters.zone.includes(work.civil_zone || '')) &&
-        (newFilters.circle.length === 0 || newFilters.circle.includes(work.civil_circle || '')) &&
-        (newFilters.division.length === 0 || newFilters.division.includes(work.civil_division || '')) &&
-        (newFilters.subDivision.length === 0 || newFilters.subDivision.includes(work.civil_sub_division || '')) &&
-        (newFilters.je.length === 0 || newFilters.je.includes(work.je_name || '')) &&
-        (newFilters.district.length === 0 || newFilters.district.includes(work.district_name || '')) &&
-        (newFilters.distZone.length === 0 || newFilters.distZone.includes(work.distribution_zone || '')) &&
-        (newFilters.distCircle.length === 0 || newFilters.distCircle.includes(work.distribution_circle || '')) &&
-        (newFilters.distDivision.length === 0 || newFilters.distDivision.includes(work.distribution_division || '')) &&
-        (newFilters.distSubDivision.length === 0 || newFilters.distSubDivision.includes(work.distribution_sub_division || '')) &&
-        (newFilters.siteName.length === 0 || newFilters.siteName.includes(work.site_name || '')) &&
-        (newFilters.mbStatus.length === 0 || newFilters.mbStatus.includes(work.mb_status || '')) &&
-        (newFilters.tecoStatus.length === 0 || newFilters.tecoStatus.includes(work.teco_status || '')) &&
-        (newFilters.ficoStatus.length === 0 || newFilters.ficoStatus.includes(work.fico_status || '')) &&
-        (newFilters.firmName.length === 0 || newFilters.firmName.includes(work.firm_name_and_contact || ''))
-      );
-
-      if (!passesBasicFilters) return false;
-
-      // Status filter
-      if (newFilters.status && newFilters.status.length > 0) {
-        const progress = work.progress_percentage || 0;
-        const matchesAnyStatus = newFilters.status.some(st => {
-          if (st === 'completed') return progress === 100;
-          if (st === 'in_progress') return progress > 0 && progress < 100;
-          if (st === 'not_started') return progress === 0;
-          if (st === 'blocked') return !!work.is_blocked;
-          return true;
-        });
-        if (!matchesAnyStatus) return false;
-      }
-
-      // Search filter
-      if (newFilters.search) {
-        const searchLower = newFilters.search.toLowerCase();
-        const matchesSearch = (
-          work.work_name?.toLowerCase().includes(searchLower) ||
-          work.wbs_code?.toLowerCase().includes(searchLower) ||
-          work.district_name?.toLowerCase().includes(searchLower)
-        );
-        if (!matchesSearch) return false;
-      }
-
-      return true;
-    });
-
     // Notify parent about filter state change
     if (onFilterStateChange) {
       onFilterStateChange(newFilters);
     }
-
-    onFilterChange(filteredWorks);
   };
 
   const activeFiltersCount = [
