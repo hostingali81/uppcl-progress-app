@@ -16,6 +16,7 @@ import { FileUploadManager } from "@/components/custom/FileUploadManager";
 import { CommentsSection } from "@/components/custom/CommentsSection";
 import { BlockerStatusManager } from "@/components/custom/BlockerStatusManager";
 import { ProgressLogsSection } from "@/components/custom/ProgressLogsSection";
+
 import { PaymentStatusTab } from "@/components/custom/PaymentStatusTab";
 
 interface WorkData {
@@ -35,6 +36,7 @@ interface WorkDetailClientProps {
     progressLogs: any[];
     comments: any[];
     suggestions?: Record<string, string[]>;
+    allAttachments?: any[];
 }
 
 // Enhanced editable detail row component
@@ -112,7 +114,8 @@ export default function WorkDetailClient({
     paymentLogs,
     progressLogs,
     comments,
-    suggestions = {}
+    suggestions = {},
+    allAttachments = []
 }: WorkDetailClientProps) {
     const [refreshKey, setRefreshKey] = useState(0);
     const searchParams = useSearchParams();
@@ -209,7 +212,7 @@ export default function WorkDetailClient({
                     </div>
                 </div>
 
-                {/* Information Cards Grid */}
+                {/* General Information and Status Cards Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* General Information Card */}
                     <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
@@ -234,33 +237,63 @@ export default function WorkDetailClient({
                         </CardContent>
                     </Card>
 
-                    {/* Location Details Card */}
+                    {/* Status Information Card */}
                     <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
-                        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
+                        <CardHeader className="bg-gradient-to-r from-red-50 to-pink-50 border-b border-slate-200">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
-                                    <LocationIcon className="h-5 w-5 text-white" />
+                                <div className="h-10 w-10 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <AlertTriangle className="h-5 w-5 text-white" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-xl font-bold text-slate-900">Location Details</CardTitle>
-                                    <CardDescription className="text-slate-600">Geographical and administrative information</CardDescription>
+                                    <CardTitle className="text-xl font-bold text-slate-900">Status Information</CardTitle>
+                                    <CardDescription className="text-slate-600">Project status and approvals</CardDescription>
                                 </div>
                             </div>
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                <DetailRow label="Civil Zone" value={work.civil_zone} fieldName="civil_zone" workId={work.id} />
-                                <DetailRow label="Civil Circle" value={work.civil_circle} fieldName="civil_circle" workId={work.id} />
-                                <DetailRow label="Civil Division" value={work.civil_division} fieldName="civil_division" workId={work.id} />
-                                <DetailRow label="Civil Sub-Division" value={work.civil_sub_division} fieldName="civil_sub_division" workId={work.id} />
-                                <DetailRow label="District Name" value={work.district_name} fieldName="district_name" workId={work.id} suggestions={suggestions.district_name} />
-                                <DetailRow label="JE Name" value={work.je_name} fieldName="je_name" workId={work.id} />
+                                <DetailRow label="WBS Code" value={work.wbs_code} fieldName="wbs_code" workId={work.id} />
+                                <EditableStatusRow label="MB Status" fieldName="mb_status" currentValue={work.mb_status} workId={work.id} />
+                                <EditableStatusRow label="TECO Status" fieldName="teco_status" currentValue={work.teco_status || work.teco} workId={work.id} />
+                                <EditableStatusRow label="FICO Status" fieldName="fico_status" currentValue={work.fico_status || work.fico} workId={work.id} />
+                                <DetailRow label="Is Blocked" value={work.is_blocked ? 'Yes' : 'No'} />
+                                <DetailRow label="Last Bill No." value={latestBillNumber} />
+                                    <ClickableDetailRow
+                                        label="Total Billed Amount"
+                                        value={totalBillAmount > 0 ? `₹${totalBillAmount.toLocaleString('en-IN')}` : 'N/A'}
+                                        workId={work.id}
+                                        paymentLogs={paymentLogs || []}
+                                    />
                             </div>
                         </CardContent>
                     </Card>
                 </div>
 
-                {/* Financial & Timeline Cards */}
+                {/* Timeline Information */}
+                <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
+                    <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-slate-200">
+                        <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
+                                <CalendarIcon className="h-5 w-5 text-white" />
+                            </div>
+                                <div>
+                                    <CardTitle className="text-xl font-bold text-slate-900">Timeline Information</CardTitle>
+                                    <CardDescription className="text-slate-600">Project schedule and milestones</CardDescription>
+                                </div>
+                        </div>
+                            </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="divide-y divide-slate-100">
+                            <DetailRow label="Date of Start" value={work.start_date} fieldName="start_date" workId={work.id} type="date" />
+                            <DetailRow label="Scheduled Date of Completion" value={work.scheduled_completion_date} fieldName="scheduled_completion_date" workId={work.id} type="date" />
+                            <DetailRow label="Expected Date of Completion" value={work.expected_completion_date} fieldName="expected_completion_date" workId={work.id} type="date" />
+                            <DetailRow label="Actual Date of Completion" value={work.actual_completion_date} fieldName="actual_completion_date" workId={work.id} type="date" />
+                            <DetailRow label="Remark" value={work.remark} fieldName="remark" workId={work.id} />
+                        </div>
+                    </CardContent>
+                </Card>
+
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Financial Details Card */}
                     <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
@@ -364,40 +397,12 @@ export default function WorkDetailClient({
                     </Card>
                 </div>
 
-                {/* Status Information Card (updated per user request) */}
-                <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
-                    <CardHeader className="bg-gradient-to-r from-red-50 to-pink-50 border-b border-slate-200">
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-                                <AlertTriangle className="h-5 w-5 text-white" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-xl font-bold text-slate-900">Status Information</CardTitle>
-                                <CardDescription className="text-slate-600">Project status and approvals</CardDescription>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="divide-y divide-slate-100">
-                            <DetailRow label="WBS Code" value={work.wbs_code} fieldName="wbs_code" workId={work.id} />
-                            <EditableStatusRow label="MB Status" fieldName="mb_status" currentValue={work.mb_status} workId={work.id} />
-                            <EditableStatusRow label="TECO Status" fieldName="teco_status" currentValue={work.teco_status || work.teco} workId={work.id} />
-                            <EditableStatusRow label="FICO Status" fieldName="fico_status" currentValue={work.fico_status || work.fico} workId={work.id} />
-                            <DetailRow label="Is Blocked" value={work.is_blocked ? 'Yes' : 'No'} />
-                            <DetailRow label="Last Bill No." value={latestBillNumber} />
-                                <ClickableDetailRow
-                                    label="Total Billed Amount"
-                                    value={totalBillAmount > 0 ? `₹${totalBillAmount.toLocaleString('en-IN')}` : 'N/A'}
-                                    workId={work.id}
-                                    paymentLogs={paymentLogs || []}
-                                />
-                        </div>
-                    </CardContent>
-                </Card>
-
                 {/* Progress Logs & Comments Section */}
                 <div className="space-y-6">
-                    <ProgressLogsSection progressLogs={progressLogs} />
+                    <ProgressLogsSection
+                        progressLogs={progressLogs}
+                        allAttachments={allAttachments}
+                    />
 
                         <CommentsSection
                             workId={work.id}

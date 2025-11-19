@@ -95,14 +95,14 @@ export function ProgressPhotosSection({ attachments, workId }: ProgressPhotosSec
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {attachments.map((attachment, index) => (
               <div key={attachment.id} className="relative group">
-                <div className="aspect-video w-full overflow-hidden rounded-lg border border-slate-200">
-                  <div 
+                <div className="aspect-square w-full overflow-hidden rounded-lg border border-slate-200 max-w-[200px] mx-auto">
+                  <div
                     className="block w-full h-full relative cursor-pointer"
                     onClick={() => handlePhotoClick(index)}
                   >
-                    <img 
-                      src={attachment.file_url} 
-                      alt={`Progress photo ${formatTimeAgo(attachment.created_at)}`} 
+                    <img
+                      src={attachment.file_url}
+                      alt={`Progress photo ${formatTimeAgo(attachment.created_at)}`}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">

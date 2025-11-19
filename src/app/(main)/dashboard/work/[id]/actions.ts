@@ -548,14 +548,20 @@ export async function fetchWorkDetails(workId: number) {
   // Fetch current user's profile
   const profilePromise = supabase.from("profiles").select('role').eq('id', user.id).single();
 
-  // Fetch progress logs with attachments
+  // Fetch progress logs with user names
   const progressLogsPromise = supabaseAdmin
     .from("progress_logs")
     .select(
-      `id, work_id, user_id, user_email, previous_progress, new_progress, remark, created_at`
+      `id, work_id, user_id, user_email, user_full_name, previous_progress, new_progress, remark, created_at`
     )
     .eq('work_id', workId)
     .order('created_at', { ascending: false });
+
+  // Fetch attachments for ProgressPhotosSection (all attachments for this work)
+  const allAttachmentsPromise = supabaseAdmin
+    .from("attachments")
+    .select('id, file_url, file_name, created_at, attachment_type, uploader_id, uploader_full_name')
+    .eq('work_id', workId);
 
   // Fetch attachments linked to progress logs separately
   const progressAttachmentsPromise = supabaseAdmin
@@ -583,10 +589,11 @@ export async function fetchWorkDetails(workId: number) {
     { data: allUsers },
     { data: currentUserProfile },
     { data: progressLogs },
+    { data: allAttachments },
     { data: progressAttachments },
     { data: paymentLogs },
     { data: comments }
-  ] = await Promise.all([workPromise, usersPromise, profilePromise, progressLogsPromise, progressAttachmentsPromise, paymentLogsPromise, commentsPromise]);
+  ] = await Promise.all([workPromise, usersPromise, profilePromise, progressLogsPromise, allAttachmentsPromise, progressAttachmentsPromise, paymentLogsPromise, commentsPromise]);
 
   if (workError || !workRow) {
     console.error('Work fetch failed:', {
@@ -644,6 +651,7 @@ export async function fetchWorkDetails(workId: number) {
     latestBillNumber,
     paymentLogs: paymentLogs || [],
     progressLogs: progressLogsWithAttachments || [],
-    comments: comments || []
+    comments: comments || [],
+    allAttachments: allAttachments || []
   };
 }

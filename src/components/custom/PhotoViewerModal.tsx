@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
 
@@ -59,6 +59,10 @@ export function PhotoViewerModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none">
+        {/* Screen reader accessible title */}
+        <DialogTitle className="sr-only">
+          Photo Viewer - {currentPhoto.file_name || `Photo ${currentPhotoIndex + 1} of ${photos.length}`}
+        </DialogTitle>
         <div className="relative w-full h-full">
           {/* Header */}
           <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/50 to-transparent p-4">
@@ -119,11 +123,8 @@ export function PhotoViewerModal({
           </div>
 
           {/* Image Container */}
-          <div 
-            className="flex items-center justify-center w-full h-full overflow-hidden cursor-grab active:cursor-grabbing"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) onClose();
-            }}
+          <div
+            className="flex items-center justify-center w-full h-full overflow-hidden cursor-zoom-in"
           >
             <img
               src={currentPhoto.file_url}
@@ -135,6 +136,7 @@ export function PhotoViewerModal({
                 maxWidth: zoom === 1 ? '90vw' : 'none'
               }}
               draggable={false}
+              onClick={onClose}
             />
           </div>
 

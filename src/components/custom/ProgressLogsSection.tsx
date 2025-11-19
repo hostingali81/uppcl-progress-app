@@ -11,6 +11,13 @@ import { PhotoViewerModal } from "./PhotoViewerModal";
 
 interface ProgressLogsSectionProps {
   progressLogs: ProgressLog[];
+  allAttachments?: any[];
+}
+
+interface PhotoAttachment {
+  id: string | number;
+  file_url: string;
+  file_name?: string;
 }
 
 function formatTimeAgo(dateString: string) {
@@ -40,7 +47,7 @@ function getProgressChangeIcon(previous: number | null, current: number) {
   return "➡️";
 }
 
-export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) {
+export function ProgressLogsSection({ progressLogs, allAttachments = [] }: ProgressLogsSectionProps) {
   // State for photo viewer modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -124,7 +131,8 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
           <div className="space-y-4">
             {/* Show only last 4 updates by default */}
             {(showArchive ? progressLogs : progressLogs.slice(0, 4)).map((log) => {
-              const sitePhotos = log.attachments?.filter((a: any) => a.attachment_type === 'site_photo' || !a.attachment_type) || [];
+              // Get photos from already linked attachments in the progress log data
+              const sitePhotos = (log as any).attachments || [];
               
               return (
                 <div key={log.id} className="border border-slate-200 rounded-lg p-3 sm:p-4 bg-white hover:shadow-sm transition-shadow">
@@ -178,28 +186,56 @@ export function ProgressLogsSection({ progressLogs }: ProgressLogsSectionProps) 
                   
                   {sitePhotos.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-slate-100">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Camera className="h-4 w-4 text-slate-400" />
-                        <span className="text-sm font-medium text-slate-600">Site Photos ({sitePhotos.length})</span>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {sitePhotos.map((attachment: any, index: number) => (
-                          <div
-                            key={attachment.id}
-                            className="block aspect-video w-full overflow-hidden rounded-lg border border-slate-200 hover:border-blue-500 transition-all cursor-pointer group"
-                            onClick={() => handlePhotoClick(sitePhotos, index)}
+                      <div className="space-y-3">
+                        {/* Photo count and view button */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                            <Camera className="h-4 w-4" />
+                            Progress Photos ({sitePhotos.length})
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePhotoClick(sitePhotos, 0)}
+                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 h-auto"
                           >
-                            <img
-                              src={attachment.file_url}
-                              alt={`Progress photo ${formatTimeAgo(attachment.created_at)}`}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                              suppressHydrationWarning
-                            />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <span className="text-white text-sm font-medium">Click to view</span>
+                            View All
+                          </Button>
+                        </div>
+                        
+                        {/* Small, compact photo thumbnails */}
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1 sm:gap-2">
+                          {sitePhotos.slice(0, 8).map((photo: PhotoAttachment, index: number) => (
+                            <div
+                              key={photo.id}
+                              className="relative group cursor-pointer"
+                              onClick={() => handlePhotoClick(sitePhotos, index)}
+                            >
+                              <div className="aspect-square w-full overflow-hidden rounded border border-slate-200 hover:border-blue-300 transition-colors">
+                                <img
+                                  src={photo.file_url}
+                                  alt={photo.file_name || `Progress photo`}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Camera className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+                        
+                        {/* Show more indicator */}
+                        {sitePhotos.length > 8 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePhotoClick(sitePhotos, 0)}
+                            className="w-full text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs py-1 h-7"
+                          >
+                            View {sitePhotos.length - 8} more photos
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}

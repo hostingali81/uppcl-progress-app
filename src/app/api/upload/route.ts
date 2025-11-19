@@ -20,6 +20,8 @@ export async function POST(request: NextRequest) {
     const fileData = formData.get("file");
     const workIdStr = formData.get("workId") as string;
     const attachmentType = (formData.get("attachmentType") as string) || 'site_photo';
+    const progressLogIdStr = formData.get("progress_log_id") as string;
+    const progressLogId = progressLogIdStr ? parseInt(progressLogIdStr) : null;
 
     console.log("File data received:", {
       fileDataType: typeof fileData,
@@ -108,7 +110,8 @@ export async function POST(request: NextRequest) {
       file_name: fileName,
       uploader_id: user.id,
       uploader_full_name: profile?.full_name || user.email,
-      attachment_type: attachmentType
+      attachment_type: attachmentType,
+      progress_log_id: progressLogId || null
     });
 
     if (attachError) {

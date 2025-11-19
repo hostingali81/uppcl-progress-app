@@ -1,11 +1,12 @@
-# Photo Upload Problem Analysis and Fix
+# Photo Upload Display Fix
 
-## Todo List:
-- [ ] Analyze current photo upload implementation
-- [ ] Check UpdateProgressForm.tsx for photo upload logic
-- [ ] Examine FileUploadManager.tsx component
-- [ ] Review upload API route
-- [ ] Check ProgressPhotosSection.tsx for display logic
-- [ ] Identify the root cause of the problem
-- [ ] Fix the identified issues
-- [ ] Test the photo upload functionality
+## Task: Fix uploaded photos not showing in progress log
+
+### Steps:
+- [ ] Analyze the current ProgressLogsSection component
+- [ ] Examine ProgressPhotosSection and related photo handling components
+- [ ] Check FileUploadManager implementation
+- [ ] Review PhotoViewerModal functionality
+- [ ] Identify the root cause of photos not displaying
+- [ ] Fix the photo display issue in progress logs
+- [ ] Test the photo upload and display functionality

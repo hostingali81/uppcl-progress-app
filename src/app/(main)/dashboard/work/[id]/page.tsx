@@ -37,5 +37,5 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
         distribution_sub_division: distSubDivisionSuggestions as string[]
     };
 
-    return <WorkDetailClient {...workData} suggestions={suggestions} />;
+    return <WorkDetailClient {...workData} suggestions={suggestions} allAttachments={(workData as any).allAttachments} />;
 }
