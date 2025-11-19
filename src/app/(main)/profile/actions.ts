@@ -30,6 +30,52 @@ export async function updateProfile(fullName: string) {
   return { success: true };
 }
 
+// Action 3: Mark notification as read
+export async function markNotificationAsRead(notificationId: number) {
+  const { client: supabase } = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Authentication required." };
+  }
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("id", notificationId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    return { error: `Could not mark notification as read: ${error.message}` };
+  }
+
+  revalidatePath("/(main)/profile");
+  return { success: true };
+}
+
+// Action 4: Mark all notifications as read
+export async function markAllNotificationsAsRead() {
+  const { client: supabase } = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Authentication required." };
+  }
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("user_id", user.id)
+    .eq("is_read", false);
+
+  if (error) {
+    return { error: `Could not mark all notifications as read: ${error.message}` };
+  }
+
+  revalidatePath("/(main)/profile");
+  return { success: true };
+}
+
 // Action 2: Change user's password with current password validation
 export async function updatePassword(currentPassword: string, newPassword: string) {
   const { client: supabase } = await createSupabaseServerClient();

@@ -191,7 +191,7 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
               <p className="text-sm text-slate-500">No comments yet. Start the conversation!</p>
             </div>
           ) : (
-            (showArchive ? [...comments].reverse() : [...comments].reverse().slice(0, 4)).map((comment) => (
+            (showArchive ? [...comments] : [...comments].slice(0, 4)).map((comment) => (
               <div key={comment.id} className="flex gap-3 p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
                 <div className="shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                     <User className="h-6 w-6 text-blue-600" />

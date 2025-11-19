@@ -283,10 +283,10 @@ export async function addComment(workId: number, content: string, mentionedUserI
   if (!user) { return { error: "Authentication required." }; }
   if (!content || content.trim() === '') { return { error: "Comment cannot be empty." }; }
 
-  const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+  const { data: profile } = await supabaseAdmin.from("profiles").select("full_name").eq("id", user.id).single();
   const userDisplayName = profile?.full_name || user.email || 'A user';
 
-  const { data: commentData, error } = await supabase.from("comments").insert({
+  const { data: commentData, error } = await supabaseAdmin.from("comments").insert({
     work_id: workId,
     user_id: user.id,
     user_full_name: userDisplayName,
@@ -298,24 +298,112 @@ export async function addComment(workId: number, content: string, mentionedUserI
     return { error: `Could not post comment: ${error.message}` };
   }
 
-  // Create notifications for mentioned users
-  if (mentionedUserIds.length > 0 && commentData) {
-    const notifications = mentionedUserIds
-      .filter(id => id !== user.id) // Don't notify user for mentioning themselves
-      .map(mentionedId => ({
-        user_id: mentionedId,
-        work_id: workId,
-        comment_id: commentData.id,
-        type: 'mention' as const,
-        message: `${userDisplayName} mentioned you in a comment.`,
-        created_by: user.id
-      }));
+  // Get the work details to determine hierarchy
+  const { data: work } = await supabaseAdmin
+    .from("works")
+    .select("civil_zone, civil_circle, civil_division, civil_sub_division, work_name")
+    .eq("id", workId)
+    .single();
 
-    if (notifications.length > 0) {
-      const { error: notificationError } = await supabaseAdmin.from("notifications").insert(notifications);
-      if (notificationError) {
-        console.error("Error creating notifications for mentions:", notificationError);
-        // Non-fatal error, so we don't return an error to the user
+  // Get all users who should get hierarchy notifications for this work
+  if (work) {
+    const hierarchyNotifications: any[] = [];
+    const mentionNotifications: any[] = [];
+
+    // Get ALL users who should receive notifications based on work hierarchy
+    // This is broader than just the users who can see the work on their dashboard
+    const { data: allUsers } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, role, region, circle, division, subdivision")
+      .neq("id", user.id); // Exclude the commenter themselves
+
+    if (allUsers && allUsers.length > 0) {
+      // Create notifications for users who would have access to this work's hierarchy
+      allUsers.forEach((userProfile: {
+        id: string;
+        full_name: string | null;
+        role: string;
+        region: string | null;
+        circle: string | null;
+        division: string | null;
+        subdivision: string | null;
+      }) => {
+        const { id, full_name, role, region, circle, division, subdivision } = userProfile;
+        let shouldNotify = false;
+
+        // Check if user should receive notifications based on work hierarchy
+        switch (role) {
+          case 'superadmin':
+          case 'admin':
+            // Admins get notifications for all works
+            shouldNotify = true;
+            break;
+          case 'je':
+            // JE gets notification if their region matches the work's je_name
+            shouldNotify = region === work.je_name;
+            break;
+          case 'sub_division_head':
+            // Sub-division head gets notification if their subdivision matches work's subdivision
+            shouldNotify = subdivision === work.civil_sub_division;
+            break;
+          case 'division_head':
+            // Division head gets notification if their division matches work's division
+            shouldNotify = division === work.civil_division;
+            break;
+          case 'circle_head':
+            // Circle head gets notification if their circle matches work's circle
+            shouldNotify = circle === work.civil_circle;
+            break;
+          case 'zone_head':
+            // Zone head gets notification if their zone matches work's zone
+            shouldNotify = region === work.civil_zone;
+            break;
+        }
+
+        if (shouldNotify) {
+          // Check if this user was mentioned
+          const isMentioned = mentionedUserIds.includes(id);
+
+          if (isMentioned) {
+            // Create mention notification (higher priority)
+            mentionNotifications.push({
+              user_id: id,
+              work_id: workId,
+              comment_id: commentData.id,
+              type: 'mention' as const,
+              message: `${userDisplayName} mentioned you in a comment on "${work.work_name}".`,
+              created_by: user.id
+            });
+          } else {
+            // Create hierarchy notification for users who can see this work
+            hierarchyNotifications.push({
+              user_id: id,
+              work_id: workId,
+              comment_id: commentData.id,
+              type: 'comment' as const,
+              message: `${userDisplayName} commented on "${work.work_name}": ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
+              created_by: user.id
+            });
+          }
+        }
+      });
+    }
+
+    console.log(`Work ID ${workId} - notifying ${hierarchyNotifications.length} users + ${mentionNotifications.length} mentions`);
+
+    // Insert hierarchy notifications (regular comments)
+    if (hierarchyNotifications.length > 0) {
+      const { error: hierarchyError } = await supabaseAdmin.from("notifications").insert(hierarchyNotifications);
+      if (hierarchyError) {
+        console.error("Error creating hierarchy notifications:", hierarchyError);
+      }
+    }
+
+    // Insert mention notifications (higher priority)
+    if (mentionNotifications.length > 0) {
+      const { error: mentionError } = await supabaseAdmin.from("notifications").insert(mentionNotifications);
+      if (mentionError) {
+        console.error("Error creating mention notifications:", mentionError);
       }
     }
   }
@@ -394,8 +482,8 @@ export async function toggleBlockerStatus(
   }
 
   // Refresh cache for both dashboard and work page
-  revalidatePath(`/(main)/dashboard/work/${workId}`);
-  revalidatePath(`/(main)/dashboard`);
+  revalidatePath(`/dashboard/work/${workId}`);
+  revalidatePath(`/dashboard`);
   
   return { success: "Blocker status updated successfully." };
 }

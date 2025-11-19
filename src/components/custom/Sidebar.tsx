@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart, LayoutDashboard, LogOut, Settings, User, Users, FolderOpen, FileText } from "lucide-react";
+import { BarChart, LayoutDashboard, LogOut, Settings, User, Users, FolderOpen, FileText, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -22,6 +22,7 @@ const allNavItems = [
   { href: "/reports", label: "Reports", icon: FileText, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/admin/users", label: "User Management", icon: Users, roles: ['superadmin'] },
   { href: "/admin/settings", label: "System Settings", icon: Settings, roles: ['superadmin'] },
+  { href: "/notifications", label: "My Notifications", icon: Bell, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/profile", label: "My Profile", icon: User, roles: ['je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
 ];
 
@@ -39,10 +40,44 @@ const NavLink = ({ item }: { item: typeof allNavItems[0] }) => {
 export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
   const navItems = allNavItems.filter(item => item.roles.includes(userDetails.role));
   const [schemes, setSchemes] = useState<string[]>([]);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     fetch('/api/schemes').then(r => r.json()).then(data => setSchemes(data.schemes || []));
   }, []);
+
+  if (!isClient) {
+    // Render a simplified version for SSR to prevent hydration mismatches
+    return (
+      <aside className="hidden md:flex md:flex-col md:w-64 border-r border-slate-200 bg-white/80 backdrop-blur-sm shadow-sm">
+        <div className="flex h-16 items-center border-b border-slate-200 px-6">
+          <Link href="/" className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Pragati</Link>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <nav className="p-4 space-y-1">
+            {navItems.map((item) => (
+              <Link key={item.href} href={item.href} className="flex items-center space-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900">
+                <item.icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <div className="mt-auto p-4 border-t border-slate-200">
+          <div className="flex items-center space-x-3 py-2">
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+              <User className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-slate-800 truncate">{userDetails.fullName}</span>
+              <span className="text-xs text-slate-500 capitalize">{userDetails.role.replace('_', ' ')}</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="hidden md:flex md:flex-col md:w-64 border-r border-slate-200 bg-white/80 backdrop-blur-sm shadow-sm">
@@ -54,7 +89,7 @@ export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
           {navItems.map((item) => (
             <NavLink key={item.href} item={item} />
           ))}
-          {schemes.length > 0 && (
+          {isClient && schemes.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-200">
               <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-500 uppercase">
                 <FolderOpen className="h-4 w-4" />

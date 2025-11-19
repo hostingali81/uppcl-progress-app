@@ -64,10 +64,13 @@ export default async function ProfilePage() {
         }
     }
 
+    // Don't fetch notifications server-side to avoid hydration issues
+    // Let NotificationsSection handle client-side fetching
+
     if (!profile) {
         // Try to create a basic profile if it doesn't exist
         console.log("Profile not found, attempting to create basic profile...");
-        
+
         const profileInsert = {
             id: user.id,
             full_name: user.email?.split('@')[0] || 'User',
@@ -79,12 +82,12 @@ export default async function ProfilePage() {
             .insert(profileInsert)
             .select()
             .single();
-            
+
         if (createError || !newProfile) {
             console.error("Failed to create profile:", createError);
             return <ProfileNotFound userEmail={user.email} userId={user.id} />;
         }
-        
+
         // Use the newly created profile
         profile = newProfile as ProfileData;
     }
@@ -207,14 +210,15 @@ export default async function ProfilePage() {
                                     Active
                                 </Badge>
                             </div>
-                            <ProfileClient 
-                                fullName="" 
+                            <ProfileClient
+                                fullName=""
                                 type="password"
                             />
                         </div>
                     </CardContent>
                 </Card>
             </div>
+
         </div>
     );
 }
