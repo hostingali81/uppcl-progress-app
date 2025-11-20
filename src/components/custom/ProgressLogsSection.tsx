@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, User, Calendar, MessageSquare, Camera, ChevronDown, ChevronUp } from "lucide-react";
 import type { ProgressLog } from "@/lib/types";
-import { PhotoViewerModal } from "./PhotoViewerModal";
+
 
 interface ProgressLogsSectionProps {
   progressLogs: ProgressLog[];
@@ -48,11 +48,6 @@ function getProgressChangeIcon(previous: number | null, current: number) {
 }
 
 export function ProgressLogsSection({ progressLogs, allAttachments = [] }: ProgressLogsSectionProps) {
-  // State for photo viewer modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-  const [allPhotos, setAllPhotos] = useState<any[]>([]);
-
   // State for showing archive data
   const [showArchive, setShowArchive] = useState(false);
 
@@ -74,21 +69,282 @@ export function ProgressLogsSection({ progressLogs, allAttachments = [] }: Progr
     return log.user_email || 'Unknown User';
   };
 
-  // Handle photo click to open modal
-  const handlePhotoClick = (photos: any[], index: number) => {
-    setAllPhotos(photos);
-    setCurrentPhotoIndex(index);
-    setIsModalOpen(true);
-  };
+  // Handle photo click to open in new tab with navigation for multiple photos
+  const handlePhotoClick = (sitePhotos: any[], currentIndex: number, clickedPhotoUrl?: string, clickedFileName?: string) => {
+    // If single photo click, find the index
+    let photoIndex = currentIndex;
+    if (clickedPhotoUrl) {
+      photoIndex = sitePhotos.findIndex((photo: any) => photo.file_url === clickedPhotoUrl);
+      if (photoIndex === -1) photoIndex = 0;
+    }
 
-  const handlePhotoChange = (index: number) => {
-    setCurrentPhotoIndex(index);
-  };
+    const currentPhoto = sitePhotos[photoIndex];
+    const photoUrl = currentPhoto?.file_url || clickedPhotoUrl;
+    const fileName = currentPhoto?.file_name || clickedFileName || 'Progress Photo';
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setAllPhotos([]);
-    setCurrentPhotoIndex(0);
+    // Create HTML content for photo viewer with navigation
+    const photoViewerHTML = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${fileName}</title>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            background: #000;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          }
+          .viewer {
+            position: relative;
+            max-width: 100vw;
+            max-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .image-container {
+            position: relative;
+            max-width: 90vw;
+            max-height: 90vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .photo {
+            max-width: 100%;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+          }
+          .nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            z-index: 10;
+          }
+          .nav-btn:hover {
+            background: rgba(0,0,0,0.9);
+            transform: translateY(-50%) scale(1.1);
+          }
+          .nav-btn.left {
+            left: 20px;
+          }
+          .nav-btn.right {
+            right: 20px;
+          }
+          .nav-btn.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+          }
+          .nav-btn.disabled:hover {
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.8);
+          }
+          .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s ease;
+          }
+          .close-btn:hover {
+            background: rgba(0,0,0,0.9);
+            transform: scale(1.1);
+          }
+          .info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            text-align: center;
+          }
+          .download-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+          }
+          .download-btn:hover {
+            background: rgba(0,0,0,0.9);
+            transform: scale(1.05);
+          }
+        </style>
+      </head>
+      <body>
+        <div class="viewer">
+          <button class="close-btn" onclick="window.close()">&times;</button>
+
+          <button class="nav-btn left ${sitePhotos.length <= 1 ? 'disabled' : ''}"
+                  onclick="changePhoto(-1)"
+                  ${sitePhotos.length <= 1 ? 'disabled' : ''}>
+            &#8249;
+          </button>
+
+          <div class="image-container">
+            <img class="photo" id="currentPhoto"
+                 src="${photoUrl}"
+                 alt="${fileName}"
+                 onload="fitImage()">
+          </div>
+
+          <button class="nav-btn right ${sitePhotos.length <= 1 ? 'disabled' : ''}"
+                  onclick="changePhoto(1)"
+                  ${sitePhotos.length <= 1 ? 'disabled' : ''}>
+            &#8250;
+          </button>
+
+          <div class="info">${photoIndex + 1} of ${sitePhotos.length}</div>
+
+          <a class="download-btn" href="${photoUrl}" download="${fileName}">
+            Download
+          </a>
+        </div>
+
+        <script>
+          const photos = ${JSON.stringify(sitePhotos)};
+          let currentIndex = ${photoIndex};
+
+          function changePhoto(direction) {
+            if (photos.length <= 1) return;
+
+            currentIndex += direction;
+            if (currentIndex < 0) currentIndex = photos.length - 1;
+            if (currentIndex >= photos.length) currentIndex = 0;
+
+            const photo = photos[currentIndex];
+            document.getElementById('currentPhoto').src = photo.file_url;
+            document.querySelector('.info').textContent = (currentIndex + 1) + ' of ' + photos.length;
+            document.title = photo.file_name || 'Progress Photo';
+            document.querySelector('.download-btn').href = photo.file_url;
+            document.querySelector('.download-btn').download = photo.file_name || 'Progress Photo';
+
+            // Fit image to screen
+            setTimeout(fitImage, 100);
+          }
+
+          function fitImage() {
+            const img = document.getElementById('currentPhoto');
+            const container = document.querySelector('.image-container');
+
+            // Calculate scale to fit image in container while maintaining aspect ratio
+            const scaleX = container.clientWidth / img.naturalWidth;
+            const scaleY = container.clientHeight / img.naturalHeight;
+            const scale = Math.min(scaleX, scaleY, 1);
+
+            if (scale < 1) {
+              img.style.maxWidth = (img.naturalWidth * scale) + 'px';
+              img.style.maxHeight = (img.naturalHeight * scale) + 'px';
+            }
+          }
+
+          // Handle keyboard navigation
+          document.addEventListener('keydown', function(e) {
+            switch(e.key) {
+              case 'ArrowLeft':
+                changePhoto(-1);
+                break;
+              case 'ArrowRight':
+                changePhoto(1);
+                break;
+              case 'Escape':
+                window.close();
+                break;
+            }
+          });
+
+          // Handle touch/swipe navigation on mobile
+          let startX = 0;
+          let endX = 0;
+
+          document.addEventListener('touchstart', function(e) {
+            startX = e.touches[0].clientX;
+          });
+
+          document.addEventListener('touchend', function(e) {
+            endX = e.changedTouches[0].clientX;
+            const diff = startX - endX;
+
+            if (Math.abs(diff) > 50) { // Minimum swipe distance
+              if (diff > 0) {
+                changePhoto(1); // Swipe left - next photo
+              } else {
+                changePhoto(-1); // Swipe right - previous photo
+              }
+            }
+          });
+
+          // Fit image on window resize
+          window.addEventListener('resize', fitImage);
+
+          // Initial fit
+          fitImage();
+        </script>
+      </body>
+      </html>
+    `;
+
+    // Create a blob URL for the HTML content
+    const blob = new Blob([photoViewerHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+
+    // Open the photo viewer in a new tab
+    const newTab = window.open(url, '_blank');
+
+    if (newTab) {
+      newTab.document.title = fileName;
+    }
+
+    // Clean up blob URL after some time
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
   if (!progressLogs || progressLogs.length === 0) {
@@ -133,7 +389,7 @@ export function ProgressLogsSection({ progressLogs, allAttachments = [] }: Progr
             {(showArchive ? progressLogs : progressLogs.slice(0, 4)).map((log) => {
               // Get photos from already linked attachments in the progress log data
               const sitePhotos = (log as any).attachments || [];
-              
+
               return (
                 <div key={log.id} className="border border-slate-200 rounded-lg p-3 sm:p-4 bg-white hover:shadow-sm transition-shadow">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3 gap-3">
@@ -143,11 +399,11 @@ export function ProgressLogsSection({ progressLogs, allAttachments = [] }: Progr
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <Badge 
-                            variant="secondary" 
+                          <Badge
+                            variant="secondary"
                             className={`${getProgressChangeColor(log.previous_progress, log.new_progress)} text-xs`}
                           >
-                            {log.previous_progress !== null 
+                            {log.previous_progress !== null
                               ? `${log.previous_progress}% → ${log.new_progress}%`
                               : `Started at ${log.new_progress}%`
                             }
@@ -174,7 +430,7 @@ export function ProgressLogsSection({ progressLogs, allAttachments = [] }: Progr
                       </div>
                     </div>
                   </div>
-                  
+
                   {log.remark && (
                     <div className="mt-3 pt-3 border-t border-slate-100">
                       <div className="flex items-start gap-2">
@@ -183,58 +439,53 @@ export function ProgressLogsSection({ progressLogs, allAttachments = [] }: Progr
                       </div>
                     </div>
                   )}
-                  
+
                   {sitePhotos.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-slate-100">
                       <div className="space-y-3">
                         {/* Photo count and view button */}
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                            <Camera className="h-4 w-4" />
+                          <span className="text-xs text-slate-600 flex items-center gap-2">
+                            <Camera className="h-3 w-3" />
                             Progress Photos ({sitePhotos.length})
                           </span>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handlePhotoClick(sitePhotos, 0)}
-                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 h-auto"
+                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 h-auto text-xs"
                           >
-                            View All
+                            View First
                           </Button>
                         </div>
-                        
-                        {/* Small, compact photo thumbnails */}
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1 sm:gap-2">
+
+                        {/* Small, compact photo thumbnails - Reduced to 75% size */}
+                        <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1 sm:gap-2">
                           {sitePhotos.slice(0, 8).map((photo: PhotoAttachment, index: number) => (
                             <div
                               key={photo.id}
                               className="relative group cursor-pointer"
-                              onClick={() => handlePhotoClick(sitePhotos, index)}
+                              onClick={() => handlePhotoClick(sitePhotos, index, photo.file_url, photo.file_name)}
                             >
-                              <div className="aspect-square w-full overflow-hidden rounded border border-slate-200 hover:border-blue-300 transition-colors">
+                              <div className="aspect-square w-[75%] mx-auto overflow-hidden rounded border border-slate-200 hover:border-blue-300 transition-colors">
                                 <img
                                   src={photo.file_url}
                                   alt={photo.file_name || `Progress photo`}
                                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                 />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <Camera className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
+                                <div className="absolute inset-[12.5%] bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Camera className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-white" />
                                 </div>
                               </div>
                             </div>
                           ))}
                         </div>
-                        
+
                         {/* Show more indicator */}
                         {sitePhotos.length > 8 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handlePhotoClick(sitePhotos, 0)}
-                            className="w-full text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs py-1 h-7"
-                          >
-                            View {sitePhotos.length - 8} more photos
-                          </Button>
+                          <p className="text-xs text-slate-500 text-center mt-2">
+                            +{sitePhotos.length - 8} more photos available
+                          </p>
                         )}
                       </div>
                     </div>
@@ -274,14 +525,7 @@ export function ProgressLogsSection({ progressLogs, allAttachments = [] }: Progr
         </CardContent>
       </Card>
 
-      {/* Photo Viewer Modal */}
-      <PhotoViewerModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        photos={allPhotos}
-        currentPhotoIndex={currentPhotoIndex}
-        onPhotoChange={handlePhotoChange}
-      />
+      {/* Photos now open directly in new tabs - no modal needed */}
     </>
   );
 }

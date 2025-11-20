@@ -330,6 +330,43 @@
     select {
       font-size: 16px;
     }
+
+    /* Prevent persistent zoom after refresh on mobile */
+    html,
+    body {
+      -webkit-text-size-adjust: 100%;
+      -webkit-touch-callout: none;
+      -webkit-user-select: text;
+      -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+      -webkit-touch-callout: default;
+    }
+
+    /* Reset zoom on page load */
+    html {
+      zoom: normal;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
+    /* Prevent zoom on focus for all interactive elements */
+    input:focus,
+    select:focus,
+    textarea:focus,
+    button:focus,
+    [role="button"]:focus,
+    a:focus,
+    [tabindex]:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+      transform: none !important;
+    }
+
+    /* Ensure proper scaling on page load */
+    img {
+      max-width: 100%;
+      height: auto;
+    }
   }
   
   /* Better table responsiveness */

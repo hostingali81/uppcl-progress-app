@@ -19,9 +19,11 @@ export const CACHE = {
 
 export const CACHE_KEYS = {
   userProfile: (userId: string) => `user_profile_${userId}`,
-  userWorks: (userId: string, role: string, value?: string) => 
+  userWorks: (userId: string, role: string, value?: string) =>
     `user_works_${userId}_${role}_${value || 'all'}`,
-  progressLogs: (workId?: string) => 
+  schemeWorks: (schemeName: string, userId: string, role: string, value?: string) =>
+    `scheme_works_${schemeName}_${userId}_${role}_${value || 'all'}`,
+  progressLogs: (workId?: string) =>
     workId ? `progress_logs_${workId}` : 'progress_logs_all',
   allUsers: () => 'all_users',
   allProfiles: () => 'all_profiles',

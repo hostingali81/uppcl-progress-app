@@ -358,34 +358,45 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
 
   const handleSort = useCallback((column: string) => {
     let newDirection: 'asc' | 'desc' = 'asc';
-    
+
     if (sort.column === column && sort.direction === 'asc') {
       newDirection = 'desc';
     }
-    
+
     setSort({ column, direction: newDirection });
-    
+
     const sortedWorks = [...filteredWorks].sort((a, b) => {
-      let aVal = a[column as keyof Work];
-      let bVal = b[column as keyof Work];
-      
-      // Handle different data types
-      if (typeof aVal === 'string') {
-        aVal = (aVal as string)?.toLowerCase() || '';
-        bVal = (bVal as string)?.toLowerCase() || '';
+      let aVal: string | number;
+      let bVal: string | number;
+
+      // Handle special case for last_remarks column
+      if (column === 'last_remarks') {
+        aVal = getLastProgressRemark(a.id)?.toLowerCase() || '';
+        bVal = getLastProgressRemark(b.id)?.toLowerCase() || '';
+      } else {
+        // Handle regular column sorting
+        let tempAVal = a[column as keyof Work];
+        let tempBVal = b[column as keyof Work];
+
+        // Handle different data types
+        if (typeof tempAVal === 'string') {
+          aVal = (tempAVal as string)?.toLowerCase() || '';
+          bVal = (tempBVal as string)?.toLowerCase() || '';
+        } else if (typeof tempAVal === 'number') {
+          return newDirection === 'asc' ? ((tempAVal as number) - (tempBVal as number)) : ((tempBVal as number) - (tempAVal as number));
+        } else {
+          aVal = String(tempAVal || '');
+          bVal = String(tempBVal || '');
+        }
       }
-      
-      if (typeof aVal === 'number') {
-        return newDirection === 'asc' ? ((aVal as number) - (bVal as number)) : ((bVal as number) - (aVal as number));
-      }
-      
-      if (aVal && bVal && aVal < bVal) return newDirection === 'asc' ? -1 : 1;
-      if (aVal && bVal && aVal > bVal) return newDirection === 'asc' ? 1 : -1;
+
+      if (aVal < bVal) return newDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return newDirection === 'asc' ? 1 : -1;
       return 0;
     });
-    
+
     setFilteredWorks(sortedWorks);
-  }, [sort.column, sort.direction, filteredWorks]);
+  }, [sort.column, sort.direction, filteredWorks, getLastProgressRemark]);
 
   const getSortIcon = (column: string) => {
     if (sort.column !== column) {
@@ -586,51 +597,51 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
 
 
 
-      {/* KPI Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <Card 
-          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'all' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
+      {/* KPI Summary Cards - Ultra Compact Mobile Version */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2 lg:gap-4">
+        <Card
+          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'all' ? 'ring-2 ring-blue-500' : 'hover:shadow-sm'} rounded-lg`}
           onClick={() => handleKPIClick('all')}
         >
-          <CardContent className="p-3 sm:p-4">
-            <div className="text-xs sm:text-sm text-slate-600">Total Works</div>
-            <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalWorks}</div>
+          <CardContent className="p-1.5 sm:p-2 lg:p-4">
+            <div className="text-[10px] sm:text-xs text-slate-600 leading-tight">Total Works</div>
+            <div className="text-base sm:text-lg lg:text-2xl font-bold text-slate-900 leading-tight">{summaryStats.totalWorks}</div>
           </CardContent>
         </Card>
-        <Card 
-          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'completed' ? 'ring-2 ring-green-500' : 'hover:shadow-md'}`}
+        <Card
+          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'completed' ? 'ring-2 ring-green-500' : 'hover:shadow-sm'} rounded-lg`}
           onClick={() => handleKPIClick('completed')}
         >
-          <CardContent className="p-3 sm:p-4">
-            <div className="text-xs sm:text-sm text-slate-600">Completed</div>
-            <div className="text-xl sm:text-2xl font-bold text-green-600 mt-1">{summaryStats.completedWorks}</div>
+          <CardContent className="p-1.5 sm:p-2 lg:p-4">
+            <div className="text-[10px] sm:text-xs text-slate-600 leading-tight">Completed</div>
+            <div className="text-base sm:text-lg lg:text-2xl font-bold text-green-600 leading-tight">{summaryStats.completedWorks}</div>
           </CardContent>
         </Card>
-        <Card 
-          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'in_progress' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
+        <Card
+          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'in_progress' ? 'ring-2 ring-blue-500' : 'hover:shadow-sm'} rounded-lg`}
           onClick={() => handleKPIClick('in_progress')}
         >
-          <CardContent className="p-3 sm:p-4">
-            <div className="text-xs sm:text-sm text-slate-600">In Progress</div>
-            <div className="text-xl sm:text-2xl font-bold text-blue-600 mt-1">{summaryStats.inProgressWorks}</div>
+          <CardContent className="p-1.5 sm:p-2 lg:p-4">
+            <div className="text-[10px] sm:text-xs text-slate-600 leading-tight">In Progress</div>
+            <div className="text-base sm:text-lg lg:text-2xl font-bold text-blue-600 leading-tight">{summaryStats.inProgressWorks}</div>
           </CardContent>
         </Card>
-        <Card 
-          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'not_started' ? 'ring-2 ring-orange-500' : 'hover:shadow-md'}`}
+        <Card
+          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'not_started' ? 'ring-2 ring-orange-500' : 'hover:shadow-md'} rounded-lg`}
           onClick={() => handleKPIClick('not_started')}
         >
-          <CardContent className="p-3 sm:p-4">
-            <div className="text-xs sm:text-sm text-slate-600">Not Started</div>
-            <div className="text-xl sm:text-2xl font-bold text-orange-600 mt-1">{summaryStats.notStartedWorks}</div>
+          <CardContent className="p-1.5 sm:p-2 lg:p-4">
+            <div className="text-[10px] sm:text-xs text-slate-600 leading-tight">Not Started</div>
+            <div className="text-base sm:text-lg lg:text-2xl font-bold text-orange-600 leading-tight">{summaryStats.notStartedWorks}</div>
           </CardContent>
         </Card>
-        <Card 
-          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'blocked' ? 'ring-2 ring-red-500' : 'hover:shadow-md'}`}
+        <Card
+          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'blocked' ? 'ring-2 ring-red-500' : 'hover:shadow-md'} rounded-lg`}
           onClick={() => handleKPIClick('blocked')}
         >
-          <CardContent className="p-3 sm:p-4">
-            <div className="text-xs sm:text-sm text-slate-600">Blocked</div>
-            <div className="text-xl sm:text-2xl font-bold text-red-600 mt-1">{summaryStats.blockedWorks}</div>
+          <CardContent className="p-1.5 sm:p-2 lg:p-4">
+            <div className="text-[10px] sm:text-xs text-slate-600 leading-tight">Blocked</div>
+            <div className="text-base sm:text-lg lg:text-2xl font-bold text-red-600 leading-tight">{summaryStats.blockedWorks}</div>
           </CardContent>
         </Card>
       </div>
@@ -678,8 +689,14 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                       {getSortIcon('progress_percentage')}
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold text-slate-900 select-none min-w-[120px] sm:min-w-[150px]">
-                    <span className="text-xs sm:text-sm">Last Progress Remarks</span>
+                  <TableHead
+                    className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[120px] sm:min-w-[150px]"
+                    onClick={() => handleSort('last_remarks')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs sm:text-sm">Last Progress Remarks</span>
+                      {getSortIcon('last_remarks')}
+                    </div>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -740,14 +757,21 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                         </div>
                       </TableCell>
                       <TableCell className="min-w-[120px] sm:min-w-[150px]">
-                        <span className="text-slate-600 text-xs sm:text-sm line-clamp-2">
-                          <span className="truncate block sm:hidden">
-                            {truncateRemarks(getLastProgressRemark(work.id), getRemarksTruncationLength(true))}
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-600 text-xs sm:text-sm line-clamp-2">
+                            <span className="truncate block sm:hidden">
+                              {truncateRemarks(getLastProgressRemark(work.id), getRemarksTruncationLength(true))}
+                            </span>
+                            <span className="truncate block hidden sm:block">
+                              {truncateRemarks(getLastProgressRemark(work.id), getRemarksTruncationLength(false))}
+                            </span>
                           </span>
-                          <span className="truncate block hidden sm:block">
-                            {truncateRemarks(getLastProgressRemark(work.id), getRemarksTruncationLength(false))}
-                          </span>
-                        </span>
+                          {getLastProgressRemark(work.id) && getLastProgressRemark(work.id) !== 'No remarks' && (
+                            <Tooltip content={getLastProgressRemark(work.id)} className="tooltip-mobile max-w-xs sm:max-w-md">
+                              <Info className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 hover:text-slate-600 cursor-help flex-shrink-0" />
+                            </Tooltip>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

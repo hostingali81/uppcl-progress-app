@@ -4,6 +4,7 @@
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart as PieChartIcon, BarChart3, TrendingUp, DollarSign, CheckCircle, Clock, Play } from "lucide-react";
+import { useState, useEffect } from "react";
 
 // Step 1: Define the shape of the props this component will receive.
 type AnalyticsChartsProps = {
@@ -38,6 +39,24 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
     'In Progress': '#9333ea', // text-purple-600
     'Not Started': '#4b5563', // text-gray-600
   };
+
+  // Check if we're on mobile for responsive adjustments
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    // Initial check
+    checkMobile();
+
+    // Add event listener
+    window.addEventListener('resize', checkMobile);
+
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Format currency based on the value range
   const formatCurrency = (value: number) => {
@@ -162,14 +181,14 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
               <CardTitle className="text-lg font-semibold text-slate-900">Work Status Distribution</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={400}>
+          <CardContent className="p-4 sm:p-6">
+            <ResponsiveContainer width="100%" height={320}>
               <PieChart>
                 <Pie
                   data={statusData}
                   cx="50%"
                   cy="50%"
-                  outerRadius={120}
+                  outerRadius={isMobile ? 60 : 90}
                   fill="#8884d8"
                   dataKey="value"
                   nameKey="name"
@@ -181,14 +200,14 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
                   label={(entry: any) => {
                     const total = statusData.reduce((sum, item) => sum + item.value, 0);
                     const percent = ((entry.value / total) * 100).toFixed(0);
-                    return `${entry.value} (${percent}%)`;
+                    return isMobile ? entry.value.toString() : `${entry.value} (${percent}%)`;
                   }}
-                  labelLine={{ stroke: '#666666', strokeWidth: 1 }}>
+                  labelLine={isMobile ? false : { stroke: '#666666', strokeWidth: 1 }}>
                   {statusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={pieChartColors[entry.name as keyof typeof pieChartColors]} />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     backgroundColor: 'white',
                     border: '1px solid #e2e8f0',
@@ -196,7 +215,19 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                   }}
                 />
-                <Legend />
+                <Legend content={({ payload }) => (
+                  <div className="flex flex-wrap justify-center gap-4 text-xs mt-4">
+                    {payload?.map((entry: any, index: number) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded"
+                          style={{ backgroundColor: entry.color }}
+                        />
+                        <span>{entry.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -212,14 +243,14 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
               <CardTitle className="text-lg font-semibold text-slate-900">Financial Progress</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={400}>
+          <CardContent className="p-4 sm:p-6">
+            <ResponsiveContainer width="100%" height={320}>
               <PieChart>
                 <Pie
                   data={financialData}
                   cx="50%"
                   cy="50%"
-                  outerRadius={120}
+                  outerRadius={isMobile ? 60 : 90}
                   fill="#8884d8"
                   dataKey="value"
                   nameKey="name"
@@ -228,20 +259,18 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
                   style={{ outline: 'none' }}
                   label={(entry: any) => {
                     const total = financialData.reduce((sum, item) => sum + item.value, 0);
-                    if (total === 0) return '';
-                    const percent = ((entry.value / total) * 100).toFixed(1);
-                    return formatCurrency(entry.value) + ` (${percent}%)`;
+                    return isMobile ? formatCurrency(entry.value) : formatCurrency(entry.value);
                   }}
-                  labelLine={{ stroke: '#666666', strokeWidth: 1 }}
+                  labelLine={!isMobile && { stroke: '#666666', strokeWidth: 1 }}
                 >
                   {financialData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={pieChartColors[entry.name as keyof typeof pieChartColors]} 
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={pieChartColors[entry.name as keyof typeof pieChartColors]}
                     />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   formatter={(value) => [formatCurrency(value as number), 'Value']}
                   contentStyle={{
                     backgroundColor: 'white',
@@ -250,7 +279,22 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                   }}
                 />
-                <Legend />
+                <Legend
+                  wrapperStyle={{ paddingTop: '10px' }}
+                  content={({ payload }) => (
+                    <div className="flex flex-wrap justify-center gap-4 text-xs mt-4">
+                      {payload?.map((entry: any, index: number) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded"
+                            style={{ backgroundColor: entry.color }}
+                          />
+                          <span>{entry.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -289,13 +333,14 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
                   }}
                 />
                 <Legend />
-                <Bar 
-                  dataKey="total" 
-                  fill={colors.barChart} 
+                <Bar
+                  dataKey="total"
+                  fill={colors.barChart}
                   name="Total Works"
                   radius={[4, 4, 0, 0]}
                   style={{ outline: 'none' }}
                   className="focus:outline-none"
+                  label={{ position: 'top', fontSize: 12, fill: '#64748b' }}
                 />
               </BarChart>
             </ResponsiveContainer>

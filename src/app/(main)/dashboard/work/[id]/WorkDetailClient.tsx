@@ -288,59 +288,34 @@ export default function WorkDetailClient({
                             <DetailRow label="Scheduled Date of Completion" value={work.scheduled_completion_date} fieldName="scheduled_completion_date" workId={work.id} type="date" />
                             <DetailRow label="Expected Date of Completion" value={work.expected_completion_date} fieldName="expected_completion_date" workId={work.id} type="date" />
                             <DetailRow label="Actual Date of Completion" value={work.actual_completion_date} fieldName="actual_completion_date" workId={work.id} type="date" />
+                            <DetailRow label="Current Progress" value={work.progress_percentage ? `${work.progress_percentage}%` : '0%'} />
                             <DetailRow label="Remark" value={work.remark} fieldName="remark" workId={work.id} />
                         </div>
                     </CardContent>
                 </Card>
 
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Financial Details Card */}
-                    <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
-                        <CardHeader className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b border-slate-200">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
-                                    <MoneyIcon className="h-5 w-5 text-white" />
-                                </div>
-                                <div>
-                                    <CardTitle className="text-xl font-bold text-slate-900">Financial Details</CardTitle>
-                                    <CardDescription className="text-slate-600">Budget and cost information</CardDescription>
-                                </div>
+                {/* Financial Details Card */}
+                <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
+                    <CardHeader className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b border-slate-200">
+                        <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
+                                <MoneyIcon className="h-5 w-5 text-white" />
                             </div>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="divide-y divide-slate-100">
-                                <DetailRow label="Sanction Amount (Lacs)" value={work.sanction_amount_lacs} fieldName="sanction_amount_lacs" workId={work.id} type="number" />
-                                <DetailRow label="Agreement Amount" value={work.agreement_amount} fieldName="agreement_amount" workId={work.id} type="number" />
-                                <DetailRow label="BOQ Amount" value={work.boq_amount} fieldName="boq_amount" workId={work.id} type="number" />
+                            <div>
+                                <CardTitle className="text-xl font-bold text-slate-900">Financial Details</CardTitle>
+                                <CardDescription className="text-slate-600">Budget and cost information</CardDescription>
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Timeline Information Card */}
-                    <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
-                        <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-slate-200">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
-                                    <CalendarIcon className="h-5 w-5 text-white" />
-                                </div>
-                                <div>
-                                    <CardTitle className="text-xl font-bold text-slate-900">Timeline Information</CardTitle>
-                                    <CardDescription className="text-slate-600">Project schedule and milestones</CardDescription>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="divide-y divide-slate-100">
-                                <DetailRow label="Date of Start" value={work.start_date} fieldName="start_date" workId={work.id} type="date" />
-                                <DetailRow label="Scheduled Date of Completion" value={work.scheduled_completion_date} fieldName="scheduled_completion_date" workId={work.id} type="date" />
-                                <DetailRow label="Expected Date of Completion" value={work.expected_completion_date} fieldName="expected_completion_date" workId={work.id} type="date" />
-                                <DetailRow label="Actual Date of Completion" value={work.actual_completion_date} fieldName="actual_completion_date" workId={work.id} type="date" />
-                                <DetailRow label="Remark" value={work.remark} fieldName="remark" workId={work.id} />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="divide-y divide-slate-100">
+                            <DetailRow label="Sanction Amount (Lacs)" value={work.sanction_amount_lacs} fieldName="sanction_amount_lacs" workId={work.id} type="number" />
+                            <DetailRow label="Agreement Amount" value={work.agreement_amount} fieldName="agreement_amount" workId={work.id} type="number" />
+                            <DetailRow label="BOQ Amount" value={work.boq_amount} fieldName="boq_amount" workId={work.id} type="number" />
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* Tender & Contractor Cards */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
