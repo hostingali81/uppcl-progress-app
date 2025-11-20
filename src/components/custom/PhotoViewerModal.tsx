@@ -1,7 +1,7 @@
 // src/components/custom/PhotoViewerModal.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
@@ -14,51 +14,119 @@ interface PhotoViewerModalProps {
   onPhotoChange: (index: number) => void;
 }
 
-export function PhotoViewerModal({ 
-  isOpen, 
-  onClose, 
-  photos, 
-  currentPhotoIndex, 
-  onPhotoChange 
+export function PhotoViewerModal({
+  isOpen,
+  onClose,
+  photos,
+  currentPhotoIndex,
+  onPhotoChange
 }: PhotoViewerModalProps) {
-  const [zoom, setZoom] = useState(1);
-
   const currentPhoto = photos[currentPhotoIndex];
-  
+
   if (!currentPhoto) return null;
 
   const goToPrevious = () => {
     const newIndex = currentPhotoIndex > 0 ? currentPhotoIndex - 1 : photos.length - 1;
     onPhotoChange(newIndex);
-    setZoom(1);
   };
 
   const goToNext = () => {
     const newIndex = currentPhotoIndex < photos.length - 1 ? currentPhotoIndex + 1 : 0;
     onPhotoChange(newIndex);
-    setZoom(1);
   };
 
-  const handleDownload = () => {
-    const link = document.createElement('a');
-    link.href = currentPhoto.file_url;
-    link.download = currentPhoto.file_name || `photo-${currentPhotoIndex + 1}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Extract filename and extension
+    const urlParts = currentPhoto.file_url.split('.');
+    const extension = urlParts[urlParts.length - 1] || 'jpg';
+    const fileName = currentPhoto.file_name 
+      ? `${currentPhoto.file_name}.${extension}`
+      : `photo-${currentPhotoIndex + 1}.${extension}`;
+    
+    // Try multiple download methods
+    const tryDownload = async () => {
+      try {
+        // Method 1: Fetch and blob download
+        const response = await fetch(currentPhoto.file_url, {
+          mode: 'cors',
+          cache: 'force-cache'
+        });
+        
+        if (!response.ok) throw new Error('Fetch failed');
+        
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(blobUrl);
+        }, 1000);
+        
+      } catch (error) {
+        console.log('Blob download failed, trying direct link...');
+        
+        try {
+          // Method 2: Direct download link
+          const link = document.createElement('a');
+          link.href = currentPhoto.file_url;
+          link.download = fileName;
+          link.style.display = 'none';
+          
+          document.body.appendChild(link);
+          link.click();
+          
+          setTimeout(() => {
+            if (document.body.contains(link)) {
+              document.body.removeChild(link);
+            }
+          }, 500);
+          
+        } catch (error2) {
+          console.log('Direct download failed, opening in new tab...');
+          
+          // Method 3: Open in new tab with download instructions
+          const newWindow = window.open(currentPhoto.file_url, '_blank', 'noopener,noreferrer');
+          
+          // Add download instruction for user
+          if (newWindow) {
+            setTimeout(() => {
+              if (newWindow.document) {
+                newWindow.document.title = `Download: ${fileName}`;
+                const instruction = newWindow.document.createElement('div');
+                instruction.innerHTML = `
+                  <div style="padding: 20px; font-family: Arial; text-align: center; background: #f0f0f0;">
+                    <h3>Right-click the image and select "Save image as..." to download</h3>
+                    <p>Or press Ctrl+S (Windows) / Cmd+S (Mac) to save</p>
+                  </div>
+                `;
+                newWindow.document.body.insertBefore(instruction, newWindow.document.body.firstChild);
+              }
+            }, 1000);
+          }
+        }
+      }
+    };
+    
+    tryDownload();
   };
 
-  const handleZoomIn = () => {
-    setZoom(prev => Math.min(prev + 0.25, 3));
-  };
 
-  const handleZoomOut = () => {
-    setZoom(prev => Math.max(prev - 0.25, 0.5));
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none">
+      <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none"
+        style={{ touchAction: 'pinch-zoom none' }}>
         {/* Screen reader accessible title */}
         <DialogTitle className="sr-only">
           Photo Viewer - {currentPhoto.file_name || `Photo ${currentPhotoIndex + 1} of ${photos.length}`}
@@ -76,38 +144,16 @@ export function PhotoViewerModal({
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {/* Zoom Controls */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleZoomOut}
-                  className="bg-white/20 border-white/30 text-white hover:bg-white/30"
-                  disabled={zoom <= 0.5}
+                {/* Download Button - Custom implementation to prevent event bubbling */}
+                <div 
+                  onClick={(e) => handleDownload(e)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onContextMenu={(e) => e.preventDefault()}
+                  className="inline-flex items-center justify-center h-10 w-10 rounded-md border border-white/30 bg-white/20 hover:bg-white/30 cursor-pointer transition-colors"
+                  title="Download photo"
                 >
-                  <ZoomOut className="h-4 w-4" />
-                </Button>
-                <span className="text-white text-sm min-w-[50px] text-center">
-                  {Math.round(zoom * 100)}%
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleZoomIn}
-                  className="bg-white/20 border-white/30 text-white hover:bg-white/30"
-                  disabled={zoom >= 3}
-                >
-                  <ZoomIn className="h-4 w-4" />
-                </Button>
-
-                {/* Download Button */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleDownload}
-                  className="bg-white/20 border-white/30 text-white hover:bg-white/30"
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
+                  <Download className="h-4 w-4 text-white" />
+                </div>
 
                 {/* Close Button */}
                 <Button
@@ -123,21 +169,22 @@ export function PhotoViewerModal({
           </div>
 
           {/* Image Container */}
-          <div
-            className="flex items-center justify-center w-full h-full overflow-hidden cursor-zoom-in"
-          >
-            <img
-              src={currentPhoto.file_url}
-              alt={currentPhoto.file_name || `Photo ${currentPhotoIndex + 1}`}
-              className="max-w-none transition-transform duration-200 ease-out"
-              style={{
-                transform: `scale(${zoom})`,
-                maxHeight: zoom === 1 ? '90vh' : 'none',
-                maxWidth: zoom === 1 ? '90vw' : 'none'
-              }}
-              draggable={false}
-              onClick={onClose}
-            />
+          <div className="flex items-center justify-center w-full h-full overflow-hidden">
+            <div className="relative w-full h-full flex items-center justify-center p-20">
+              <img
+                src={currentPhoto.file_url}
+                alt={currentPhoto.file_name || `Photo ${currentPhotoIndex + 1}`}
+                className="block transition-transform duration-200 ease-out object-contain"
+                style={{
+                  maxWidth: 'calc(100% - 40px)',
+                  maxHeight: 'calc(100% - 40px)',
+                  width: 'auto',
+                  height: 'auto'
+                }}
+                draggable={false}
+                onClick={onClose}
+              />
+            </div>
           </div>
 
           {/* Navigation Arrows */}
@@ -178,11 +225,10 @@ export function PhotoViewerModal({
                     key={photo.id}
                     onClick={() => {
                       onPhotoChange(index);
-                      setZoom(1);
                     }}
                     className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                      index === currentPhotoIndex 
-                        ? 'border-white ring-2 ring-white/50' 
+                      index === currentPhotoIndex
+                        ? 'border-white ring-2 ring-white/50'
                         : 'border-white/30 hover:border-white/60'
                     }`}
                   >

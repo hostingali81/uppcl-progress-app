@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart, LayoutDashboard, LogOut, Menu, Settings, User, Users, FolderOpen, FileText } from "lucide-react";
+import { BarChart, LayoutDashboard, LogOut, Menu, Settings, User, Users, FolderOpen, FileText, Bell } from "lucide-react";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { usePathname } from "next/navigation";
@@ -20,6 +20,7 @@ const allNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/analytics", label: "Analytics", icon: BarChart, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/reports", label: "Reports", icon: FileText, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
+  { href: "/notifications", label: "My Notifications", icon: Bell, roles: ['superadmin', 'je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/profile", label: "My Profile", icon: User, roles: ['je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
   { href: "/admin/users", label: "User Management", icon: Users, roles: ['superadmin'] },
   { href: "/admin/settings", label: "System Settings", icon: Settings, roles: ['superadmin'] },
