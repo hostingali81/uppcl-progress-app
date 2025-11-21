@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -202,17 +203,24 @@ export function NotificationsSection({ notifications: initialNotifications }: No
             {displayedNotifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`flex items-start gap-3 p-4 rounded-lg border transition-colors ${
-                  notification.is_read
+                className={`flex items-start gap-3 p-4 rounded-lg border transition-colors ${notification.is_read
                     ? 'bg-white border-slate-200 hover:bg-slate-50'
                     : 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100'
-                }`}
+                  }`}
               >
                 <div className="shrink-0 mt-1">
                   {getNotificationIcon(notification.type)}
                 </div>
 
-                <div className="flex-1 min-w-0">
+                <Link
+                  href={`/dashboard/work/${notification.work_id}`}
+                  className="flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => {
+                    if (!notification.is_read) {
+                      handleMarkAsRead(notification.id);
+                    }
+                  }}
+                >
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <div className="flex-1">
                       {getNotificationBadge(notification.type)}
@@ -230,11 +238,11 @@ export function NotificationsSection({ notifications: initialNotifications }: No
                   </p>
 
                   {notification.work_id && (
-                    <p className="text-xs text-slate-500 mt-1">
-                      Work ID: {notification.work_id}
+                    <p className="text-xs text-indigo-600 mt-1 hover:underline font-medium">
+                      Click to view work and reply →
                     </p>
                   )}
-                </div>
+                </Link>
 
                 {!notification.is_read && (
                   <Button

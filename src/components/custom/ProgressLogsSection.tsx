@@ -51,22 +51,31 @@ export function ProgressLogsSection({ progressLogs, allAttachments = [] }: Progr
   // State for showing archive data
   const [showArchive, setShowArchive] = useState(false);
 
-  // Format user display name from the data - PRIORITIZE user_full_name
+  // Format user display name from the data - STRICTLY prioritize user_full_name and remove email fallback
   const getUserDisplayName = (log: ProgressLog) => {
-    // First try user_full_name (from the progress_logs table)
+    // First priority: user_full_name from the progress_logs table ( person's actual name )
     const userFullName = (log as any).user_full_name;
-    if (userFullName && userFullName.trim()) {
+    if (userFullName && userFullName.trim() && userFullName !== userFullName.includes('@') ? userFullName.split('@')[0] : userFullName) {
       return userFullName;
     }
     
-    // Fallback to profiles full_name
+    // Second priority: profiles full_name from join
     const profileName = log.profiles?.full_name;
-    if (profileName && profileName.trim()) {
+    if (profileName && profileName.trim() && !profileName.includes('@')) {
       return profileName;
     }
     
-    // Final fallback to email
-    return log.user_email || 'Unknown User';
+    // Third priority: try to extract name from email (remove @domain.com)
+    if (log.user_email && log.user_email.includes('@')) {
+      const nameFromEmail = log.user_email.split('@')[0];
+      if (nameFromEmail && nameFromEmail.length > 0) {
+        // Capitalize first letter
+        return nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+      }
+    }
+    
+    // Final fallback
+    return 'A user';
   };
 
   // Handle photo click to open in new tab with navigation for multiple photos
@@ -412,7 +421,7 @@ export function ProgressLogsSection({ progressLogs, allAttachments = [] }: Progr
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm text-slate-600">
                           <div className="flex items-center gap-1 min-w-0">
                             <User className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{getUserDisplayName(log)}</span>
+                            <span className="truncate font-medium">{getUserDisplayName(log)}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3 flex-shrink-0" />

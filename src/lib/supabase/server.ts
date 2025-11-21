@@ -42,10 +42,15 @@ export const createSupabaseServerClient = async (): Promise<any> => {
       SUPABASE_URL,
       SERVICE_KEY,
       {
-        cookies: cookieHandler,
+        cookies: {
+          get() { return undefined; },
+          set() { },
+          remove() { }
+        },
         auth: {
           autoRefreshToken: false,
-          persistSession: false
+          persistSession: false,
+          detectSessionInUrl: false
         }
       }
     )

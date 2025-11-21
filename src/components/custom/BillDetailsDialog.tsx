@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
-import { Receipt, Clock } from "lucide-react";
+import { Receipt, Clock, User } from "lucide-react";
 
 interface BillDetailsDialogProps {
   workId: number;
@@ -15,6 +15,7 @@ interface BillDetailsDialogProps {
     id: number;
     created_at: string;
     user_email: string;
+    user_full_name?: string | null;
     new_bill_no: string | null;
     new_bill_amount: number | null;
     remark: string | null;
@@ -29,6 +30,20 @@ export function BillDetailsDialog({ workId, isOpen, onClose, paymentLogs }: Bill
 
   // Calculate total billed amount
   const totalAmount = sortedLogs.reduce((sum, log) => sum + (log.new_bill_amount || 0), 0);
+
+  // Format user display name - prioritize user_full_name when available
+  const getUserDisplayName = (log: any) => {
+    // Note: The payment_logs table stores the person's name in user_email field 
+    // for backward compatibility, even though the field name suggests email
+    const userDisplayName = log.user_full_name || log.user_email;
+    
+    if (userDisplayName && userDisplayName.trim()) {
+      return userDisplayName;
+    }
+    
+    // Final fallback
+    return 'A user';
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -87,7 +102,12 @@ export function BillDetailsDialog({ workId, isOpen, onClose, paymentLogs }: Bill
                         <span>{formatDate(log.created_at)}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{log.user_email}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-slate-400" />
+                        <span className="font-medium">{getUserDisplayName(log)}</span>
+                      </div>
+                    </TableCell>
                     <TableCell className="max-w-[200px] truncate" title={log.remark || ''}>
                       {log.remark || 'N/A'}
                     </TableCell>

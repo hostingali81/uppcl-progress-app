@@ -10,6 +10,7 @@ import { ClickableDetailRow } from './ClickableDetailRow';
 import EditableStatusRow, { EditableDetailRow } from './EditableStatusRow';
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { formatAmountFromLacs, formatDateDDMMYYYY, formatCurrency } from '@/lib/utils';
+import { formatIndianCurrency, formatIndianLakhs } from '@/lib/formatters';
 import { UpdateProgressForm } from "./UpdateProgressForm";
 import { UpdateBillingForm } from "./UpdateBillingForm";
 import { FileUploadManager } from "@/components/custom/FileUploadManager";
@@ -121,6 +122,11 @@ export default function WorkDetailClient({
     const searchParams = useSearchParams();
     const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+    console.log('WorkDetailClient rendered. Comments:', comments);
+    if (comments && comments.length > 0) {
+        console.log('First comment attachments:', comments[0].attachments);
+    }
+
     useEffect(() => {
         const successMessage = searchParams.get('success');
         const errorMessage = searchParams.get('error');
@@ -162,11 +168,10 @@ export default function WorkDetailClient({
             {/* Success/Error Notification */}
             {notification && (
                 <div className="p-4 sm:p-6">
-                    <div className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-300 ${
-                        notification.type === 'error'
+                    <div className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-300 ${notification.type === 'error'
                             ? 'text-red-700 bg-red-50 border-red-200'
                             : 'text-green-700 bg-green-50 border-green-200'
-                    }`}>
+                        }`}>
                         {notification.type === 'error' ? (
                             <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                         ) : (
@@ -258,12 +263,12 @@ export default function WorkDetailClient({
                                 <EditableStatusRow label="FICO Status" fieldName="fico_status" currentValue={work.fico_status || work.fico} workId={work.id} />
                                 <DetailRow label="Is Blocked" value={work.is_blocked ? 'Yes' : 'No'} />
                                 <DetailRow label="Last Bill No." value={latestBillNumber} />
-                                    <ClickableDetailRow
-                                        label="Total Billed Amount"
-                                        value={totalBillAmount > 0 ? `₹${totalBillAmount.toLocaleString('en-IN')}` : 'N/A'}
-                                        workId={work.id}
-                                        paymentLogs={paymentLogs || []}
-                                    />
+                                <ClickableDetailRow
+                                    label="Total Billed Amount"
+                                    value={totalBillAmount > 0 ? formatIndianCurrency(totalBillAmount) : 'N/A'}
+                                    workId={work.id}
+                                    paymentLogs={paymentLogs || []}
+                                />
                             </div>
                         </CardContent>
                     </Card>
@@ -276,12 +281,12 @@ export default function WorkDetailClient({
                             <div className="h-10 w-10 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
                                 <CalendarIcon className="h-5 w-5 text-white" />
                             </div>
-                                <div>
-                                    <CardTitle className="text-xl font-bold text-slate-900">Timeline Information</CardTitle>
-                                    <CardDescription className="text-slate-600">Project schedule and milestones</CardDescription>
-                                </div>
+                            <div>
+                                <CardTitle className="text-xl font-bold text-slate-900">Timeline Information</CardTitle>
+                                <CardDescription className="text-slate-600">Project schedule and milestones</CardDescription>
+                            </div>
                         </div>
-                            </CardHeader>
+                    </CardHeader>
                     <CardContent className="p-0">
                         <div className="divide-y divide-slate-100">
                             <DetailRow label="Date of Start" value={work.start_date} fieldName="start_date" workId={work.id} type="date" />
@@ -310,9 +315,9 @@ export default function WorkDetailClient({
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="divide-y divide-slate-100">
-                            <DetailRow label="Sanction Amount (Lacs)" value={work.sanction_amount_lacs} fieldName="sanction_amount_lacs" workId={work.id} type="number" />
-                            <DetailRow label="Agreement Amount" value={work.agreement_amount} fieldName="agreement_amount" workId={work.id} type="number" />
-                            <DetailRow label="BOQ Amount" value={work.boq_amount} fieldName="boq_amount" workId={work.id} type="number" />
+                            <DetailRow label="Sanction Amount (Lacs)" value={work.sanction_amount_lacs ? formatIndianLakhs(work.sanction_amount_lacs * 100000) : 'N/A'} fieldName="sanction_amount_lacs" workId={work.id} type="number" />
+                            <DetailRow label="Agreement Amount" value={work.agreement_amount ? formatIndianCurrency(work.agreement_amount) : 'N/A'} fieldName="agreement_amount" workId={work.id} type="number" />
+                            <DetailRow label="BOQ Amount" value={work.boq_amount ? formatIndianCurrency(work.boq_amount) : 'N/A'} fieldName="boq_amount" workId={work.id} type="number" />
                         </div>
                     </CardContent>
                 </Card>
@@ -379,13 +384,13 @@ export default function WorkDetailClient({
                         allAttachments={allAttachments}
                     />
 
-                        <CommentsSection
-                            workId={work.id}
-                            comments={comments || []}
-                            mentionUsers={usersForMentions}
-                            currentUserId={currentUserId}
-                            currentUserRole={currentUserRole}
-                        />
+                    <CommentsSection
+                        workId={work.id}
+                        comments={comments || []}
+                        mentionUsers={usersForMentions}
+                        currentUserId={currentUserId}
+                        currentUserRole={currentUserRole}
+                    />
                 </div>
             </div>
         </div>

@@ -4,6 +4,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import * as XLSX from "xlsx";
+import { pushToGoogleSheet } from "@/app/(main)/admin/settings/actions";
+import { cache } from "@/lib/cache";
 
 // This map tells us which column to filter for which role
 const roleToColumnMap: { [key: string]: string } = {
@@ -14,44 +16,143 @@ const roleToColumnMap: { [key: string]: string } = {
 };
 
 export async function updateWorkField(workId: number, fieldName: string, value: string) {
-  const { client: supabase } = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Authentication required." };
+  try {
+    console.log('=== UPDATE WORK FIELD START ===');
+    console.log('Work ID:', workId);
+    console.log('Field Name:', fieldName);
+    console.log('New Value:', value);
 
-  const allowedFields = [
-    'work_name', 'district_name', 'civil_zone', 'civil_circle', 'civil_division', 'civil_sub_division',
-    'je_name', 'work_category', 'wbs_code', 'sanction_amount_lacs', 'tender_no', 'boq_amount',
-    'nit_date', 'part1_opening_date', 'part2_opening_date', 'loi_no_and_date', 'rate_as_per_ag',
-    'agreement_amount', 'agreement_no_and_date', 'firm_name_and_contact', 'firm_contact_no',
-    'firm_email', 'start_date', 'scheduled_completion_date', 'actual_completion_date',
-    'weightage', 'progress_percentage', 'remark', 'mb_status', 'teco_status', 'fico_status',
-    'distribution_zone', 'distribution_circle', 'distribution_division', 'distribution_sub_division'
-  ];
+    const { client: supabase, admin: adminSupabase } = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.log('ERROR: No user authenticated');
+      return { error: "Authentication required." };
+    }
+    
+    console.log('User ID:', user.id);
 
-  if (!allowedFields.includes(fieldName)) {
-    return { error: "Invalid field name." };
+    const allowedFields = [
+      'work_name', 'district_name', 'civil_zone', 'civil_circle', 'civil_division', 'civil_sub_division',
+      'je_name', 'work_category', 'wbs_code', 'sanction_amount_lacs', 'tender_no', 'boq_amount',
+      'nit_date', 'part1_opening_date', 'part2_opening_date', 'loi_no_and_date', 'rate_as_per_ag',
+      'agreement_amount', 'agreement_no_and_date', 'firm_name_and_contact', 'firm_contact_no',
+      'firm_email', 'start_date', 'scheduled_completion_date', 'actual_completion_date',
+      'weightage', 'progress_percentage', 'remark', 'mb_status', 'teco_status', 'fico_status',
+      'distribution_zone', 'distribution_circle', 'distribution_division', 'distribution_sub_division'
+    ];
+
+    if (!allowedFields.includes(fieldName)) {
+      console.log('ERROR: Field not allowed:', fieldName);
+      return { error: "Invalid field name." };
+    }
+
+    // Get current value before update
+    const { data: beforeUpdate } = await adminSupabase
+      .from('works')
+      .select(`id, ${fieldName}`)
+      .eq('id', workId)
+      .single();
+    
+    console.log('Before Update:', beforeUpdate);
+
+    // Use admin client to bypass RLS for updates
+    const updateData: any = { [fieldName]: value || null };
+    console.log('Update Data:', updateData);
+    
+    const { data: updateResult, error } = await adminSupabase
+      .from('works')
+      .update(updateData)
+      .eq('id', workId)
+      .select();
+
+    if (error) {
+      console.error('Update error:', error);
+      return { error: error.message };
+    }
+    
+    console.log('Update Result:', updateResult);
+    
+    // Verify the update
+    const { data: afterUpdate } = await adminSupabase
+      .from('works')
+      .select(`id, ${fieldName}`)
+      .eq('id', workId)
+      .single();
+    
+    console.log('After Update:', afterUpdate);
+    
+    // Clear all relevant caches
+    cache.clear();
+    console.log('Cache cleared');
+    
+    // Get the updated work data including scheme_sr_no for Google Sheets sync
+    const { data: updatedWork } = await adminSupabase
+      .from('works')
+      .select('scheme_sr_no')
+      .eq('id', workId)
+      .single();
+
+    // Sync to Google Sheets if scheme_sr_no exists
+    if (updatedWork?.scheme_sr_no) {
+      const syncData = {
+        scheme_sr_no: updatedWork.scheme_sr_no,
+        [fieldName]: value || null
+      };
+      
+      console.log('Syncing to Google Sheets:', syncData);
+      
+      // Push to Google Sheets (don't block on errors)
+      try {
+        const syncResult = await pushToGoogleSheet(syncData);
+        console.log('Google Sheets sync result:', syncResult);
+      } catch (syncError) {
+        console.error('Google Sheets sync failed:', syncError);
+      }
+    }
+    
+    revalidatePath('/dashboard');
+    revalidatePath(`/dashboard/work/${workId}`);
+    
+    console.log('=== UPDATE WORK FIELD END ===');
+    return { success: "Updated successfully." };
+  } catch (error) {
+    console.error('FATAL ERROR in updateWorkField:', error);
+    return { error: error instanceof Error ? error.message : 'Unknown error occurred' };
   }
-
-  const updateData: any = { [fieldName]: value || null };
-  const { error } = await supabase.from('works').update(updateData).eq('id', workId);
-
-  if (error) return { error: error.message };
-  
-  revalidatePath('/dashboard');
-  revalidatePath(`/dashboard/work/${workId}`);
-  return { success: "Updated successfully." };
 }
 
 export async function deleteWork(workId: number) {
-  const { client: supabase } = await createSupabaseServerClient();
+  const { client: supabase, admin: adminSupabase } = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Authentication required." };
 
-  const { error } = await supabase.from('works').delete().eq('id', workId);
-  if (error) return { error: error.message };
+  // Get work data before deletion for Google Sheets sync
+  const { data: workToDelete } = await adminSupabase
+    .from('works')
+    .select('scheme_sr_no')
+    .eq('id', workId)
+    .single();
+
+  // Use admin client to bypass RLS for deletions
+  const { error } = await adminSupabase.from('works').delete().eq('id', workId);
+  if (error) {
+    console.error('Delete error:', error);
+    return { error: error.message };
+  }
+  
+  // Clear all relevant caches
+  cache.clear(); // Clear all caches to ensure fresh data
+  
+  // Note: For deletions, you may want to manually delete from Google Sheets
+  // or run a full sync. Automatic deletion from sheets is risky.
+  // For now, we'll just log it.
+  if (workToDelete?.scheme_sr_no) {
+    console.log(`Work ${workToDelete.scheme_sr_no} deleted from database. Consider syncing Google Sheets.`);
+  }
   
   revalidatePath('/dashboard');
-  return { success: "Work deleted successfully." };
+  return { success: "Work deleted successfully. Note: Please sync Google Sheets to reflect this deletion." };
 }
 
 export async function exportToExcel(works: any[], selectedColumns: string[] = []) {

@@ -26,13 +26,14 @@ const allNavItems = [
   { href: "/profile", label: "My Profile", icon: User, roles: ['je', 'sub_division_head', 'division_head', 'circle_head', 'zone_head', 'user'] },
 ];
 
-const NavLink = ({ item }: { item: typeof allNavItems[0] }) => {
+const NavLink = ({ item, badge }: { item: typeof allNavItems[0], badge?: React.ReactNode }) => {
   const pathname = usePathname();
   const isActive = pathname.startsWith(item.href);
   return (
     <Link href={item.href} className={cn("flex items-center space-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200", isActive ? "bg-blue-100 text-blue-700 shadow-sm" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")}>
       <item.icon className="h-5 w-5" />
-      <span>{item.label}</span>
+      <span className="flex-1">{item.label}</span>
+      {badge}
     </Link>
   );
 };
@@ -41,10 +42,30 @@ export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
   const navItems = allNavItems.filter(item => item.roles.includes(userDetails.role));
   const [schemes, setSchemes] = useState<string[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     setIsClient(true);
     fetch('/api/schemes').then(r => r.json()).then(data => setSchemes(data.schemes || []));
+
+    // Fetch unread notifications count
+    const fetchUnreadCount = async () => {
+      try {
+        const res = await fetch('/api/notifications');
+        const data = await res.json();
+        if (data.notifications) {
+          const count = data.notifications.filter((n: any) => !n.is_read).length;
+          setUnreadCount(count);
+        }
+      } catch (error) {
+        console.error("Failed to fetch notifications count", error);
+      }
+    };
+
+    fetchUnreadCount();
+    // Poll every minute
+    const interval = setInterval(fetchUnreadCount, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   if (!isClient) {
@@ -87,7 +108,15 @@ export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
       <div className="flex-1 overflow-y-auto">
         <nav className="p-4 space-y-1">
           {navItems.map((item) => (
-            <NavLink key={item.href} item={item} />
+            <NavLink
+              key={item.href}
+              item={item}
+              badge={item.href === '/notifications' && unreadCount > 0 ? (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  {unreadCount}
+                </span>
+              ) : null}
+            />
           ))}
           {isClient && schemes.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-200">

@@ -230,6 +230,194 @@ function mapRowToWork(row: (string | number)[], headers: string[]) {
   return workObject;
 }
 
+// New function to push data back to Google Sheets
+export async function pushToGoogleSheet(workData: {
+  scheme_sr_no: string;
+  [key: string]: any;
+}) {
+  try {
+    const { admin: supabase } = await createSupabaseServerClient();
+    const settings = await getSettings(supabase);
+    const sheetId = settings.google_sheet_id;
+    const sheetName = settings.google_sheet_name;
+    const credentials = JSON.parse(settings.google_service_account_credentials || '{}');
+    
+    if (!sheetId || !sheetName || !credentials.client_email) {
+      return { error: "Google Sheets not configured properly." };
+    }
+
+    // Create auth client
+    const auth = new google.auth.GoogleAuth({ 
+      credentials: {
+        ...credentials,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      }, 
+      scopes: ['https://www.googleapis.com/auth/spreadsheets']
+    });
+
+    const client = await auth.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: client as any });
+    
+    // Get current sheet data to find the row
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: sheetName,
+    });
+    
+    const rows = response.data.values as (string | number)[][] | undefined;
+    if (!rows || rows.length < 2) {
+      return { error: "Sheet is empty or has no data." };
+    }
+
+    const headers = rows[0] as string[];
+    
+    // Find the Sr. No. column
+    const uniqueIdCandidates = [
+      'Sr. No. OF SCEME', 'S.N.', 'Sr. No.', 'Sr No', 'Sr. No. OF SCHEME',
+      'Sr. No. of Scheme', 'Scheme Sr No', 'Scheme Sr. No', 'SR NO', 'SR. NO',
+    ];
+    
+    let srNoIndex = -1;
+    for (const candidate of uniqueIdCandidates) {
+      const idx = headers.findIndex((h: string) => String(h).trim().toLowerCase() === candidate.trim().toLowerCase());
+      if (idx !== -1) { srNoIndex = idx; break; }
+    }
+    
+    if (srNoIndex === -1) {
+      return { error: "Could not find Sr. No. column in sheet." };
+    }
+
+    // Find the row with matching scheme_sr_no
+    let rowIndex = -1;
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][srNoIndex] === workData.scheme_sr_no) {
+        rowIndex = i;
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      return { error: `Work with Sr. No. ${workData.scheme_sr_no} not found in sheet.` };
+    }
+
+    // Create reverse mapping (database column -> sheet header)
+    // IMPORTANT: These must match EXACTLY with your Google Sheet column headers
+    // Based on your latest headers: S.N., Scheme Name, Sr. No. OF SCEME, Civil Zone, etc.
+    const dbToSheetMap: { [key: string]: string } = {
+      'scheme_sr_no': 'Sr. No. OF SCEME',
+      'scheme_name': 'Scheme Name',
+      'work_name': 'Name of Work',
+      'civil_zone': 'Civil Zone',
+      'civil_circle': 'Civil Circle',
+      'civil_division': 'Civil Division',
+      'civil_sub_division': 'Civil Sub-Division',
+      'district_name': 'District Name',
+      'je_name': 'JE Name',
+      'work_category': 'Work Category',
+      'site_name': 'Site Name',
+      'sanction_amount_lacs': 'Sanction Amount (Rs. Lacs)',
+      'tender_no': 'Tender No.',
+      'boq_amount': 'BoQ Amount',
+      'agreement_amount': 'Agreement Amount',
+      'bill_amount_with_tax': 'Bill Amount (Incl. Tax)',
+      'bill_no': 'Bill No',
+      'nit_date': 'Date of NIT',
+      'part1_opening_date': 'Date of Part-I Opening',
+      'loi_no_and_date': 'LoI No. & Date',
+      'part2_opening_date': 'Date of Part-II Opening',
+      'agreement_no_and_date': 'Agreement No. & Date',
+      'rate_as_per_ag': 'Rate as per Ag. (% above/ below)',
+      'firm_name_and_contact': 'Name of firm & Contact No.',
+      'firm_contact_no': 'Firm Contact No.',
+      'firm_email': 'Firm Email',
+      'start_date': 'Date of Start (As per Agr./ Actual)',
+      'scheduled_completion_date': 'Scheduled Date of Completion',
+      'actual_completion_date': 'Actual Date of Completion',
+      'expected_completion_date': 'Expected Date of Completion',
+      'weightage': 'Weightage',
+      'progress_percentage': 'Present Progress in %',
+      'remark': 'Remark',
+      'wbs_code': 'WBS Code',
+      'mb_status': 'MB Status',
+      'teco_status': 'TECO',
+      'fico_status': 'FICO',
+      'distribution_zone': 'Distribution Zone',
+      'distribution_circle': 'Distribution Circle',
+      'distribution_division': 'Distribution Division',
+      'distribution_sub_division': 'Distribution Sub-Division',
+    };
+
+    // Helper function to convert column index to A1 notation (handles AA, AB, etc.)
+    const getColumnLetter = (index: number): string => {
+      let columnName = '';
+      let num = index + 1; // Convert to 1-based
+      while (num > 0) {
+        const remainder = (num - 1) % 26;
+        columnName = String.fromCharCode(65 + remainder) + columnName;
+        num = Math.floor((num - 1) / 26);
+      }
+      return columnName;
+    };
+
+    // Prepare updates for changed fields
+    const updates: any[] = [];
+    
+    console.log('=== FIELD MAPPING DEBUG ===');
+    console.log('Available headers in sheet:', headers);
+    
+    for (const [dbField, value] of Object.entries(workData)) {
+      if (dbField === 'scheme_sr_no' || dbField === 'updated_at') continue; // Skip ID and timestamp
+      
+      const sheetHeader = dbToSheetMap[dbField];
+      if (!sheetHeader) {
+        console.log(`No mapping for field: ${dbField}`);
+        continue;
+      }
+      
+      const colIndex = headers.findIndex((h: string) => 
+        String(h).trim().toLowerCase() === sheetHeader.trim().toLowerCase()
+      );
+      
+      if (colIndex === -1) {
+        console.log(`Column not found in sheet for: ${dbField} -> ${sheetHeader}`);
+        continue;
+      }
+      
+      // Convert column index to A1 notation (handles columns beyond Z)
+      const colLetter = getColumnLetter(colIndex);
+      const cellRange = `${sheetName}!${colLetter}${rowIndex + 1}`;
+      
+      console.log(`Mapping: ${dbField} -> ${sheetHeader} -> Column ${colLetter} (index ${colIndex}) -> Value: ${value}`);
+      
+      updates.push({
+        range: cellRange,
+        values: [[value ?? '']]
+      });
+    }
+    
+    console.log('=== END FIELD MAPPING DEBUG ===');
+
+    if (updates.length === 0) {
+      return { success: "No fields to update in sheet." };
+    }
+
+    // Batch update all cells
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        valueInputOption: 'USER_ENTERED',
+        data: updates
+      }
+    });
+
+    return { success: `Updated ${updates.length} field(s) in Google Sheet.` };
+  } catch (error: unknown) {
+    console.error("Push to Google Sheet failed:", error);
+    return { error: error instanceof Error ? error.message : 'Unknown error occurred' };
+  }
+}
+
 // syncWithGoogleSheet function (unchanged)
 export async function syncWithGoogleSheet() {
   try {

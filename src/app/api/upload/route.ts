@@ -18,10 +18,12 @@ export async function POST(request: NextRequest) {
     }
 
     const fileData = formData.get("file");
-    const workIdStr = formData.get("workId") as string;
-    const attachmentType = (formData.get("attachmentType") as string) || 'site_photo';
+    const workIdStr = (formData.get("workId") as string) || '0';
+    const attachmentType = (formData.get("attachmentType") as string) || 'comment_attachment';
     const progressLogIdStr = formData.get("progress_log_id") as string;
     const progressLogId = progressLogIdStr ? parseInt(progressLogIdStr) : null;
+    const commentIdStr = formData.get("comment_id") as string;
+    const commentId = commentIdStr ? parseInt(commentIdStr) : null;
 
     console.log("File data received:", {
       fileDataType: typeof fileData,
@@ -30,16 +32,28 @@ export async function POST(request: NextRequest) {
       isBlob: (fileData as any) instanceof Blob,
       fileName: (fileData as any)?.name,
       fileType: (fileData as any)?.type,
-      fileSize: (fileData as any)?.size
+      fileSize: (fileData as any)?.size,
+      workIdStr,
+      attachmentType,
+      isCommentAttachment: workIdStr === '0' || !workIdStr
     });
 
-    if (!fileData || !workIdStr) {
-      return NextResponse.json({ error: "File and workId are required" }, { status: 400 });
+    if (!fileData) {
+      return NextResponse.json({ error: "File is required" }, { status: 400 });
     }
 
-    const workId = parseInt(workIdStr);
-    if (isNaN(workId)) {
-      return NextResponse.json({ error: "Invalid workId" }, { status: 400 });
+    // Handle comment attachments (workId === '0' or workIdStr is not provided)
+    const isCommentAttachment = workIdStr === '0' || !workIdStr;
+    let workId: number | null = null;
+
+    if (!isCommentAttachment) {
+      if (!workIdStr) {
+        return NextResponse.json({ error: "workId is required for work attachments" }, { status: 400 });
+      }
+      workId = parseInt(workIdStr);
+      if (isNaN(workId) || workId <= 0) {
+        return NextResponse.json({ error: "Invalid workId" }, { status: 400 });
+      }
     }
 
     // Handle the file data properly
@@ -81,6 +95,7 @@ export async function POST(request: NextRequest) {
     });
 
     const uniqueKey = `uploads/${crypto.randomUUID()}-${fileName}`;
+    const publicFileUrl = `${publicUrl}/${uniqueKey}`;
 
     // Convert file to buffer
     const buffer = Buffer.from(await fileBlob.arrayBuffer());
@@ -98,21 +113,29 @@ export async function POST(request: NextRequest) {
 
     console.log("File upload to R2 successful:", uploadResponse);
 
-    const publicFileUrl = `${publicUrl}/${uniqueKey}`;
-
     // Get user profile for upload logging
     const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
 
-    // Save attachment record
-    const { error: attachError } = await supabase.from("attachments").insert({
-      work_id: workId,
+    // Save attachment record based on type - USE SUPABASEADMIN TO BYPASS RLS
+    const attachmentData = {
       file_url: publicFileUrl,
       file_name: fileName,
       uploader_id: user.id,
       uploader_full_name: profile?.full_name || user.email,
       attachment_type: attachmentType,
-      progress_log_id: progressLogId || null
-    });
+      progress_log_id: progressLogId || null,
+      comment_id: commentId || null
+    };
+
+    // Add work_id only for non-comment attachments
+    if (!isCommentAttachment && workId) {
+      (attachmentData as any).work_id = workId;
+    }
+
+    console.log("Inserting attachment data:", attachmentData);
+
+    // Use supabaseAdmin to bypass RLS for database operations
+    const { error: attachError } = await supabaseAdmin.from("attachments").insert(attachmentData);
 
     if (attachError) {
       console.error("Failed to save attachment record:", attachError);
@@ -123,6 +146,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       publicFileUrl,
+      url: publicFileUrl, // For backward compatibility
       fileName: fileName
     });
   } catch (error: unknown) {

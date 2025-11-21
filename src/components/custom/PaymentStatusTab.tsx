@@ -31,6 +31,21 @@ function formatTimeAgo(dateString: string) {
 }
 
 export function PaymentStatusTab({ work, paymentLogs }: PaymentStatusTabProps) {
+  
+  // Format user display name - prioritize user_full_name when available, fallback to user_email (which may contain the name)
+  const getUserDisplayName = (log: PaymentLog) => {
+    // Note: The payment_logs table stores the person's name in user_email field 
+    // for backward compatibility, even though the field name suggests email
+    const userDisplayName = (log as any).user_full_name || log.user_email;
+    
+    if (userDisplayName && userDisplayName.trim()) {
+      return userDisplayName;
+    }
+    
+    // Final fallback
+    return 'A user';
+  };
+
   return (
     <div className="space-y-6">
       {/* Current Payment Status Card */}
@@ -137,8 +152,8 @@ export function PaymentStatusTab({ work, paymentLogs }: PaymentStatusTabProps) {
                       <TableCell className="align-top">
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-slate-400" />
-                          <span className="text-sm text-slate-600">
-                            {log.user_email || 'Unknown'}
+                          <span className="text-sm font-medium text-slate-600">
+                            {getUserDisplayName(log)}
                           </span>
                         </div>
                       </TableCell>

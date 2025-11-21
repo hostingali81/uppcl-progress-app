@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { pushToGoogleSheet } from "@/app/(main)/admin/settings/actions";
 
 export async function GET() {
   try {
@@ -104,6 +105,35 @@ export async function POST(request: Request) {
     if (updateError) {
       console.error("Error updating work:", updateError);
       return NextResponse.json({ error: "Failed to update work progress" }, { status: 500 });
+    }
+
+    // Sync to Google Sheets if scheme_sr_no exists
+    if (currentWork?.scheme_sr_no) {
+      console.log('=== API PROGRESS UPDATE GOOGLE SHEETS SYNC START ===');
+      console.log('Scheme Sr No:', currentWork.scheme_sr_no);
+      console.log('Progress:', progress);
+      console.log('Remark:', remark);
+      
+      try {
+        const syncResult = await pushToGoogleSheet({
+          scheme_sr_no: currentWork.scheme_sr_no,
+          progress_percentage: progress,
+          remark: remark || '',
+          bill_no: billNo || null,
+          bill_amount_with_tax: billAmount,
+          expected_completion_date: expectedCompletionDate,
+          actual_completion_date: actualCompletionDate
+        });
+        console.log('Google Sheets sync result:', syncResult);
+        console.log('=== API PROGRESS UPDATE GOOGLE SHEETS SYNC END ===');
+      } catch (syncError) {
+        console.error('=== API PROGRESS UPDATE GOOGLE SHEETS SYNC ERROR ===');
+        console.error('Error:', syncError);
+      }
+    } else {
+      console.warn('=== API PROGRESS UPDATE GOOGLE SHEETS SYNC SKIPPED ===');
+      console.warn('Reason: No scheme_sr_no found');
+      console.warn('Current work:', currentWork);
     }
 
     // Revalidate the work page and dashboard to show updated progress
