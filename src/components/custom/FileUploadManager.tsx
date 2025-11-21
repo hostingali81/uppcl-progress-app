@@ -8,8 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { addAttachmentToWork, deleteAttachment } from "@/app/(main)/dashboard/work/[id]/actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, ImageIcon, Trash2, User, Loader2, Upload, Paperclip, X, CheckCircle, AlertCircle } from "lucide-react";
-import Image from "next/image";
+import { FileText, ImageIcon, Trash2, User, Loader2, Upload, Paperclip, X, CheckCircle, AlertCircle, Download } from "lucide-react";
 import Link from "next/link";
 
 // Type definition for attachments
@@ -38,15 +37,81 @@ const getFileType = (url: string) => {
 
 // Attachment Card Component
 function AttachmentCard({ att, currentUserId, isPending, handleDelete }: { att: Attachment; currentUserId: string; isPending: boolean; handleDelete: (id: number) => void }) {
+  const handleDownload = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const fileType = getFileType(att.file_url);
+
+    // Extract the file extension from the URL
+    const urlParts = att.file_url.split('.');
+    const extension = urlParts[urlParts.length - 1]?.split('?')[0] || 'jpg'; // Remove query params if any
+
+    // Ensure filename has the correct extension
+    let fileName = att.file_name || `file-${att.id}`;
+    // Check if filename already has an extension
+    if (!fileName.includes('.')) {
+      fileName = `${fileName}.${extension}`;
+    }
+
+    if (fileType === 'image') {
+      // Use API route for images to handle CORS and proper download
+      const params = new URLSearchParams({
+        url: att.file_url,
+        filename: fileName
+      });
+      const downloadUrl = '/api/download-photo?' + params.toString();
+
+      // Create a hidden link and trigger download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
+    } else {
+      // For PDFs and other documents, use direct download
+      const link = document.createElement('a');
+      link.href = att.file_url;
+      link.download = fileName;
+      link.target = '_blank';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
+    }
+  };
+
   return (
     <div className="relative group border border-slate-200 rounded-lg p-2 flex flex-col justify-between bg-white hover:shadow-md transition-shadow">
       <Link href={att.file_url} target="_blank" rel="noopener noreferrer" className="grow">
-        <div className="relative aspect-square w-full overflow-hidden flex items-center justify-center bg-slate-100 rounded-md mb-2">
+        <div className="relative aspect-square w-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 rounded-md mb-2">
           {getFileType(att.file_url) === 'image' ? (
-            <Image src={att.file_url} alt={att.file_name || 'Uploaded image'} fill className="object-cover" sizes="(max-width: 768px) 50vw, 20vw" />
+            <img
+              src={att.file_url}
+              alt={att.file_name || 'Uploaded image'}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
           ) : (
-            <div className="text-center p-2">
-              {getFileType(att.file_url) === 'pdf' ? <FileText className="h-8 w-8 mx-auto text-red-500" /> : <ImageIcon className="h-8 w-8 mx-auto text-slate-500" />}
+            <div className="text-center p-4 flex flex-col items-center justify-center h-full">
+              {getFileType(att.file_url) === 'pdf' ? (
+                <>
+                  <FileText className="h-12 w-12 text-red-500 mb-2" />
+                  <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded">PDF</span>
+                </>
+              ) : (
+                <>
+                  <FileText className="h-12 w-12 text-blue-500 mb-2" />
+                  <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    {att.file_url.split('.').pop()?.toUpperCase() || 'FILE'}
+                  </span>
+                </>
+              )}
             </div>
           )}
           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all" />
@@ -56,11 +121,25 @@ function AttachmentCard({ att, currentUserId, isPending, handleDelete }: { att: 
         <p className="font-medium truncate text-slate-900">{att.file_name || "Untitled"}</p>
         <p className="text-slate-500 flex items-center gap-1"><User size={12} /> {att.uploader_full_name?.split(' ')[0] || 'N/A'}</p>
       </div>
+
+      {/* Download Button - Always visible on mobile, hover on desktop */}
+      <Button
+        variant="default"
+        size="icon"
+        className="absolute top-1 left-1 h-7 w-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-blue-600 hover:bg-blue-700"
+        onClick={handleDownload}
+        disabled={isPending}
+        aria-label="Download file"
+      >
+        <Download size={14} />
+      </Button>
+
+      {/* Delete Button - Only for uploader, always visible on mobile */}
       {(currentUserId === att.uploader_id) && (
         <Button
           variant="destructive"
           size="icon"
-          className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity bg-red-600 hover:bg-red-700"
+          className="absolute top-1 right-1 h-7 w-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-red-600 hover:bg-red-700"
           onClick={() => handleDelete(att.id)}
           disabled={isPending}
           aria-label="Delete file"
@@ -313,8 +392,8 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
 
             {message && (
               <div className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-300 ${message.type === 'error'
-                  ? 'text-red-700 bg-red-50 border-red-200'
-                  : 'text-green-700 bg-green-50 border-green-200'
+                ? 'text-red-700 bg-red-50 border-red-200'
+                : 'text-green-700 bg-green-50 border-green-200'
                 }`}>
                 {message.type === 'error' ? (
                   <AlertCircle className="h-5 w-5 flex-shrink-0" />

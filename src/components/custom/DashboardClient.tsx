@@ -584,9 +584,9 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Progress Dashboard</h1>
-            <p className="mt-1 sm:mt-2 text-sm sm:text-base text-slate-600">
-              Overview of all works assigned to you. Your role: <Badge variant="outline" className="ml-1 text-xs">{profile.role}</Badge>
+            <h1 className="text-[32px] sm:text-3xl font-bold text-slate-900">Progress Dashboard</h1>
+            <p className="mt-1 sm:mt-2 text-base sm:text-base text-slate-600">
+              Overview of all works assigned to you. Your role: <Badge variant="outline" className="ml-1 text-sm">{profile.role}</Badge>
             </p>
           </div>
         </div>
@@ -603,45 +603,45 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
           className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'all' ? 'ring-2 ring-blue-500' : 'hover:shadow-sm'} rounded-lg`}
           onClick={() => handleKPIClick('all')}
         >
-          <CardContent className="p-1.5 sm:p-2 lg:p-4">
-            <div className="text-[10px] sm:text-xs text-slate-600 leading-tight">Total Works</div>
-            <div className="text-base sm:text-lg lg:text-2xl font-bold text-slate-900 leading-tight">{summaryStats.totalWorks}</div>
+          <CardContent className="p-2.5 sm:p-2 lg:p-4">
+            <div className="text-sm sm:text-xs text-slate-600 leading-tight">Total Works</div>
+            <div className="text-2xl sm:text-lg lg:text-2xl font-bold text-slate-900 leading-tight">{summaryStats.totalWorks}</div>
           </CardContent>
         </Card>
         <Card
           className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'completed' ? 'ring-2 ring-green-500' : 'hover:shadow-sm'} rounded-lg`}
           onClick={() => handleKPIClick('completed')}
         >
-          <CardContent className="p-1.5 sm:p-2 lg:p-4">
-            <div className="text-[10px] sm:text-xs text-slate-600 leading-tight">Completed</div>
-            <div className="text-base sm:text-lg lg:text-2xl font-bold text-green-600 leading-tight">{summaryStats.completedWorks}</div>
+          <CardContent className="p-2.5 sm:p-2 lg:p-4">
+            <div className="text-sm sm:text-xs text-slate-600 leading-tight">Completed</div>
+            <div className="text-2xl sm:text-lg lg:text-2xl font-bold text-green-600 leading-tight">{summaryStats.completedWorks}</div>
           </CardContent>
         </Card>
         <Card
           className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'in_progress' ? 'ring-2 ring-blue-500' : 'hover:shadow-sm'} rounded-lg`}
           onClick={() => handleKPIClick('in_progress')}
         >
-          <CardContent className="p-1.5 sm:p-2 lg:p-4">
-            <div className="text-[10px] sm:text-xs text-slate-600 leading-tight">In Progress</div>
-            <div className="text-base sm:text-lg lg:text-2xl font-bold text-blue-600 leading-tight">{summaryStats.inProgressWorks}</div>
+          <CardContent className="p-2.5 sm:p-2 lg:p-4">
+            <div className="text-sm sm:text-xs text-slate-600 leading-tight">In Progress</div>
+            <div className="text-2xl sm:text-lg lg:text-2xl font-bold text-blue-600 leading-tight">{summaryStats.inProgressWorks}</div>
           </CardContent>
         </Card>
         <Card
           className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'not_started' ? 'ring-2 ring-orange-500' : 'hover:shadow-md'} rounded-lg`}
           onClick={() => handleKPIClick('not_started')}
         >
-          <CardContent className="p-1.5 sm:p-2 lg:p-4">
-            <div className="text-[10px] sm:text-xs text-slate-600 leading-tight">Not Started</div>
-            <div className="text-base sm:text-lg lg:text-2xl font-bold text-orange-600 leading-tight">{summaryStats.notStartedWorks}</div>
+          <CardContent className="p-2.5 sm:p-2 lg:p-4">
+            <div className="text-sm sm:text-xs text-slate-600 leading-tight">Not Started</div>
+            <div className="text-2xl sm:text-lg lg:text-2xl font-bold text-orange-600 leading-tight">{summaryStats.notStartedWorks}</div>
           </CardContent>
         </Card>
         <Card
           className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'blocked' ? 'ring-2 ring-red-500' : 'hover:shadow-md'} rounded-lg`}
           onClick={() => handleKPIClick('blocked')}
         >
-          <CardContent className="p-1.5 sm:p-2 lg:p-4">
-            <div className="text-[10px] sm:text-xs text-slate-600 leading-tight">Blocked</div>
-            <div className="text-base sm:text-lg lg:text-2xl font-bold text-red-600 leading-tight">{summaryStats.blockedWorks}</div>
+          <CardContent className="p-2.5 sm:p-2 lg:p-4">
+            <div className="text-sm sm:text-xs text-slate-600 leading-tight">Blocked</div>
+            <div className="text-2xl sm:text-lg lg:text-2xl font-bold text-red-600 leading-tight">{summaryStats.blockedWorks}</div>
           </CardContent>
         </Card>
       </div>
@@ -667,7 +667,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                     onClick={() => handleSort('site_name')}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xs sm:text-sm">Site Name</span>
+                      <span className="text-[15px] sm:text-sm">Site Name</span>
                       {getSortIcon('site_name')}
                     </div>
                   </TableHead>
@@ -676,7 +676,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                     onClick={() => handleSort('district_name')}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xs sm:text-sm">District</span>
+                      <span className="text-[15px] sm:text-sm">District</span>
                       {getSortIcon('district_name')}
                     </div>
                   </TableHead>
@@ -685,7 +685,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                     onClick={() => handleSort('progress_percentage')}
                   >
                     <div className="flex items-center justify-end gap-2">
-                      <span className="text-xs sm:text-sm">Progress</span>
+                      <span className="text-[15px] sm:text-sm">Progress</span>
                       {getSortIcon('progress_percentage')}
                     </div>
                   </TableHead>
@@ -694,7 +694,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                     onClick={() => handleSort('last_remarks')}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xs sm:text-sm">Last Progress Remarks</span>
+                      <span className="text-[15px] sm:text-sm">Last Progress Remarks</span>
                       {getSortIcon('last_remarks')}
                     </div>
                   </TableHead>
@@ -714,7 +714,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                           <div className="flex items-center gap-1 flex-1 min-w-0">
                             <Link
                               href={`/dashboard/work/${work.id}`}
-                              className="hover:underline text-blue-600 hover:text-blue-700 font-medium text-xs sm:text-sm flex-1 min-w-0"
+                              className="hover:underline text-blue-600 hover:text-blue-700 font-medium text-[15px] sm:text-sm flex-1 min-w-0"
                               title={work.site_name || 'No name'}
                             >
                               <span className="truncate block sm:hidden">
@@ -733,7 +733,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                         </div>
                       </TableCell>
                       <TableCell className="w-[80px] sm:w-[100px]">
-                        <span className="text-slate-600 truncate block text-xs sm:text-sm">
+                        <span className="text-slate-600 truncate block text-[15px] sm:text-sm">
                           {work.district_name || 'No district'}
                         </span>
                       </TableCell>
@@ -742,22 +742,22 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                           <div className="w-12 sm:w-16 bg-slate-200 rounded-full h-2 relative overflow-hidden">
                             <div
                               className={`h-2 rounded-full transition-all duration-500 ${(work.progress_percentage || 0) === 100 ? 'bg-green-500' :
-                                  (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
-                                    (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
-                                      (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
-                                        'bg-red-500'
+                                (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
+                                  (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
+                                    (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
+                                      'bg-red-500'
                                 }`}
                               style={{ width: `${work.progress_percentage || 0}%` }}
                             ></div>
                           </div>
-                          <span className="text-slate-600 font-medium text-xs sm:text-sm min-w-[30px] sm:min-w-[35px] text-right">
+                          <span className="text-slate-600 font-medium text-[15px] sm:text-sm min-w-[30px] sm:min-w-[35px] text-right">
                             {work.progress_percentage || 0}%
                           </span>
                         </div>
                       </TableCell>
                       <TableCell className="min-w-[120px] sm:min-w-[150px]">
                         <div className="flex items-center gap-1">
-                          <span className="text-slate-600 text-xs sm:text-sm line-clamp-2">
+                          <span className="text-slate-600 text-[15px] sm:text-sm line-clamp-2">
                             <span className="truncate block sm:hidden">
                               {truncateRemarks(getLastProgressRemark(work.id), getRemarksTruncationLength(true))}
                             </span>
@@ -792,7 +792,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border-t border-slate-200 gap-3 sm:gap-0">
-              <div className="text-xs sm:text-sm text-slate-600 text-center sm:text-left">
+              <div className="text-[15px] sm:text-sm text-slate-600 text-center sm:text-left">
                 Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredWorks.length)} of {filteredWorks.length} works
               </div>
               <div className="flex justify-center">
