@@ -138,7 +138,7 @@ export async function updateWorkProgress(formData: FormData) {
     redirect(`/dashboard/work/${workId}?error=${encodeURIComponent("Could not fetch current work details.")}`);
   }
 
-  const updateData: any = {
+  const updateData = {
     progress_percentage: progressNumber,
     remark,
     bill_no: billNo || null,
@@ -149,9 +149,9 @@ export async function updateWorkProgress(formData: FormData) {
 
   console.log("Update data:", updateData);
 
-  const { error: updateError } = await (admin as any)
+  const { error: updateError } = await admin
     .from("works")
-    .update(updateData)
+    .update(updateData as any)
     .eq("id", workIdNumber);
 
   if (updateError) {

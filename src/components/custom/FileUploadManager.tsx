@@ -78,6 +78,7 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [attachmentType, setAttachmentType] = useState<string>('site_photo');
 
   useEffect(() => {
     setMounted(true);
@@ -99,15 +100,24 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
     }
 
     const formData = new FormData(event.currentTarget);
-    const attachmentType = formData.get('attachmentType') as string;
+    const selectedAttachmentType = formData.get('attachmentType') as string;
 
     // Maximum file size (10MB)
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
-    // Allowed file types
-    const ALLOWED_TYPES = [
+
+    // Allowed file types based on attachment type
+    const IMAGE_TYPES = [
       'image/jpeg',
       'image/png',
       'image/gif',
+      'image/webp'
+    ];
+
+    const DOCUMENT_TYPES = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
       'application/pdf',
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -115,20 +125,25 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     ];
 
+    const ALLOWED_TYPES = selectedAttachmentType === 'site_photo' ? IMAGE_TYPES : DOCUMENT_TYPES;
+
     // Validate each file before uploading
     for (const file of files) {
       if (file.size > MAX_FILE_SIZE) {
-        setMessage({ 
-          text: `File ${file.name} is too large. Maximum size is 10MB.`, 
-          type: 'error' 
+        setMessage({
+          text: `File ${file.name} is too large. Maximum size is 10MB.`,
+          type: 'error'
         });
         return;
       }
 
       if (!ALLOWED_TYPES.includes(file.type)) {
-        setMessage({ 
-          text: `File ${file.name} has unsupported format. Allowed types are: images, PDF, Word, and Excel documents.`, 
-          type: 'error' 
+        const allowedFormatsText = selectedAttachmentType === 'site_photo'
+          ? 'images only (JPEG, PNG, GIF, WebP)'
+          : 'images, PDF, Word, and Excel documents';
+        setMessage({
+          text: `File ${file.name} has unsupported format. Allowed types for ${selectedAttachmentType === 'site_photo' ? 'Site Photographs' : 'Other Documents'}: ${allowedFormatsText}.`,
+          type: 'error'
         });
         return;
       }
@@ -143,7 +158,7 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
         const uploadFormData = new FormData();
         uploadFormData.append("file", file);
         uploadFormData.append("workId", workId.toString());
-        uploadFormData.append("attachmentType", attachmentType);
+        uploadFormData.append("attachmentType", selectedAttachmentType);
 
         console.log(`Starting file upload to /api/upload for ${file.name}...`);
 
@@ -214,8 +229,8 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className="flex items-center gap-2 border-slate-200 hover:bg-purple-50 hover:border-purple-300 text-slate-700 hover:text-purple-700"
         >
           <Paperclip className="h-4 w-4" />
@@ -239,15 +254,22 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
             Upload and manage project documents and images for this work.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="py-4 space-y-6">
           {/* Upload Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="attachment-type" className="text-sm font-medium text-slate-700">File Type</Label>
-              <select 
-                id="attachment-type" 
+              <select
+                id="attachment-type"
                 name="attachmentType"
+                value={attachmentType}
+                onChange={(e) => {
+                  setAttachmentType(e.target.value);
+                  setFiles([]); // Clear selected files when changing type
+                  const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+                  if (fileInput) fileInput.value = ''; // Reset file input
+                }}
                 className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
               >
                 <option value="site_photo">Site Photograph</option>
@@ -256,16 +278,17 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
             </div>
             <div className="space-y-2">
               <Label htmlFor="file-upload" className="text-sm font-medium text-slate-700">Select Files</Label>
-              <Input 
-                id="file-upload" 
-                type="file" 
-                multiple 
-                onChange={handleFileChange} 
-                disabled={isPending} 
+              <Input
+                id="file-upload"
+                type="file"
+                multiple
+                accept={attachmentType === 'site_photo' ? 'image/jpeg,image/jpg,image/png,image/gif,image/webp' : 'image/*,.pdf,.doc,.docx,.xls,.xlsx'}
+                onChange={handleFileChange}
+                disabled={isPending}
                 className="border-slate-200 focus:border-purple-500 focus:ring-purple-500"
               />
             </div>
-            
+
             {files.length > 0 && (
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-slate-700">Selected Files:</Label>
@@ -282,18 +305,17 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
                 </div>
               </div>
             )}
-            
+
             <Button type="submit" disabled={isPending || files.length === 0} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white">
               {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
               {isPending ? "Uploading..." : `Upload ${files.length} file(s)`}
             </Button>
-            
+
             {message && (
-              <div className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-300 ${
-                message.type === 'error' 
-                  ? 'text-red-700 bg-red-50 border-red-200' 
+              <div className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-300 ${message.type === 'error'
+                  ? 'text-red-700 bg-red-50 border-red-200'
                   : 'text-green-700 bg-green-50 border-green-200'
-              }`}>
+                }`}>
                 {message.type === 'error' ? (
                   <AlertCircle className="h-5 w-5 flex-shrink-0" />
                 ) : (
@@ -318,7 +340,7 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
                   </div>
                 </div>
               )}
-              
+
               {/* Other Documents */}
               {attachments.filter(a => (a as any).attachment_type === 'document').length > 0 && (
                 <div>
@@ -333,10 +355,10 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
             </div>
           )}
         </div>
-        
+
         <DialogFooter>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => setIsOpen(false)}
             className="border-slate-200 hover:bg-slate-50"
           >

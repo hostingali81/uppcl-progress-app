@@ -253,14 +253,37 @@ export function ProgressLogsSection({ progressLogs, allAttachments = [] }: Progr
 
           <div class="info">${photoIndex + 1} of ${sitePhotos.length}</div>
 
-          <a class="download-btn" href="${photoUrl}" download="${fileName}">
-            Download
-          </a>
+          <button class="download-btn" onclick="downloadPhoto(event)">
+            📥 Download
+          </button>
         </div>
 
         <script>
           const photos = ${JSON.stringify(sitePhotos)};
           let currentIndex = ${photoIndex};
+
+          function downloadPhoto(event) {
+            if (event) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+            
+            const photo = photos[currentIndex];
+            const photoUrl = photo.file_url;
+            const fileName = photo.file_name || 'progress-photo-' + (currentIndex + 1) + '.jpg';
+            
+            // Use API route to download with proper headers - construct URL properly
+            const params = new URLSearchParams();
+            params.set('url', photoUrl);
+            params.set('filename', fileName);
+            const downloadUrl = '/api/download-photo?' + params.toString();
+            
+            // Get the absolute URL (important when in blob context)
+            const absoluteUrl = new URL(downloadUrl, window.location.origin).href;
+            
+            // Trigger download using window.open with _self to avoid new tab
+            window.open(absoluteUrl, '_self');
+          }
 
           function changePhoto(direction) {
             if (photos.length <= 1) return;
@@ -273,8 +296,6 @@ export function ProgressLogsSection({ progressLogs, allAttachments = [] }: Progr
             document.getElementById('currentPhoto').src = photo.file_url;
             document.querySelector('.info').textContent = (currentIndex + 1) + ' of ' + photos.length;
             document.title = photo.file_name || 'Progress Photo';
-            document.querySelector('.download-btn').href = photo.file_url;
-            document.querySelector('.download-btn').download = photo.file_name || 'Progress Photo';
 
             // Fit image to screen
             setTimeout(fitImage, 100);

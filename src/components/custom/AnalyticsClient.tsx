@@ -36,15 +36,15 @@ interface AnalyticsClientProps {
   };
 }
 
-export function AnalyticsClient({ 
-  works, 
-  statusData, 
-  financialData, 
-  districtData, 
-  monthlyData, 
-  chartTitle, 
-  kpis, 
-  colors 
+export function AnalyticsClient({
+  works,
+  statusData,
+  financialData,
+  districtData,
+  monthlyData,
+  chartTitle,
+  kpis,
+  colors
 }: AnalyticsClientProps) {
   const [filteredWorks, setFilteredWorks] = useState<Work[]>(works);
   const [sort, setSort] = useState<{ column: string; direction: 'asc' | 'desc' }>({ column: '', direction: 'asc' });
@@ -85,7 +85,7 @@ export function AnalyticsClient({
 
   // Recalculate financial data based on filtered works
   // Financial progress should consider billed amount (total billing) and agreement amount
-  const getFilteredFinancialData = useCallback(() => {    
+  const getFilteredFinancialData = useCallback(() => {
     const baseWorks = getBaseFilteredWorks();
 
     const initialData = [
@@ -191,8 +191,8 @@ export function AnalyticsClient({
       const progress = work.progress_percentage || 0;
       return sum + ((work.agreement_amount || 0) * progress) / 100;
     }, 0);
-    const averageProgress = baseWorks.length > 0 
-      ? baseWorks.reduce((sum: number, work: Work) => sum + (work.progress_percentage || 0), 0) / baseWorks.length 
+    const averageProgress = baseWorks.length > 0
+      ? baseWorks.reduce((sum: number, work: Work) => sum + (work.progress_percentage || 0), 0) / baseWorks.length
       : 0;
 
     return {
@@ -443,7 +443,7 @@ export function AnalyticsClient({
         filtered = baseWorks.filter(work => work.is_blocked);
         break;
     }
-    
+
     setFilteredWorks(filtered);
     setActiveFilter(filterType);
   };
@@ -455,7 +455,7 @@ export function AnalyticsClient({
       const matchesCategory = selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '');
       return matchesScheme && matchesCategory;
     });
-    
+
     setFilteredWorks(filtered);
     setActiveFilter('all');
   };
@@ -503,147 +503,146 @@ export function AnalyticsClient({
         </Card>
       )}
 
-      {/* Scheme Selector */}
+      {/* Filters Container */}
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <div className="flex-1">
-              <label className="text-sm font-medium text-slate-700 mb-2 block">NAME OF SCHEME</label>
-              <DropdownMenu
-                open={schemesDropdownOpen}
-                onOpenChange={(open) => {
-                  // Close dropdown only when explicitly requested or when clicking outside
-                  // Don't close on individual item selection due to onSelect event prevention
-                  setSchemesDropdownOpen(open);
-                }}
-              >
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-[300px] justify-between bg-white border-slate-200 hover:bg-slate-50 text-sm h-11 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  >
-                    <span className="truncate">{selectedSchemes.length === 0 ? 'All Schemes' : `${selectedSchemes.length} scheme${selectedSchemes.length === 1 ? '' : 's'} selected`}</span>
-                    <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[300px] max-h-[400px] overflow-y-auto shadow-lg border-slate-200 rounded-lg" align="start">
-                  <div className="px-3 py-2 border-b border-slate-200">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-900">Select Schemes</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSelectAllSchemes(selectedSchemes.length !== getAvailableSchemes().length)}
-                        className="text-xs h-7 px-2 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
-                      >
-                        {selectedSchemes.length === getAvailableSchemes().length ? 'Deselect All' : 'Select All'}
-                      </Button>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* Scheme Selector */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-slate-700 block">NAME OF SCHEME</label>
+              <div className="flex flex-col sm:flex-row xl:flex-col 2xl:flex-row gap-3">
+                <DropdownMenu
+                  open={schemesDropdownOpen}
+                  onOpenChange={(open) => {
+                    setSchemesDropdownOpen(open);
+                  }}
+                >
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between bg-white border-slate-200 hover:bg-slate-50 text-sm h-11 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    >
+                      <span className="truncate">{selectedSchemes.length === 0 ? 'All Schemes' : `${selectedSchemes.length} scheme${selectedSchemes.length === 1 ? '' : 's'} selected`}</span>
+                      <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-[300px] max-h-[400px] overflow-y-auto shadow-lg border-slate-200 rounded-lg" align="start">
+                    <div className="px-3 py-2 border-b border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-slate-900">Select Schemes</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSelectAllSchemes(selectedSchemes.length !== getAvailableSchemes().length)}
+                          className="text-xs h-7 px-2 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                        >
+                          {selectedSchemes.length === getAvailableSchemes().length ? 'Deselect All' : 'Select All'}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="py-1">
-                    {getAvailableSchemes().map((scheme) => (
-                      <DropdownMenuCheckboxItem
-                        key={scheme}
-                        checked={selectedSchemes.includes(scheme)}
-                        onCheckedChange={(checked) => handleSchemeToggle(scheme, checked)}
-                        onSelect={(event) => event.preventDefault()} // Prevent dropdown from closing on individual selection
-                        className="cursor-pointer px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:text-blue-900 transition-colors"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <span className={`w-4 h-4 rounded border-2 border-slate-300 bg-white flex items-center justify-center transition-colors ${
-                            selectedSchemes.includes(scheme)
+                    <div className="py-1">
+                      {getAvailableSchemes().map((scheme) => (
+                        <DropdownMenuCheckboxItem
+                          key={scheme}
+                          checked={selectedSchemes.includes(scheme)}
+                          onCheckedChange={(checked) => handleSchemeToggle(scheme, checked)}
+                          onSelect={(event) => event.preventDefault()}
+                          className="cursor-pointer px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:text-blue-900 transition-colors"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <span className={`w-4 h-4 rounded border-2 border-slate-300 bg-white flex items-center justify-center transition-colors ${selectedSchemes.includes(scheme)
                               ? 'bg-blue-500 border-blue-500'
                               : 'hover:border-blue-300'
-                          }`}>
-                            {selectedSchemes.includes(scheme) && (
-                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 0 0-.708.708l3.5 3.5a1.5 1.5 0 0 0 2.112 0l7-7a.5.5 0 0 1 .708 0z"/>
-                              </svg>
-                            )}
-                          </span>
-                          <span className="text-sm truncate">{scheme}</span>
-                        </div>
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-md">
-              <span className="font-medium">{selectedSchemes.length === 0 ? 'All Schemes' : `${selectedSchemes.length} scheme${selectedSchemes.length === 1 ? '' : 's'}`}</span>
-              <span className="text-slate-400">•</span>
-              <span>{works.filter(w => selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '')).length} works</span>
-            </div>
-          </div>
+                              }`}>
+                              {selectedSchemes.includes(scheme) && (
+                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 16 16">
+                                  <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 0 0-.708.708l3.5 3.5a1.5 1.5 0 0 0 2.112 0l7-7a.5.5 0 0 1 .708 0z" />
+                                </svg>
+                              )}
+                            </span>
+                            <span className="text-sm truncate">{scheme}</span>
+                          </div>
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-          {/* Work Category Selector */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mt-4">
-            <div className="flex-1">
-              <label className="text-sm font-medium text-slate-700 mb-2 block">WORK CATEGORY</label>
-              <DropdownMenu
-                open={categoriesDropdownOpen}
-                onOpenChange={(open) => {
-                  // Close dropdown only when explicitly requested or when clicking outside
-                  // Don't close on individual item selection due to onSelect event prevention
-                  setCategoriesDropdownOpen(open);
-                }}
-              >
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-[300px] justify-between bg-white border-slate-200 hover:bg-slate-50 text-sm h-11 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  >
-                    <span className="truncate">{selectedWorkCategories.length === 0 ? 'All Categories' : `${selectedWorkCategories.length} categor${selectedWorkCategories.length === 1 ? 'y' : 'ies'} selected`}</span>
-                    <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[300px] max-h-[400px] overflow-y-auto shadow-lg border-slate-200 rounded-lg" align="start">
-                  <div className="px-3 py-2 border-b border-slate-200">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-900">Select Categories</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSelectAllCategories(selectedWorkCategories.length !== getAvailableCategories().length)}
-                        className="text-xs h-7 px-2 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
-                      >
-                        {selectedWorkCategories.length === getAvailableCategories().length ? 'Deselect All' : 'Select All'}
-                      </Button>
+                <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-md whitespace-nowrap min-w-fit">
+                  <span className="font-medium">{selectedSchemes.length === 0 ? 'All' : selectedSchemes.length}</span>
+                  <span className="text-slate-400">•</span>
+                  <span>{works.filter(w => selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '')).length} works</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Work Category Selector */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-slate-700 block">WORK CATEGORY</label>
+              <div className="flex flex-col sm:flex-row xl:flex-col 2xl:flex-row gap-3">
+                <DropdownMenu
+                  open={categoriesDropdownOpen}
+                  onOpenChange={(open) => {
+                    setCategoriesDropdownOpen(open);
+                  }}
+                >
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between bg-white border-slate-200 hover:bg-slate-50 text-sm h-11 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    >
+                      <span className="truncate">{selectedWorkCategories.length === 0 ? 'All Categories' : `${selectedWorkCategories.length} categor${selectedWorkCategories.length === 1 ? 'y' : 'ies'} selected`}</span>
+                      <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-[300px] max-h-[400px] overflow-y-auto shadow-lg border-slate-200 rounded-lg" align="start">
+                    <div className="px-3 py-2 border-b border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-slate-900">Select Categories</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSelectAllCategories(selectedWorkCategories.length !== getAvailableCategories().length)}
+                          className="text-xs h-7 px-2 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                        >
+                          {selectedWorkCategories.length === getAvailableCategories().length ? 'Deselect All' : 'Select All'}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="py-1">
-                    {getAvailableCategories().map((category) => (
-                      <DropdownMenuCheckboxItem
-                        key={category}
-                        checked={selectedWorkCategories.includes(category)}
-                        onCheckedChange={(checked) => handleCategoryToggle(category, checked)}
-                        onSelect={(event) => event.preventDefault()} // Prevent dropdown from closing on individual selection
-                        className="cursor-pointer px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:text-blue-900 transition-colors"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <span className={`w-4 h-4 rounded border-2 border-slate-300 bg-white flex items-center justify-center transition-colors ${
-                            selectedWorkCategories.includes(category)
+                    <div className="py-1">
+                      {getAvailableCategories().map((category) => (
+                        <DropdownMenuCheckboxItem
+                          key={category}
+                          checked={selectedWorkCategories.includes(category)}
+                          onCheckedChange={(checked) => handleCategoryToggle(category, checked)}
+                          onSelect={(event) => event.preventDefault()}
+                          className="cursor-pointer px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:text-blue-900 transition-colors"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <span className={`w-4 h-4 rounded border-2 border-slate-300 bg-white flex items-center justify-center transition-colors ${selectedWorkCategories.includes(category)
                               ? 'bg-blue-500 border-blue-500'
                               : 'hover:border-blue-300'
-                          }`}>
-                            {selectedWorkCategories.includes(category) && (
-                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 0 0-.708.708l3.5 3.5a1.5 1.5 0 0 0 2.112 0l7-7a.5.5 0 0 1 .708 0z"/>
-                              </svg>
-                            )}
-                          </span>
-                          <span className="text-sm truncate">{category}</span>
-                        </div>
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-md">
-              <span className="font-medium">{selectedWorkCategories.length === 0 ? 'All Categories' : `${selectedWorkCategories.length} categor${selectedWorkCategories.length === 1 ? 'y' : 'ies'}`}</span>
-              <span className="text-slate-400">•</span>
-              <span>{works.filter(w => selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '')).length} works</span>
+                              }`}>
+                              {selectedWorkCategories.includes(category) && (
+                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 16 16">
+                                  <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 0 0-.708.708l3.5 3.5a1.5 1.5 0 0 0 2.112 0l7-7a.5.5 0 0 1 .708 0z" />
+                                </svg>
+                              )}
+                            </span>
+                            <span className="text-sm truncate">{category}</span>
+                          </div>
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-md whitespace-nowrap min-w-fit">
+                  <span className="font-medium">{selectedWorkCategories.length === 0 ? 'All' : selectedWorkCategories.length}</span>
+                  <span className="text-slate-400">•</span>
+                  <span>{works.filter(w => selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '')).length} works</span>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

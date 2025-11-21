@@ -279,44 +279,44 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
   // Calculate historical progress based on selected date
   const getHistoricalProgress = useMemo(() => {
     if (!selectedDate) return works; // Return current works if no date selected
-    
+
     // Convert selected date to YYYY-MM-DD format for comparison
     const selectedDateStr = selectedDate; // Already in YYYY-MM-DD format
-    
+
     const historicalWorks = works.map(work => {
       // Find all progress logs for this work
       const workLogs = progressLogs.filter(log => log.work_id === work.id);
-      
+
       if (workLogs.length === 0) {
         // No progress logs for this work, return original
         return work;
       }
-      
+
       // Find logs on or before the selected date using string comparison
       const relevantLogs = workLogs.filter(log => {
         // Extract date part from log timestamp (YYYY-MM-DD)
         const logDateStr = log.created_at.split('T')[0];
-        
+
         // Compare dates as strings (YYYY-MM-DD format)
         return logDateStr <= selectedDateStr;
       });
-      
+
       if (relevantLogs.length > 0) {
         // Get the most recent log for this work on or before the selected date
-        const latestLog = relevantLogs.sort((a, b) => 
+        const latestLog = relevantLogs.sort((a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )[0];
-        
+
         return {
           ...work,
           progress_percentage: latestLog.new_progress
         };
       }
-      
+
       // If no logs before selected date, return original work
       return work;
     });
-    
+
     return historicalWorks;
   }, [works, progressLogs, selectedDate]);
 
@@ -330,12 +330,12 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
 
   const handleDateChange = useCallback((date: string | null) => {
     setSelectedDate(date);
-    
+
     // Validate date if provided
     if (date) {
       const selectedDateObj = new Date(date);
       const today = new Date();
-      
+
       // Check if date is valid and not in future
       if (isNaN(selectedDateObj.getTime()) || selectedDateObj > today) {
         console.warn('Invalid date selected:', date);
@@ -551,22 +551,22 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
       // First sort by blocked status (blocked works first)
       if (a.is_blocked && !b.is_blocked) return -1;
       if (!a.is_blocked && b.is_blocked) return 1;
-      
+
       // Then maintain the current sort order for non-blocked works
       if (sort.column) {
         const aVal = a[sort.column as keyof Work];
         const bVal = b[sort.column as keyof Work];
-        
+
         if (typeof aVal === 'string' && typeof bVal === 'string') {
           const comparison = aVal.localeCompare(bVal);
           return sort.direction === 'asc' ? comparison : -comparison;
         }
-        
+
         if (typeof aVal === 'number' && typeof bVal === 'number') {
           return sort.direction === 'asc' ? aVal - bVal : bVal - aVal;
         }
       }
-      
+
       return 0;
     });
 
@@ -664,11 +664,11 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                 <TableRow className="border-slate-200">
                   <TableHead
                     className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[150px] sm:min-w-[180px]"
-                    onClick={() => handleSort('work_name')}
+                    onClick={() => handleSort('site_name')}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xs sm:text-sm">Name of Work</span>
-                      {getSortIcon('work_name')}
+                      <span className="text-xs sm:text-sm">Site Name</span>
+                      {getSortIcon('site_name')}
                     </div>
                   </TableHead>
                   <TableHead
@@ -712,20 +712,20 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                             </span>
                           )}
                           <div className="flex items-center gap-1 flex-1 min-w-0">
-                            <Link 
-                              href={`/dashboard/work/${work.id}`} 
+                            <Link
+                              href={`/dashboard/work/${work.id}`}
                               className="hover:underline text-blue-600 hover:text-blue-700 font-medium text-xs sm:text-sm flex-1 min-w-0"
-                              title={work.work_name || 'No name'}
+                              title={work.site_name || 'No name'}
                             >
                               <span className="truncate block sm:hidden">
-                                {truncateWorkName(work.work_name, getTruncationLength(true))}
+                                {truncateWorkName(work.site_name, getTruncationLength(true))}
                               </span>
                               <span className="truncate block hidden sm:block">
-                                {truncateWorkName(work.work_name, getTruncationLength(false))}
+                                {truncateWorkName(work.site_name, getTruncationLength(false))}
                               </span>
                             </Link>
-                            {shouldShowTooltip(work.work_name) && work.work_name && (
-                              <Tooltip content={work.work_name} className="tooltip-mobile">
+                            {shouldShowTooltip(work.site_name) && work.site_name && (
+                              <Tooltip content={work.site_name} className="tooltip-mobile">
                                 <Info className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 hover:text-slate-600 cursor-help flex-shrink-0" />
                               </Tooltip>
                             )}
@@ -741,13 +741,12 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                         <div className="flex items-center justify-end gap-2">
                           <div className="w-12 sm:w-16 bg-slate-200 rounded-full h-2 relative overflow-hidden">
                             <div
-                              className={`h-2 rounded-full transition-all duration-500 ${
-                                (work.progress_percentage || 0) === 100 ? 'bg-green-500' :
-                                (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
-                                (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
-                                (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
-                                'bg-red-500'
-                              }`}
+                              className={`h-2 rounded-full transition-all duration-500 ${(work.progress_percentage || 0) === 100 ? 'bg-green-500' :
+                                  (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
+                                    (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
+                                      (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
+                                        'bg-red-500'
+                                }`}
                               style={{ width: `${work.progress_percentage || 0}%` }}
                             ></div>
                           </div>
@@ -789,7 +788,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
               </TableBody>
             </Table>
           </div>
-          
+
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border-t border-slate-200 gap-3 sm:gap-0">
