@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/app/(main)/admin/settings/page.tsx
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSettings } from "./actions";

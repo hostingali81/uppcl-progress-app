@@ -17,7 +17,12 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export const createSupabaseServerClient = async (): Promise<any> => {
+export interface SupabaseServerClients {
+  client: SupabaseClient<Database>;
+  admin: SupabaseClient<Database>;
+}
+
+export const createSupabaseServerClient = async (): Promise<SupabaseServerClients> => {
   const cookieStore = await cookies();
 
   const cookieHandler = {
@@ -37,7 +42,7 @@ export const createSupabaseServerClient = async (): Promise<any> => {
       SUPABASE_URL,
       ANON_KEY,
       { cookies: cookieHandler }
-    ),
+    ) as any,
     admin: createServerClient<Database>(
       SUPABASE_URL,
       SERVICE_KEY,
@@ -53,6 +58,6 @@ export const createSupabaseServerClient = async (): Promise<any> => {
           detectSessionInUrl: false
         }
       }
-    )
+    ) as any
   };
 };

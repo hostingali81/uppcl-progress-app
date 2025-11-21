@@ -169,8 +169,8 @@ export default function WorkDetailClient({
             {notification && (
                 <div className="p-4 sm:p-6">
                     <div className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-300 ${notification.type === 'error'
-                            ? 'text-red-700 bg-red-50 border-red-200'
-                            : 'text-green-700 bg-green-50 border-green-200'
+                        ? 'text-red-700 bg-red-50 border-red-200'
+                        : 'text-green-700 bg-green-50 border-green-200'
                         }`}>
                         {notification.type === 'error' ? (
                             <AlertTriangle className="h-5 w-5 flex-shrink-0" />
@@ -187,11 +187,11 @@ export default function WorkDetailClient({
 
                 {/* Quick Actions Bar */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-2">
                             <h3 className="text-lg font-semibold text-slate-900">Quick Actions</h3>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                             <UpdateProgressForm
                                 workId={work.id}
                                 currentProgress={work.progress_percentage}

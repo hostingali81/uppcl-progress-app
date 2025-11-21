@@ -284,7 +284,7 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
               Add Comment
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md top-12 translate-y-0 sm:top-[50%] sm:translate-y-[-50%]">
             <DialogHeader>
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">

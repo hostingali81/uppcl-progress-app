@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { TrendingUp, Save, CheckCircle, AlertCircle, Loader2, Target, MessageSquare, Edit3, X } from "lucide-react";
 
 interface UpdateProgressFormProps {
@@ -17,6 +17,8 @@ interface UpdateProgressFormProps {
   currentActualCompletionDate: string | null;
 }
 
+import { useRouter } from "next/navigation";
+
 export function UpdateProgressForm({
   workId,
   currentProgress,
@@ -24,6 +26,7 @@ export function UpdateProgressForm({
   currentExpectedCompletionDate,
   currentActualCompletionDate,
 }: UpdateProgressFormProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -32,7 +35,7 @@ export function UpdateProgressForm({
   const [progressLogId, setProgressLogId] = useState<number | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
-  
+
   // Form data state
   const [formData, setFormData] = useState({
     progress: currentProgress || 0,
@@ -44,7 +47,7 @@ export function UpdateProgressForm({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     console.log("Form submitted!"); // Debug log
-    
+
     setLoading(true);
     setMessage(null);
 
@@ -55,22 +58,22 @@ export function UpdateProgressForm({
     submitData.append("remark", formData.remark);
     submitData.append("expectedCompletionDate", formData.expectedCompletionDate);
     submitData.append("actualCompletionDate", formData.actualCompletionDate);
-    
+
     try {
       console.log("Making API call..."); // Debug log
       const response = await fetch("/api/progress-logs", {
         method: "POST",
         body: submitData,
       });
-      
+
       console.log("API response:", response.status); // Debug log
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error("API error:", errorText);
         throw new Error("Failed to create progress log");
       }
-      
+
       const data = await response.json();
       console.log("Success:", data); // Debug log
       setProgressLogId(data.progressLogId);
@@ -139,6 +142,7 @@ export function UpdateProgressForm({
 
       // Close dialog after short delay
       setTimeout(() => {
+        router.refresh();
         handleClose();
       }, 1500);
 
@@ -172,6 +176,9 @@ export function UpdateProgressForm({
               {step === 1 ? "Update Progress" : "Upload Photos"}
             </DialogTitle>
           </div>
+          <DialogDescription className="sr-only">
+            {step === 1 ? "Update the progress percentage and details for this work." : "Upload photos for the progress update."}
+          </DialogDescription>
         </DialogHeader>
 
         {step === 1 && (
@@ -184,7 +191,7 @@ export function UpdateProgressForm({
                   <span className="font-bold">{progress}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-blue-600 h-2 rounded-full transition-all"
                     style={{ width: `${progress}%` }}
                   />
@@ -194,7 +201,7 @@ export function UpdateProgressForm({
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <input type="hidden" name="workId" value={workId} />
-              
+
               <div className="space-y-2">
                 <Label>New Progress Percentage</Label>
                 <Input
@@ -250,8 +257,8 @@ export function UpdateProgressForm({
                 <Button type="button" variant="outline" onClick={handleClose}>
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={loading}
                   style={{ pointerEvents: 'auto' }}
                   onClick={(e) => {

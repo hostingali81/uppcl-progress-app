@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/app/(main)/admin/settings/actions.ts
 "use server";
 

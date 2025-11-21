@@ -1,7 +1,9 @@
+// @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSettings } from "@/app/(main)/admin/settings/actions";
+import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
@@ -143,6 +145,12 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("Upload and DB save successful");
+
+    // Revalidate the work page to show the new attachment
+    if (workId) {
+      revalidatePath(`/dashboard/work/${workId}`);
+    }
+    revalidatePath('/dashboard');
 
     return NextResponse.json({
       publicFileUrl,

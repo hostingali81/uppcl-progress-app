@@ -24,12 +24,12 @@ function formatTimeAgo(dateString: string) {
   const date = new Date(dateString);
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
+
   if (diffInSeconds < 60) return "Just now";
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
   if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-  
+
   return date.toLocaleDateString();
 }
 
@@ -58,13 +58,13 @@ export function ProgressLogsSection({ progressLogs, allAttachments = [] }: Progr
     if (userFullName && userFullName.trim() && userFullName !== userFullName.includes('@') ? userFullName.split('@')[0] : userFullName) {
       return userFullName;
     }
-    
+
     // Second priority: profiles full_name from join
     const profileName = log.profiles?.full_name;
     if (profileName && profileName.trim() && !profileName.includes('@')) {
       return profileName;
     }
-    
+
     // Third priority: try to extract name from email (remove @domain.com)
     if (log.user_email && log.user_email.includes('@')) {
       const nameFromEmail = log.user_email.split('@')[0];
@@ -73,7 +73,7 @@ export function ProgressLogsSection({ progressLogs, allAttachments = [] }: Progr
         return nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
       }
     }
-    
+
     // Final fallback
     return 'A user';
   };

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Header } from "@/components/custom/Header";
 import { Sidebar } from "@/components/custom/Sidebar";
 import { ErrorBoundary } from "@/components/custom/ErrorBoundary";

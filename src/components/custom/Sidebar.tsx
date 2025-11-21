@@ -52,13 +52,18 @@ export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
     const fetchUnreadCount = async () => {
       try {
         const res = await fetch('/api/notifications');
+        if (!res.ok) {
+          // If 401 or other error, just ignore silently for sidebar count
+          return;
+        }
         const data = await res.json();
         if (data.notifications) {
           const count = data.notifications.filter((n: any) => !n.is_read).length;
           setUnreadCount(count);
         }
       } catch (error) {
-        console.error("Failed to fetch notifications count", error);
+        // Silent fail for unread count to avoid console spam
+        console.warn("Could not fetch unread notifications count");
       }
     };
 

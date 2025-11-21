@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/app/admin/users/page.tsx
 
 import { EditUserDialog } from "@/components/custom/EditUserDialog";

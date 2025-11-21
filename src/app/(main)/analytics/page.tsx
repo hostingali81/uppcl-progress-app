@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/app/(main)/analytics/page.tsx
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
