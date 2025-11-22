@@ -118,51 +118,56 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground font-sans;
   }
-  
+
   /* Enhanced scrollbar styling */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-  
+
   ::-webkit-scrollbar-track {
     @apply bg-slate-100;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     @apply bg-slate-300 rounded-full;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-400;
   }
-  
+
   /* Smooth transitions for better UX */
   * {
     transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
   }
-  
+
   /* Enhanced focus styles */
   *:focus-visible {
     @apply outline-2 outline-offset-2 outline-blue-500;
   }
-  
+
   /* Mobile-first responsive improvements */
   @media (max-width: 768px) {
+
     /* Improve touch targets for mobile */
-    button, [role="button"], input[type="button"], input[type="submit"] {
+    button,
+    [role="button"],
+    input[type="button"],
+    input[type="submit"] {
       min-height: 44px;
       min-width: 44px;
     }
-    
+
     /* Disable tooltips on mobile to prevent click issues */
     .pointer-events-none {
       pointer-events: none !important;
     }
-    
+
     /* Mobile tooltip improvements */
     .tooltip-mobile {
       max-width: 320px !important;
@@ -173,15 +178,16 @@
       white-space: normal !important;
       text-align: left !important;
     }
-    
+
     /* Better mobile tooltip support */
     @media (max-width: 640px) {
+
       /* Ensure tooltips work on mobile */
       [data-tooltip] {
         position: relative;
         cursor: pointer;
       }
-      
+
       /* Mobile tooltip styling */
       .mobile-tooltip {
         position: absolute !important;
@@ -203,26 +209,26 @@
         box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.2) !important;
         pointer-events: none !important;
       }
-      
+
       /* Better touch interaction for mobile */
       [data-tooltip]:active {
         opacity: 0.8;
       }
-      
+
       /* Ensure tooltip doesn't go off screen */
       .mobile-tooltip {
         max-height: 200px;
         overflow-y: auto;
       }
     }
-    
+
     /* Ensure mobile menu is visible only on mobile */
     .mobile-menu-trigger {
       display: flex !important;
       visibility: visible !important;
       opacity: 1 !important;
     }
-    
+
     /* Force mobile menu button to be visible on mobile */
     .mobile-menu-trigger button {
       display: flex !important;
@@ -231,47 +237,47 @@
       position: relative !important;
       z-index: 50 !important;
     }
-    
+
     /* Make sure the hamburger icon is visible on mobile */
     .mobile-menu-trigger button svg {
       width: 20px !important;
       height: 20px !important;
     }
-    
+
     /* Ensure header is properly positioned */
     header {
       position: sticky !important;
       top: 0 !important;
       z-index: 50 !important;
     }
-    
+
     /* Better spacing for mobile */
     .container {
       padding-left: 1rem;
       padding-right: 1rem;
     }
-    
+
     /* Improve text readability on mobile */
     h1 {
       font-size: 2rem;
       line-height: 1.2;
     }
-    
+
     h2 {
       font-size: 1.5rem;
       line-height: 1.3;
     }
-    
+
     /* Better form spacing on mobile */
-    .space-y-4 > * + * {
+    .space-y-4>*+* {
       margin-top: 1rem;
     }
-    
-    .space-y-6 > * + * {
+
+    .space-y-6>*+* {
       margin-top: 1.5rem;
     }
   }
-  
+
   /* Desktop styles - hide mobile menu and ensure clean header */
   @media (min-width: 768px) {
     .mobile-menu-trigger {
@@ -279,49 +285,52 @@
       visibility: hidden !important;
       opacity: 0 !important;
     }
-    
+
     .mobile-menu-trigger button {
       display: none !important;
       visibility: hidden !important;
       opacity: 0 !important;
     }
-    
+
     /* Ensure header is clean on desktop - no logo needed */
     header {
       justify-content: flex-end;
       padding-right: 1rem;
     }
-    
+
     /* Hide any mobile-specific content on desktop */
     .mobile-only {
       display: none !important;
     }
   }
-  
+
   /* Touch-friendly interactions */
   @media (hover: none) and (pointer: coarse) {
+
     /* Remove hover effects on touch devices */
     .hover\:bg-slate-50:hover {
       background-color: transparent;
     }
-    
+
     .hover\:bg-blue-700:hover {
       background-color: rgb(37 99 235);
     }
-    
+
     /* Add active states for touch */
-    button:active, [role="button"]:active {
+    button:active,
+    [role="button"]:active {
       transform: scale(0.98);
     }
-    
+
     /* Improve touch feedback */
     .touch-manipulation {
       touch-action: manipulation;
     }
   }
-  
+
   /* Prevent zoom on input focus on iOS */
   @media screen and (max-width: 768px) {
+
     input[type="text"],
     input[type="email"],
     input[type="password"],
@@ -368,63 +377,68 @@
       height: auto;
     }
   }
-  
+
   /* Better table responsiveness */
   .table-responsive {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  
+
   /* Improve card shadows on mobile */
   @media (max-width: 768px) {
     .shadow-sm {
       box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     }
-    
+
     .shadow-md {
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
   }
-  
+
   /* Enhanced dropdown and select styling */
   .select-content,
   .dropdown-menu-content {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
-  
+
   /* Better focus states for form elements */
   .form-input:focus,
   .form-select:focus,
   .form-textarea:focus {
     @apply ring-2 ring-blue-500 ring-offset-2 border-blue-500;
   }
-  
+
   /* Improved button hover states */
   .btn-primary:hover {
     @apply shadow-lg transform scale-105;
   }
-  
+
   .btn-secondary:hover {
     @apply shadow-md transform scale-102;
   }
-  
+
   /* Better loading states */
   .loading-spinner {
     animation: spin 1s linear infinite;
   }
-  
+
   @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
   }
-  
+
   /* Enhanced button loading states */
   .btn-loading {
     position: relative;
     overflow: hidden;
   }
-  
+
   .btn-loading::before {
     content: '';
     position: absolute;
@@ -432,43 +446,48 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
     animation: shimmer 1.5s infinite;
   }
-  
+
   @keyframes shimmer {
-    0% { left: -100%; }
-    100% { left: 100%; }
+    0% {
+      left: -100%;
+    }
+
+    100% {
+      left: 100%;
+    }
   }
-  
+
   /* Disabled state improvements */
   .disabled-state {
     opacity: 0.6;
     cursor: not-allowed;
     pointer-events: none;
   }
-  
+
   /* Smooth transitions for form elements */
   input:disabled,
   button:disabled {
     transition: opacity 0.2s ease, transform 0.2s ease;
   }
-  
+
   input:disabled {
     background-color: #f8fafc;
     color: #64748b;
   }
-  
+
   button:disabled {
     transform: scale(0.98);
   }
-  
+
   /* Enhanced modal/dialog styling */
   .modal-backdrop {
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
   }
-  
+
   /* Better mobile pagination */
   .pagination-mobile {
     display: flex;
@@ -480,7 +499,7 @@
     max-width: 100%;
     overflow-x: auto;
   }
-  
+
   .pagination-mobile button {
     min-width: 28px;
     height: 28px;
@@ -488,21 +507,21 @@
     padding: 4px 6px;
     flex-shrink: 0;
   }
-  
+
   /* Mobile pagination container */
   @media (max-width: 640px) {
     .pagination-container {
       padding: 12px 8px;
       border-top: 1px solid #e2e8f0;
     }
-    
+
     .pagination-info {
       text-align: center;
       margin-bottom: 12px;
       font-size: 12px;
       color: #64748b;
     }
-    
+
     .pagination-controls {
       display: flex;
       justify-content: center;
@@ -512,19 +531,19 @@
       max-width: 100%;
     }
   }
-  
+
   /* Better error states */
   .error-state {
     @apply border-red-300 bg-red-50 text-red-700;
   }
-  
+
   /* Enhanced Work Details Page Animations */
   .work-details-hero {
     background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
     position: relative;
     overflow: hidden;
   }
-  
+
   .work-details-hero::before {
     content: '';
     position: absolute;
@@ -535,29 +554,36 @@
     background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
     animation: float 20s ease-in-out infinite;
   }
-  
+
   @keyframes float {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-10px) rotate(180deg); }
+
+    0%,
+    100% {
+      transform: translateY(0px) rotate(0deg);
+    }
+
+    50% {
+      transform: translateY(-10px) rotate(180deg);
+    }
   }
-  
+
   /* Card hover animations */
   .work-detail-card {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     transform: translateY(0);
   }
-  
+
   .work-detail-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   }
-  
+
   /* Progress bar animations */
   .progress-bar-animated {
     position: relative;
     overflow: hidden;
   }
-  
+
   .progress-bar-animated::after {
     content: '';
     position: absolute;
@@ -565,32 +591,44 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
     animation: shimmer 2s infinite;
   }
-  
+
   @keyframes shimmer {
-    0% { left: -100%; }
-    100% { left: 100%; }
+    0% {
+      left: -100%;
+    }
+
+    100% {
+      left: 100%;
+    }
   }
-  
+
   /* Status badge animations */
   .status-badge {
     animation: pulse 2s infinite;
   }
-  
+
   @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.8; }
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.8;
+    }
   }
-  
+
   /* Button hover effects */
   .modern-button {
     position: relative;
     overflow: hidden;
     transition: all 0.3s ease;
   }
-  
+
   .modern-button::before {
     content: '';
     position: absolute;
@@ -598,59 +636,82 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
     transition: left 0.5s;
   }
-  
+
   .modern-button:hover::before {
     left: 100%;
   }
-  
+
   /* Detail row animations */
   .detail-row {
     transition: all 0.2s ease;
   }
-  
+
   .detail-row:hover {
     background-color: rgba(59, 130, 246, 0.05);
     transform: translateX(4px);
   }
-  
+
   /* Icon animations */
   .icon-bounce {
     animation: bounce 1s infinite;
   }
-  
+
   @keyframes bounce {
-    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-4px); }
-    60% { transform: translateY(-2px); }
+
+    0%,
+    20%,
+    50%,
+    80%,
+    100% {
+      transform: translateY(0);
+    }
+
+    40% {
+      transform: translateY(-4px);
+    }
+
+    60% {
+      transform: translateY(-2px);
+    }
   }
-  
+
   /* Loading states */
   .loading-skeleton {
     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
     background-size: 200% 100%;
     animation: loading 1.5s infinite;
   }
-  
+
   @keyframes loading {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+      background-position: 200% 0;
+    }
+
+    100% {
+      background-position: -200% 0;
+    }
   }
-  
+
   /* Mobile optimizations */
   @media (max-width: 768px) {
     .work-detail-card:hover {
       transform: none;
     }
-    
+
     .detail-row:hover {
       transform: none;
     }
   }
-  
+
   .error-state:focus {
     @apply ring-red-500 border-red-500;
+  }
+
+  /* Android Safe Area Fix - Sirf header ko padding */
+  header {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem) !important;
   }
 }

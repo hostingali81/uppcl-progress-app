@@ -12,8 +12,8 @@ import type { Database } from '@/types/supabase';
 export async function getSettings(supabase: any) {
   const { data, error } = await supabase.from("settings").select("key, value");
   if (error) throw new Error("Could not fetch settings from database.");
-  
-  return data.reduce((acc: Record<string, string>, setting: {key: string, value: string | null}) => {
+
+  return data.reduce((acc: Record<string, string>, setting: { key: string, value: string | null }) => {
     if (setting.key) {
       acc[setting.key] = setting.value || '';
     }
@@ -32,7 +32,7 @@ export async function updateCloudflareSettings(formData: FormData) {
     { key: 'cloudflare_r2_bucket_name', value: formData.get('cloudflare_r2_bucket_name') as string | null },
     { key: 'cloudflare_public_r2_url', value: formData.get('cloudflare_public_r2_url') as string | null },
   ];
-  
+
   // --- Most important change ---
   // Only update the secret key when user has entered a new value
   if (secretAccessKey && secretAccessKey.trim() !== '') {
@@ -42,7 +42,7 @@ export async function updateCloudflareSettings(formData: FormData) {
   const { error } = await supabase.from("settings").upsert(settingsToUpdate as any, { onConflict: 'key' });
 
   if (error) { return { error: `Database Error: ${error.message}` }; }
-  
+
   revalidatePath("/(main)/admin/settings");
   return { success: "Cloudflare settings updated successfully!" };
 }
@@ -50,7 +50,7 @@ export async function updateCloudflareSettings(formData: FormData) {
 // New action 2: To update only Google Sheet settings
 export async function updateGoogleSheetSettings(formData: FormData) {
   const { admin: supabase } = await createSupabaseServerClient();
-  
+
   const settingsToUpdate: Database['public']['Tables']['settings']['Insert'][] = [
     { key: 'google_sheet_id', value: formData.get('google_sheet_id') as string | null },
     { key: 'google_sheet_name', value: formData.get('google_sheet_name') as string | null },
@@ -60,10 +60,31 @@ export async function updateGoogleSheetSettings(formData: FormData) {
   const { error } = await supabase.from("settings").upsert(settingsToUpdate as any, { onConflict: 'key' });
 
   if (error) { return { error: `Database Error: ${error.message}` }; }
-  
+
   revalidatePath("/(main)/admin/settings");
   return { success: "Google Sheet settings updated successfully!" };
 }
+
+// New action 3: To update PWA/Android settings
+export async function updatePWASettings(formData: FormData) {
+  const { admin: supabase } = await createSupabaseServerClient();
+
+  const settingsToUpdate: Database['public']['Tables']['settings']['Insert'][] = [
+    { key: 'pwa_app_name', value: formData.get('pwa_app_name') as string | null },
+    { key: 'pwa_short_name', value: formData.get('pwa_short_name') as string | null },
+    { key: 'pwa_description', value: formData.get('pwa_description') as string | null },
+    { key: 'pwa_theme_color', value: formData.get('pwa_theme_color') as string | null },
+    { key: 'pwa_background_color', value: formData.get('pwa_background_color') as string | null },
+  ];
+
+  const { error } = await supabase.from("settings").upsert(settingsToUpdate as any, { onConflict: 'key' });
+
+  if (error) { return { error: `Database Error: ${error.message}` }; }
+
+  revalidatePath("/(main)/admin/settings");
+  return { success: "PWA settings updated successfully! Rebuild the app to apply changes." };
+}
+
 
 // Mapping Google Sheet data to our database column names (UPDATED FOR NEW SCHEMA)
 function mapRowToWork(row: (string | number)[], headers: string[]) {
@@ -171,7 +192,7 @@ function mapRowToWork(row: (string | number)[], headers: string[]) {
               /^\d{1,2}-\d{1,2}-\d{4}$/,   // DD-MM-YYYY
               /^\d{1,2}\.\d{1,2}\.\d{4}$/, // DD.MM.YYYY
             ];
-            
+
             let dateProcessed = false;
             for (const format of dateFormats) {
               if (value.match(format)) {
@@ -202,13 +223,13 @@ function mapRowToWork(row: (string | number)[], headers: string[]) {
                 break;
               }
             }
-            
+
             if (!dateProcessed) {
               console.warn(`Date format not recognized for ${dbColumn}: "${value}"`);
               value = null;
             }
-          } else { 
-            value = null; 
+          } else {
+            value = null;
           }
         }
       }
@@ -217,7 +238,7 @@ function mapRowToWork(row: (string | number)[], headers: string[]) {
       console.warn(`No mapping found for header: "${header}"`);
     }
   });
-  
+
   // Add debugging for important fields
   if (workObject.scheme_sr_no) {
     console.log(`Processing work ${workObject.scheme_sr_no}:`, {
@@ -227,7 +248,7 @@ function mapRowToWork(row: (string | number)[], headers: string[]) {
       district_name: workObject.district_name
     });
   }
-  
+
   return workObject;
 }
 
@@ -242,49 +263,49 @@ export async function pushToGoogleSheet(workData: {
     const sheetId = settings.google_sheet_id;
     const sheetName = settings.google_sheet_name;
     const credentials = JSON.parse(settings.google_service_account_credentials || '{}');
-    
+
     if (!sheetId || !sheetName || !credentials.client_email) {
       return { error: "Google Sheets not configured properly." };
     }
 
     // Create auth client
-    const auth = new google.auth.GoogleAuth({ 
+    const auth = new google.auth.GoogleAuth({
       credentials: {
         ...credentials,
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600,
-      }, 
+      },
       scopes: ['https://www.googleapis.com/auth/spreadsheets']
     });
 
     const client = await auth.getClient();
     const sheets = google.sheets({ version: 'v4', auth: client as any });
-    
+
     // Get current sheet data to find the row
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
       range: sheetName,
     });
-    
+
     const rows = response.data.values as (string | number)[][] | undefined;
     if (!rows || rows.length < 2) {
       return { error: "Sheet is empty or has no data." };
     }
 
     const headers = rows[0] as string[];
-    
+
     // Find the Sr. No. column
     const uniqueIdCandidates = [
       'Sr. No. OF SCEME', 'S.N.', 'Sr. No.', 'Sr No', 'Sr. No. OF SCHEME',
       'Sr. No. of Scheme', 'Scheme Sr No', 'Scheme Sr. No', 'SR NO', 'SR. NO',
     ];
-    
+
     let srNoIndex = -1;
     for (const candidate of uniqueIdCandidates) {
       const idx = headers.findIndex((h: string) => String(h).trim().toLowerCase() === candidate.trim().toLowerCase());
       if (idx !== -1) { srNoIndex = idx; break; }
     }
-    
+
     if (srNoIndex === -1) {
       return { error: "Could not find Sr. No. column in sheet." };
     }
@@ -363,40 +384,40 @@ export async function pushToGoogleSheet(workData: {
 
     // Prepare updates for changed fields
     const updates: any[] = [];
-    
+
     console.log('=== FIELD MAPPING DEBUG ===');
     console.log('Available headers in sheet:', headers);
-    
+
     for (const [dbField, value] of Object.entries(workData)) {
       if (dbField === 'scheme_sr_no' || dbField === 'updated_at') continue; // Skip ID and timestamp
-      
+
       const sheetHeader = dbToSheetMap[dbField];
       if (!sheetHeader) {
         console.log(`No mapping for field: ${dbField}`);
         continue;
       }
-      
-      const colIndex = headers.findIndex((h: string) => 
+
+      const colIndex = headers.findIndex((h: string) =>
         String(h).trim().toLowerCase() === sheetHeader.trim().toLowerCase()
       );
-      
+
       if (colIndex === -1) {
         console.log(`Column not found in sheet for: ${dbField} -> ${sheetHeader}`);
         continue;
       }
-      
+
       // Convert column index to A1 notation (handles columns beyond Z)
       const colLetter = getColumnLetter(colIndex);
       const cellRange = `${sheetName}!${colLetter}${rowIndex + 1}`;
-      
+
       console.log(`Mapping: ${dbField} -> ${sheetHeader} -> Column ${colLetter} (index ${colIndex}) -> Value: ${value}`);
-      
+
       updates.push({
         range: cellRange,
         values: [[value ?? '']]
       });
     }
-    
+
     console.log('=== END FIELD MAPPING DEBUG ===');
 
     if (updates.length === 0) {
@@ -436,20 +457,20 @@ export async function syncWithGoogleSheet() {
     if (!sheetId || !credentials) { throw new Error("Google Sheet ID or credentials are not configured."); }
 
     // Create auth client with current timestamp for token
-    const auth = new google.auth.GoogleAuth({ 
+    const auth = new google.auth.GoogleAuth({
       credentials: {
         ...credentials,
         // Ensure token is fresh with proper timestamps
         iat: Math.floor(Date.now() / 1000), // Current time in seconds
         exp: Math.floor(Date.now() / 1000) + 3600, // Expires in 1 hour
-      }, 
+      },
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
     });
 
     // Get authenticated client
     const client = await auth.getClient();
     const sheets = google.sheets({ version: 'v4', auth: client as any });
-    
+
     // Make the API request
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
@@ -458,10 +479,10 @@ export async function syncWithGoogleSheet() {
     const rows = response.data.values as (string | number)[][] | undefined;
     if (!rows || rows.length < 2) { throw new Error("No data found in the specified sheet."); }
 
-  const headers = (rows && rows[0] ? (rows[0] as string[]) : []) as string[];
+    const headers = (rows && rows[0] ? (rows[0] as string[]) : []) as string[];
     console.log("Google Sheet Headers:", headers);
     console.log("First few rows:", rows.slice(0, 3));
-    
+
     // Try multiple possible header names for the unique ID column (tolerant to variations)
     const uniqueIdCandidates = [
       'Sr. No. OF SCEME',
@@ -496,22 +517,22 @@ export async function syncWithGoogleSheet() {
       throw new Error(`The required unique ID column (Sr. No.) was not found in the sheet. Expected one of: ${uniqueIdCandidates.join(', ')}.`);
     }
 
-  const sheetRows = (rows || []).slice(1) as (string | number)[][];
-  const sheetSrNos = new Set(sheetRows.map((row) => row[srNoIndex]).filter(Boolean));
-  const { data: existingWorks, error: fetchError } = await supabase.from('works').select('scheme_sr_no') as any;
+    const sheetRows = (rows || []).slice(1) as (string | number)[][];
+    const sheetSrNos = new Set(sheetRows.map((row) => row[srNoIndex]).filter(Boolean));
+    const { data: existingWorks, error: fetchError } = await supabase.from('works').select('scheme_sr_no') as any;
     if (fetchError) { throw new Error(`Could not fetch existing works: ${fetchError.message}`); }
 
-  const dbSrNos = new Set((existingWorks || []).map((work: any) => work.scheme_sr_no));
-  const srNosToDelete = [...dbSrNos].filter((srNo: any) => !sheetSrNos.has(srNo));
+    const dbSrNos = new Set((existingWorks || []).map((work: any) => work.scheme_sr_no));
+    const srNosToDelete = [...dbSrNos].filter((srNo: any) => !sheetSrNos.has(srNo));
 
     if (srNosToDelete.length > 0) {
       const { error: deleteError } = await supabase.from('works').delete().in('scheme_sr_no', srNosToDelete);
       if (deleteError) { throw new Error(`Failed to delete old works: ${deleteError.message}`); }
     }
 
-  const allWorks = sheetRows
-    .map((row) => mapRowToWork(row as (string | number)[], headers))
-    .filter((work: any) => work.scheme_sr_no && String(work.scheme_sr_no).trim() !== '');
+    const allWorks = sheetRows
+      .map((row) => mapRowToWork(row as (string | number)[], headers))
+      .filter((work: any) => work.scheme_sr_no && String(work.scheme_sr_no).trim() !== '');
 
     // Remove duplicates - keep only the last occurrence of each scheme_sr_no
     const uniqueWorks = new Map();
@@ -525,13 +546,13 @@ export async function syncWithGoogleSheet() {
     console.log("Sample work data:", dataToUpsert.slice(0, 2));
 
     if (dataToUpsert.length > 0) {
-  const { error: upsertError } = await (supabase.from('works') as any).upsert(dataToUpsert, { onConflict: 'scheme_sr_no' });
-        if (upsertError) { 
-          console.error("Upsert Error Details:", upsertError);
-          throw new Error(`Supabase Upsert Error: ${upsertError.message}`); 
-        }
+      const { error: upsertError } = await (supabase.from('works') as any).upsert(dataToUpsert, { onConflict: 'scheme_sr_no' });
+      if (upsertError) {
+        console.error("Upsert Error Details:", upsertError);
+        throw new Error(`Supabase Upsert Error: ${upsertError.message}`);
+      }
     }
-    
+
     revalidatePath("/(main)/admin/settings");
     revalidatePath("/dashboard");
     return { success: `Sync complete. Upserted: ${dataToUpsert.length}, Deleted: ${srNosToDelete.length}.` };

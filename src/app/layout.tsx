@@ -13,15 +13,34 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Pragati Platform - Project Management System",
-  description: "A comprehensive project management platform for tracking and managing infrastructure projects",
+// Viewport configuration for safe area support (Android notch/status bar)
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover', // Important for safe area insets
 };
 
-export const viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 5,
+export const metadata: Metadata = {
+  title: "UPPCL Progress Tracker - Offline-First PWA",
+  description: "Track work progress offline and sync when online",
+  manifest: "/manifest.json",
+  themeColor: "#3b82f6",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "UPPCL"
+  },
+  icons: {
+    icon: [
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" }
+    ],
+    apple: [
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" }
+    ]
+  }
 };
 
 export default function RootLayout({

@@ -6,6 +6,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { handleUserProfile } from '@/types/profile';
 import type { UserDetails } from '@/types/profile';
+import { NotificationInitializer } from '@/components/custom/NotificationInitializer';
+import { PullToRefresh } from '@/components/custom/PullToRefresh';
 
 export default async function MainLayout({
   children,
@@ -15,7 +17,7 @@ export default async function MainLayout({
   try {
     // Create Supabase clients
     const clients = await createSupabaseServerClient();
-    
+
     // Get user with auth check
     const { data: { user }, error: authError } = await clients.client.auth.getUser();
 
@@ -30,14 +32,17 @@ export default async function MainLayout({
     // Return layout with profile data
     return (
       <div className="flex h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
+        <NotificationInitializer />
         <Sidebar userDetails={userDetails} />
         <div className="flex flex-1 flex-col min-w-0">
           <Header userDetails={userDetails} />
-          <main className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50/50 to-blue-50/50">
-            <ErrorBoundary>
-              {children}
-            </ErrorBoundary>
-          </main>
+          <PullToRefresh>
+            <main className="min-h-full p-4 md:p-6">
+              <ErrorBoundary>
+                {children}
+              </ErrorBoundary>
+            </main>
+          </PullToRefresh>
         </div>
       </div>
     );
