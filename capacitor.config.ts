@@ -2,11 +2,12 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.uppcl.progresstracker',
-  appName: 'UPPCL Progress',
+  appName: 'Pragati App',
   webDir: 'public',
   server: {
     androidScheme: 'https',
     url: 'https://dvvnl.vercel.app', // Production URL
+    // url: 'http://192.168.1.35:3000', // Local Development URL
     cleartext: true
   },
   plugins: {
@@ -19,6 +20,10 @@ const config: CapacitorConfig = {
       style: 'DARK',
       backgroundColor: '#ffffff',
       overlaysWebView: false  // Content status bar ke neeche nahi jayega
+    },
+    NavigationBar: {
+      color: '#ffffff',  // White background for navigation bar
+      style: 'DARK'      // Dark icons (back, home, recent buttons)
     }
   }
 };

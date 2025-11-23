@@ -15,15 +15,15 @@ interface ExportToExcelButtonProps {
 
 // All available columns (authoritative list)
 const ALL_COLUMNS = [
-  'id','scheme_name','zone_name','circle_name','division_name','sub_division_name','district_name','je_name',
-  'work_category','wbs_code','work_name','amount_as_per_bp_lacs','boq_amount','agreement_amount','rate_as_per_ag',
-  'tender_no','nit_date','part1_opening_date','loi_no_and_date','part2_opening_date','agreement_no_and_date',
-  'firm_name_and_contact','firm_contact_no','firm_email','start_date','scheduled_completion_date','actual_completion_date','weightage','progress_percentage',
-  'remark','mb_status','teco_status','fico_status','updated_at','is_blocked','blocker_remark',
+  'id', 'scheme_name', 'zone_name', 'circle_name', 'division_name', 'sub_division_name', 'district_name', 'je_name',
+  'work_category', 'wbs_code', 'work_name', 'amount_as_per_bp_lacs', 'boq_amount', 'agreement_amount', 'rate_as_per_ag',
+  'tender_no', 'nit_date', 'part1_opening_date', 'loi_no_and_date', 'part2_opening_date', 'agreement_no_and_date',
+  'firm_name_and_contact', 'firm_contact_no', 'firm_email', 'start_date', 'scheduled_completion_date', 'actual_completion_date', 'weightage', 'progress_percentage',
+  'remark', 'mb_status', 'teco_status', 'fico_status', 'updated_at', 'is_blocked', 'blocker_remark',
   // Distribution
-  'distribution_zone','distribution_circle','distribution_division','distribution_sub_division',
+  'distribution_zone', 'distribution_circle', 'distribution_division', 'distribution_sub_division',
   // Billing
-  'bill_no','bill_amount_with_tax'
+  'bill_no', 'bill_amount_with_tax'
 ];
 
 // Default selected columns (only these should be checked by default)
@@ -90,15 +90,16 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks }: ExportToE
 
   return (
     <div className="relative flex flex-col items-start">
-      <Button 
-        onClick={() => setOpen(o => !o)} 
-        disabled={isPending} 
-        variant="outline" 
-        size="sm" 
-        className="border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+      <Button
+        onClick={() => setOpen(o => !o)}
+        disabled={isPending}
+        variant="outline"
+        size="sm"
+        className="border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center rounded-full text-xs sm:text-sm px-2 sm:px-3"
       >
-        {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-        {isPending ? "Exporting..." : "Export to Excel"}
+        {isPending ? <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2 animate-spin" /> : <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />}
+        <span className="hidden sm:inline">{isPending ? "Exporting..." : "Export to Excel"}</span>
+        <span className="sm:hidden">{isPending ? "..." : "Excel"}</span>
       </Button>
 
       {/* Column selector popover */}
@@ -128,11 +129,10 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks }: ExportToE
 
           {/* Buttons moved to header for easier access; keep this area for messages only */}
           {message && (
-            <div className={`mt-2 text-xs p-2 rounded border ${
-              message.startsWith('Error') 
-                ? 'text-red-700 bg-red-50 border-red-200' 
+            <div className={`mt-2 text-xs p-2 rounded border ${message.startsWith('Error')
+                ? 'text-red-700 bg-red-50 border-red-200'
                 : 'text-green-700 bg-green-50 border-green-200'
-            }`}>
+              }`}>
               {message}
             </div>
           )}

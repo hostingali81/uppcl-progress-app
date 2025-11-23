@@ -10,6 +10,7 @@ import { addAttachmentToWork, deleteAttachment } from "@/app/(main)/dashboard/wo
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, ImageIcon, Trash2, User, Loader2, Upload, Paperclip, X, CheckCircle, AlertCircle, Download } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 // Type definition for attachments
 type Attachment = {
@@ -35,11 +36,17 @@ const getFileType = (url: string) => {
   return 'other';
 };
 
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+
 // Attachment Card Component
 function AttachmentCard({ att, currentUserId, isPending, handleDelete }: { att: Attachment; currentUserId: string; isPending: boolean; handleDelete: (id: number) => void }) {
-  const handleDownload = (e: React.MouseEvent) => {
+
+  const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    toast.info(`Starting download for ${att.file_name || 'file'}`);
 
     const fileType = getFileType(att.file_url);
 
@@ -54,48 +61,107 @@ function AttachmentCard({ att, currentUserId, isPending, handleDelete }: { att: 
       fileName = `${fileName}.${extension}`;
     }
 
-    if (fileType === 'image') {
-      // Use API route for images to handle CORS and proper download
-      const params = new URLSearchParams({
-        url: att.file_url,
-        filename: fileName
-      });
-      const downloadUrl = '/api/download-photo?' + params.toString();
+    if (Capacitor.isNativePlatform()) {
+      try {
+        // Use the proxy URL for native downloads to avoid CORS issues
+        const params = new URLSearchParams({
+          url: att.file_url,
+          filename: fileName
+        });
+        const downloadUrl = `/api/download-photo?${params.toString()}`;
 
-      // Create a hidden link and trigger download
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = fileName;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        document.body.removeChild(link);
-      }, 100);
+        console.log('Native download starting from:', downloadUrl);
+
+        const response = await fetch(downloadUrl);
+
+        if (!response.ok) {
+          throw new Error(`Server responded with ${response.status}`);
+        }
+
+        const blob = await response.blob();
+
+        // Convert blob to base64
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = async () => {
+          const base64data = reader.result as string;
+          // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+          const base64Content = base64data.split(',')[1];
+
+          try {
+            const result = await Filesystem.writeFile({
+              path: fileName,
+              data: base64Content,
+              directory: Directory.Documents,
+            });
+
+            toast.success(`File saved to Documents`, {
+              description: fileName
+            });
+            console.log('File saved to', result.uri);
+          } catch (writeError) {
+            console.error('Error writing file:', writeError);
+            toast.error("Save failed", {
+              description: writeError instanceof Error ? writeError.message : "Could not write file"
+            });
+          }
+        };
+      } catch (error) {
+        console.error('Download error:', error);
+        toast.error("Download failed", {
+          description: error instanceof Error ? error.message : "Network error"
+        });
+      }
     } else {
-      // For PDFs and other documents, use direct download
-      const link = document.createElement('a');
-      link.href = att.file_url;
-      link.download = fileName;
-      link.target = '_blank';
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        document.body.removeChild(link);
-      }, 100);
+      // Web download logic
+      if (fileType === 'image') {
+        // Use API route for images to handle CORS and proper download
+        const params = new URLSearchParams({
+          url: att.file_url,
+          filename: fileName
+        });
+        const downloadUrl = '/api/download-photo?' + params.toString();
+
+        // Create a hidden link and trigger download
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          document.body.removeChild(link);
+        }, 100);
+      } else {
+        // For PDFs and other documents, use direct download
+        const link = document.createElement('a');
+        link.href = att.file_url;
+        link.download = fileName;
+        link.target = '_blank';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          document.body.removeChild(link);
+        }, 100);
+      }
     }
   };
 
   return (
     <div className="relative group border border-slate-200 rounded-lg p-2 flex flex-col justify-between bg-white hover:shadow-md transition-shadow">
       <Link href={att.file_url} target="_blank" rel="noopener noreferrer" className="grow">
-        <div className="relative aspect-square w-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 rounded-md mb-2">
+        <div className="relative aspect-square w-full overflow-hidden flex items-center justify-center bg-slate-100 rounded-md mb-2 border border-slate-200">
           {getFileType(att.file_url) === 'image' ? (
             <img
               src={att.file_url}
               alt={att.file_name || 'Uploaded image'}
-              className="absolute inset-0 w-full h-full object-cover"
+              className="w-full h-full object-cover"
+              style={{ objectFit: 'cover' }}
+              onError={(e) => {
+                console.error('[Image Error]', att.file_url);
+                e.currentTarget.style.display = 'none';
+              }}
             />
           ) : (
             <div className="text-center p-4 flex flex-col items-center justify-center h-full">
@@ -114,7 +180,6 @@ function AttachmentCard({ att, currentUserId, isPending, handleDelete }: { att: 
               )}
             </div>
           )}
-          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all" />
         </div>
       </Link>
       <div className="text-xs mt-auto">
@@ -154,7 +219,6 @@ function AttachmentCard({ att, currentUserId, isPending, handleDelete }: { att: 
 export function FileUploadManager({ workId, attachments, currentUserId }: FileUploadManagerProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [attachmentType, setAttachmentType] = useState<string>('site_photo');
@@ -171,10 +235,11 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setMessage(null);
 
     if (files.length === 0) {
-      setMessage({ text: "Please select at least one file to upload.", type: 'error' });
+      toast.error("No files selected", {
+        description: "Please select at least one file to upload.",
+      });
       return;
     }
 
@@ -209,9 +274,8 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
     // Validate each file before uploading
     for (const file of files) {
       if (file.size > MAX_FILE_SIZE) {
-        setMessage({
-          text: `File ${file.name} is too large. Maximum size is 10MB.`,
-          type: 'error'
+        toast.error("File too large", {
+          description: `File ${file.name} is too large. Maximum size is 10MB.`,
         });
         return;
       }
@@ -220,9 +284,8 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
         const allowedFormatsText = selectedAttachmentType === 'site_photo'
           ? 'images only (JPEG, PNG, GIF, WebP)'
           : 'images, PDF, Word, and Excel documents';
-        setMessage({
-          text: `File ${file.name} has unsupported format. Allowed types for ${selectedAttachmentType === 'site_photo' ? 'Site Photographs' : 'Other Documents'}: ${allowedFormatsText}.`,
-          type: 'error'
+        toast.error("Unsupported format", {
+          description: `File ${file.name} has unsupported format. Allowed types: ${allowedFormatsText}.`,
         });
         return;
       }
@@ -252,9 +315,8 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
           if (!uploadResponse.ok) {
             const errorData = await uploadResponse.json().catch(() => ({ error: 'Failed to upload file' }));
             console.error('Upload failed for', file.name, ':', errorData.error);
-            setMessage({
-              text: `Upload failed for ${file.name}: ${errorData.error}`,
-              type: 'error'
+            toast.error("Upload failed", {
+              description: `Upload failed for ${file.name}: ${errorData.error}`,
             });
             return;
           }
@@ -271,9 +333,8 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
           console.error(`Upload error for ${fileName}:`, errorMessage);
           console.error('Full error object:', uploadError);
 
-          setMessage({
-            text: `Upload failed for ${fileName}. Error: ${errorMessage}`,
-            type: 'error'
+          toast.error("Upload error", {
+            description: `Upload failed for ${fileName}. Error: ${errorMessage}`,
           });
           return;
         }
@@ -281,14 +342,15 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
         uploadCount++;
       }
 
-      setMessage({ text: `${uploadCount} file(s) uploaded successfully!`, type: 'success' });
+      toast.success("Upload successful", {
+        description: `${uploadCount} file(s) uploaded successfully!`,
+      });
       setFiles([]);
       const form = event.target as HTMLFormElement;
       form.reset();
 
       setTimeout(() => {
         setIsOpen(false);
-        setMessage(null);
       }, 1500);
     });
   };
@@ -297,13 +359,25 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
     if (window.confirm("Are you sure you want to delete this file?")) {
       startTransition(async () => {
         const result = await deleteAttachment(attachmentId, workId);
-        setMessage({ text: result.error || result.success || 'File deleted successfully!', type: result.error ? 'error' : 'success' });
-        setTimeout(() => setMessage(null), 2000);
+        if (result.error) {
+          toast.error("Delete failed", {
+            description: result.error,
+          });
+        } else {
+          toast.success("Deleted", {
+            description: "File deleted successfully!",
+          });
+        }
       });
     }
   };
 
   const attachmentCount = attachments?.length || 0;
+
+  // Sort attachments by created_at descending (newest first)
+  const sortedAttachments = attachments ? [...attachments].sort((a, b) => {
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  }) : [];
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -389,31 +463,17 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
               {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
               {isPending ? "Uploading..." : `Upload ${files.length} file(s)`}
             </Button>
-
-            {message && (
-              <div className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-300 ${message.type === 'error'
-                ? 'text-red-700 bg-red-50 border-red-200'
-                : 'text-green-700 bg-green-50 border-green-200'
-                }`}>
-                {message.type === 'error' ? (
-                  <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                ) : (
-                  <CheckCircle className="h-5 w-5 flex-shrink-0" />
-                )}
-                <span className="font-medium">{message.text}</span>
-              </div>
-            )}
           </form>
 
           {/* Existing Attachments */}
-          {attachments && attachments.length > 0 && (
+          {sortedAttachments && sortedAttachments.length > 0 && (
             <div className="pt-4 border-t border-slate-200 space-y-6">
               {/* Site Photographs */}
-              {attachments.filter(a => (a as any).attachment_type === 'site_photo' || !(a as any).attachment_type).length > 0 && (
+              {sortedAttachments.filter(a => (a as any).attachment_type === 'site_photo' || !(a as any).attachment_type).length > 0 && (
                 <div>
-                  <h4 className="text-lg font-semibold text-slate-900 mb-4">Site Photographs ({attachments.filter(a => (a as any).attachment_type === 'site_photo' || !(a as any).attachment_type).length})</h4>
+                  <h4 className="text-lg font-semibold text-slate-900 mb-4">Site Photographs ({sortedAttachments.filter(a => (a as any).attachment_type === 'site_photo' || !(a as any).attachment_type).length})</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {attachments.filter(a => (a as any).attachment_type === 'site_photo' || !(a as any).attachment_type).map((att) => (
+                    {sortedAttachments.filter(a => (a as any).attachment_type === 'site_photo' || !(a as any).attachment_type).map((att) => (
                       <AttachmentCard key={att.id} att={att} currentUserId={currentUserId} isPending={isPending} handleDelete={handleDelete} />
                     ))}
                   </div>
@@ -421,11 +481,11 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
               )}
 
               {/* Other Documents */}
-              {attachments.filter(a => (a as any).attachment_type === 'document').length > 0 && (
+              {sortedAttachments.filter(a => (a as any).attachment_type === 'document').length > 0 && (
                 <div>
-                  <h4 className="text-lg font-semibold text-slate-900 mb-4">Other Documents ({attachments.filter(a => (a as any).attachment_type === 'document').length})</h4>
+                  <h4 className="text-lg font-semibold text-slate-900 mb-4">Other Documents ({sortedAttachments.filter(a => (a as any).attachment_type === 'document').length})</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {attachments.filter(a => (a as any).attachment_type === 'document').map((att) => (
+                    {sortedAttachments.filter(a => (a as any).attachment_type === 'document').map((att) => (
                       <AttachmentCard key={att.id} att={att} currentUserId={currentUserId} isPending={isPending} handleDelete={handleDelete} />
                     ))}
                   </div>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, BellRing, MessageSquare, AtSign, Eye, EyeOff, Check, Loader2 } from "lucide-react";
+import { Bell, BellRing, MessageSquare, AtSign, Eye, EyeOff, Check, Loader2, RefreshCw } from "lucide-react";
 import { markNotificationAsRead, markAllNotificationsAsRead } from "@/app/(main)/profile/actions";
 import { toast } from "sonner";
 
@@ -72,21 +72,42 @@ export function NotificationsSection({ notifications: initialNotifications }: No
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch('/api/notifications');
+      const data = await res.json();
+      if (data.notifications) {
+        setNotifications(data.notifications);
+      }
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    // Fetch notifications client-side to avoid hydration issues
-    fetch('/api/notifications')
-      .then(res => res.json())
-      .then(data => {
-        if (data.notifications) {
-          setNotifications(data.notifications);
-        }
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Failed to fetch notifications:', error);
-        setLoading(false);
-      });
+    // Initial fetch
+    fetchNotifications();
+
+    // Poll every 10 seconds
+    const intervalId = setInterval(() => {
+      // Only poll if tab is visible to save resources
+      if (!document.hidden) {
+        fetchNotifications();
+      }
+    }, 10000);
+
+    return () => clearInterval(intervalId);
   }, []);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    fetchNotifications();
+  };
 
   const unreadCount = notifications?.filter(n => !n.is_read).length || 0;
   const filteredNotifications = showUnreadOnly
@@ -124,42 +145,54 @@ export function NotificationsSection({ notifications: initialNotifications }: No
   return (
     <Card className="border-slate-200 shadow-sm bg-gradient-to-r from-white to-slate-50">
       <CardHeader className="border-b border-slate-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start gap-2">
+            <div className="h-8 w-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
               {unreadCount > 0 ? (
                 <BellRing className="h-5 w-5 text-indigo-600" />
               ) : (
                 <Bell className="h-5 w-5 text-slate-600" />
               )}
             </div>
-            <div>
-              <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-base sm:text-lg font-semibold text-slate-900 flex items-center gap-2 flex-wrap">
                 Notifications
                 {unreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-2">
-                    {unreadCount} new
+                  <Badge variant="destructive" className="text-xs">
+                    {unreadCount}
                   </Badge>
                 )}
               </CardTitle>
-              <p className="text-sm text-slate-600">Stay updated on discussions and mentions</p>
+              <p className="text-xs sm:text-sm text-slate-600 truncate">Stay updated on discussions</p>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="h-8 w-8 text-slate-400 hover:text-indigo-600"
+                title="Refresh Notifications"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+              {unreadCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMarkAllAsRead}
+                  disabled={isPending}
+                  className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 rounded-full text-xs px-2 sm:px-3 whitespace-nowrap"
+                >
+                  <span className="hidden sm:inline">{isPending ? "Marking..." : "Mark All Read"}</span>
+                  <span className="sm:hidden"><Check className="h-3 w-3" /></span>
+                </Button>
+              )}
             </div>
           </div>
-
-          {unreadCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleMarkAllAsRead}
-              disabled={isPending}
-              className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-            >
-              {isPending ? "Marking..." : "Mark All Read"}
-            </Button>
-          )}
         </div>
 
-        <div className="flex items-center gap-4 mt-4">
+        <div className="flex items-center gap-2 sm:gap-4 mt-4">
           <Button
             variant={!showUnreadOnly ? "default" : "outline"}
             size="sm"
@@ -204,8 +237,8 @@ export function NotificationsSection({ notifications: initialNotifications }: No
               <div
                 key={notification.id}
                 className={`flex items-start gap-3 p-4 rounded-lg border transition-colors ${notification.is_read
-                    ? 'bg-white border-slate-200 hover:bg-slate-50'
-                    : 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100'
+                  ? 'bg-white border-slate-200 hover:bg-slate-50'
+                  : 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100'
                   }`}
               >
                 <div className="shrink-0 mt-1">

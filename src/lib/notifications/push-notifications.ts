@@ -1,4 +1,3 @@
-import { PushNotifications } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
@@ -33,19 +32,26 @@ export class NotificationService {
      * Request notification permissions
      */
     private static async requestPermissions() {
-        // Request push notification permissions
-        const pushResult = await PushNotifications.requestPermissions();
+        try {
+            // NOTE: Push notifications disabled to avoid Firebase error
+            // To enable: Set up Firebase and add google-services.json to android/app
+            console.log('ℹ️ Push notifications disabled - using local notifications only');
 
-        if (pushResult.receive === 'granted') {
-            await PushNotifications.register();
-            console.log('✅ Push notifications enabled');
-        }
+            // Request local notification permissions
+            try {
+                const localResult = await LocalNotifications.requestPermissions();
 
-        // Request local notification permissions
-        const localResult = await LocalNotifications.requestPermissions();
-
-        if (localResult.display === 'granted') {
-            console.log('✅ Local notifications enabled');
+                if (localResult.display === 'granted') {
+                    console.log('✅ Local notifications enabled');
+                } else {
+                    console.log('ℹ️ Local notification permission not granted');
+                }
+            } catch (localError) {
+                console.error('⚠️ Local notification setup failed:', localError);
+            }
+        } catch (error) {
+            console.error('❌ Error requesting permissions:', error);
+            // Don't throw - let the app continue
         }
     }
 
@@ -53,47 +59,6 @@ export class NotificationService {
      * Register notification event listeners
      */
     private static registerListeners() {
-        // Push token registration
-        PushNotifications.addListener('registration', (token) => {
-            console.log('📱 Push token:', token.value);
-            // TODO: Send token to your backend for server-side push
-            // You can save this in Supabase user profile
-        });
-
-        // Registration error
-        PushNotifications.addListener('registrationError', (error) => {
-            console.error('❌ Push registration error:', error);
-        });
-
-        // Notification received in foreground
-        PushNotifications.addListener('pushNotificationReceived', async (notification) => {
-            console.log('🔔 Notification received:', notification);
-
-            // Haptic feedback
-            await Haptics.impact({ style: ImpactStyle.Medium });
-
-            // Show local notification with default sound
-            await this.sendLocalNotification(
-                notification.title || 'New Update',
-                notification.body || '',
-                {
-                    sound: 'default',
-                    vibrate: true,
-                    channelId: 'high-priority',
-                    actionUrl: notification.data?.url || '/notifications'
-                }
-            );
-        });
-
-        // Notification tapped
-        PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-            console.log('👆 Notification tapped:', action);
-
-            // Navigate to specific page
-            const url = action.notification.data?.url || '/notifications';
-            window.location.href = url;
-        });
-
         // Local notification tapped
         LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
             console.log('👆 Local notification tapped:', action);

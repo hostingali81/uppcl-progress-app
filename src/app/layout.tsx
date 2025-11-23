@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
+import CapacitorAppHooks from "@/components/CapacitorAppHooks";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -55,6 +56,7 @@ export default function RootLayout({
         suppressHydrationWarning={true}
       >
         {children}
+        <CapacitorAppHooks />
         <Toaster position="top-right" richColors />
       </body>
     </html>

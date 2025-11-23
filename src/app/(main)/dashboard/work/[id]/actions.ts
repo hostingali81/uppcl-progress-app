@@ -253,6 +253,80 @@ export async function updateWorkProgress(formData: FormData) {
     console.warn('Reason: No scheme_sr_no found');
   }
 
+  // ====================================================================
+  // NOTIFICATION LOGIC FOR PROGRESS UPDATES
+  // ====================================================================
+  try {
+    // Get all users to check for notifications
+    const { data: allUsers } = await admin
+      .from("profiles")
+      .select("id, full_name, role, region, circle, division, subdivision")
+      .neq("id", user.id); // Exclude the updater
+
+    if (allUsers && allUsers.length > 0) {
+      const notifications: any[] = [];
+      const settings = await getSettings(admin);
+      const prefs = JSON.parse(settings.notification_preferences || '{}');
+
+      for (const userProfile of allUsers) {
+        const { id, full_name, role, region, circle, division, subdivision } = userProfile;
+        let shouldNotify = false;
+
+        // Check hierarchy
+        switch (role) {
+          case 'superadmin':
+          case 'admin':
+            shouldNotify = true;
+            break;
+          case 'je':
+            shouldNotify = areStringsEqual(region, currentWork.je_name);
+            break;
+          case 'sub_division_head':
+            shouldNotify = areStringsEqual(subdivision, currentWork.civil_sub_division);
+            break;
+          case 'division_head':
+            shouldNotify = areStringsEqual(division, currentWork.civil_division);
+            break;
+          case 'circle_head':
+            shouldNotify = areStringsEqual(circle, currentWork.civil_circle);
+            break;
+          case 'zone_head':
+            shouldNotify = areStringsEqual(region, currentWork.civil_zone);
+            break;
+        }
+
+        // Check preferences
+        if (shouldNotify) {
+          const userPrefs = prefs[id];
+          if (userPrefs && userPrefs.progress_updates === false) {
+            shouldNotify = false;
+          }
+        }
+
+        if (shouldNotify) {
+          notifications.push({
+            user_id: id,
+            work_id: workIdNumber,
+            type: 'progress_update', // You might need to ensure this type exists in your DB constraint or use 'system'/'other'
+            message: `${userDisplayName} updated progress to ${progressNumber}% for "${currentWork.work_name}".`,
+            created_by: user.id
+          });
+        }
+      }
+
+      if (notifications.length > 0) {
+        const { error: notifError } = await admin.from("notifications").insert(notifications);
+        if (notifError) {
+          console.error("Error creating progress notifications:", notifError);
+        } else {
+          console.log(`Sent ${notifications.length} progress update notifications.`);
+        }
+      }
+    }
+  } catch (notifErr) {
+    console.error("Failed to process progress notifications:", notifErr);
+  }
+
   revalidatePath(`/dashboard/work/${workId}`);
   redirect(`/dashboard/work/${workId}?success=${encodeURIComponent("Progress updated successfully!")}`);
 }
@@ -395,6 +469,13 @@ export async function addComment(workId: number, content: string, mentionedUserI
       .neq("id", user.id); // Exclude the commenter themselves
 
     console.log(`[addComment] Fetched ${allUsers?.length || 0} users for notification check (excluding commenter ${user.id})`);
+
+    // DIAGNOSTIC: Check roles in database
+    if (allUsers && allUsers.length > 0) {
+      const distinctRoles = [...new Set(allUsers.map(u => u.role))];
+      console.log(`[addComment] Distinct roles found in DB:`, distinctRoles);
+    }
+
     if (allUsersError) {
       console.error(`[addComment] Error fetching users:`, allUsersError);
     }
@@ -408,22 +489,29 @@ export async function addComment(workId: number, content: string, mentionedUserI
       civil_zone: work.civil_zone
     });
 
+    // Fetch notification settings ONCE before looping (optimization)
+    const settings = await getSettings(admin);
+    let prefs = {};
+    try {
+      prefs = JSON.parse(settings.notification_preferences || '{}');
+      console.log("📋 Notification preferences loaded:", JSON.stringify(prefs));
+    } catch (e) {
+      console.error("❌ Error parsing notification preferences:", e);
+      prefs = {};
+    }
+
     if (allUsers && allUsers.length > 0) {
+      console.log(`👥 Processing ${allUsers.length} users for notifications`);
+
       // Create notifications for users who would have access to this work's hierarchy
-      allUsers.forEach((userProfile: {
-        id: string;
-        full_name: string | null;
-        role: string;
-        region: string | null;
-        circle: string | null;
-        division: string | null;
-        subdivision: string | null;
-      }) => {
+      for (const userProfile of allUsers) {
         const { id, full_name, role, region, circle, division, subdivision } = userProfile;
         let shouldNotify = false;
 
         // Check if user should receive notifications based on work hierarchy
-        switch (role) {
+        const normalizedRole = role?.toLowerCase() || '';
+
+        switch (normalizedRole) {
           case 'superadmin':
           case 'admin':
             // Admins get notifications for all works
@@ -431,75 +519,106 @@ export async function addComment(workId: number, content: string, mentionedUserI
             break;
           case 'je':
             // JE gets notification if their region matches the work's je_name
-            console.log(`Checking JE ${full_name}: region '${region}' vs work.je_name '${work.je_name}'`);
             shouldNotify = areStringsEqual(region, work.je_name);
             break;
           case 'sub_division_head':
             // Sub-division head gets notification if their subdivision matches work's subdivision
-            console.log(`Checking SDO ${full_name}: subdivision '${subdivision}' vs work.civil_sub_division '${work.civil_sub_division}'`);
             shouldNotify = areStringsEqual(subdivision, work.civil_sub_division);
             break;
           case 'division_head':
             // Division head gets notification if their division matches work's division
-            console.log(`Checking EE ${full_name}: division '${division}' vs work.civil_division '${work.civil_division}'`);
             shouldNotify = areStringsEqual(division, work.civil_division);
             break;
           case 'circle_head':
             // Circle head gets notification if their circle matches work's circle
-            console.log(`Checking SE ${full_name}: circle '${circle}' vs work.civil_circle '${work.civil_circle}'`);
             shouldNotify = areStringsEqual(circle, work.civil_circle);
             break;
           case 'zone_head':
             // Zone head gets notification if their zone matches work's zone
-            console.log(`Checking CE ${full_name}: zone '${region}' vs work.civil_zone '${work.civil_zone}'`);
             shouldNotify = areStringsEqual(region, work.civil_zone);
             break;
         }
 
+        // Check Admin Notification Preferences (Role-based)
         if (shouldNotify) {
+          const rolePrefs = prefs[normalizedRole] || {}; // Get preferences for this role
+          console.log(`  - User: ${full_name} (${role} -> ${normalizedRole}), should notify: ${shouldNotify}, prefs:`, rolePrefs);
+
           // Check if this user was mentioned
           const isMentioned = mentionedUserIds.includes(id);
 
           if (isMentioned) {
-            // Create mention notification (higher priority)
-            mentionNotifications.push({
-              user_id: id,
-              work_id: workId,
-              comment_id: commentData.id,
-              type: 'mention' as const,
-              message: `${userDisplayName} mentioned you in a comment on "${work.work_name}".`,
-              created_by: user.id
-            });
+            // Check mention preference for this role
+            if (rolePrefs.mentions !== false) {
+              console.log(`    ✅ Creating MENTION notification for ${full_name}`);
+              // Create mention notification (higher priority)
+              mentionNotifications.push({
+                user_id: id,
+                work_id: workId,
+                comment_id: commentData.id,
+                type: 'mention' as const,
+                message: `${userDisplayName} mentioned you in a comment on "${work.work_name}".`,
+                created_by: user.id
+              });
+            } else {
+              console.log(`    ⏭️ Skipping mention notification for ${full_name} (disabled in settings)`);
+            }
           } else {
-            // Create hierarchy notification for users who can see this work
-            hierarchyNotifications.push({
-              user_id: id,
-              work_id: workId,
-              comment_id: commentData.id,
-              type: 'comment' as const,
-              message: `${userDisplayName} commented on "${work.work_name}": ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
-              created_by: user.id
-            });
+            // Check comment notification preference for this role
+            if (rolePrefs.comments !== false) {
+              console.log(`    ✅ Creating COMMENT notification for ${full_name}`);
+              // Create hierarchy notification for users who can see this work
+              hierarchyNotifications.push({
+                user_id: id,
+                work_id: workId,
+                comment_id: commentData.id,
+                type: 'comment' as const,
+                message: `${userDisplayName} commented on "${work.work_name}": ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
+                created_by: user.id
+              });
+            } else {
+              console.log(`    ⏭️ Skipping comment notification for ${full_name} (disabled in settings)`);
+            }
           }
+        } else {
+          console.log(`  - User: ${full_name} (${role}), shouldNotify: false (not in hierarchy)`);
         }
-      });
+      }
     }
 
-    console.log(`Work ID ${workId} - notifying ${hierarchyNotifications.length} users + ${mentionNotifications.length} mentions`);
+
+    console.log(`Work ID ${workId} - Preparing notifications:`);
+    console.log(`  - Hierarchy notifications: ${hierarchyNotifications.length}`);
+    console.log(`  - Mention notifications: ${mentionNotifications.length}`);
+    console.log(`  - Settings used:`, JSON.stringify(prefs));
 
     // Insert hierarchy notifications (regular comments)
     if (hierarchyNotifications.length > 0) {
-      const { error: hierarchyError } = await admin.from("notifications").insert(hierarchyNotifications);
+      console.log("Inserting hierarchy notifications:", hierarchyNotifications);
+      const { data: insertedHierarchy, error: hierarchyError } = await admin
+        .from("notifications")
+        .insert(hierarchyNotifications)
+        .select();
+
       if (hierarchyError) {
-        console.error("Error creating hierarchy notifications:", hierarchyError);
+        console.error("❌ Error creating hierarchy notifications:", hierarchyError);
+      } else {
+        console.log(`✅ Created ${insertedHierarchy?.length || 0} hierarchy notifications`);
       }
     }
 
     // Insert mention notifications (higher priority)
     if (mentionNotifications.length > 0) {
-      const { error: mentionError } = await admin.from("notifications").insert(mentionNotifications);
+      console.log("Inserting mention notifications:", mentionNotifications);
+      const { data: insertedMentions, error: mentionError } = await admin
+        .from("notifications")
+        .insert(mentionNotifications)
+        .select();
+
       if (mentionError) {
-        console.error("Error creating mention notifications:", mentionError);
+        console.error("❌ Error creating mention notifications:", mentionError);
+      } else {
+        console.log(`✅ Created ${insertedMentions?.length || 0} mention notifications`);
       }
     }
   }

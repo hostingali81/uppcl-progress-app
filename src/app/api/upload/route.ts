@@ -146,6 +146,102 @@ export async function POST(request: NextRequest) {
 
     console.log("Upload and DB save successful");
 
+    // CREATE FILE UPLOAD NOTIFICATIONS (Only for direct work attachments, not comment attachments)
+    if (!isCommentAttachment && workId) {
+      console.log(`📂 File uploaded to work ${workId} - Creating notifications...`);
+
+      try {
+        // Fetch work details for hierarchy check
+        const { data: workDetails } = await supabaseAdmin
+          .from("works")
+          .select("work_name, je_name, civil_sub_division, civil_division, civil_circle, civil_zone")
+          .eq("id", workId)
+          .single();
+
+        if (workDetails) {
+          // Get notification settings
+          let prefs = {};
+          try {
+            const settingsData = await getSettings(supabaseAdmin);
+            prefs = JSON.parse(settingsData.notification_preferences || '{}');
+          } catch (e) {
+            console.error("Error parsing notification preferences:", e);
+            prefs = {};
+          }
+
+          // Fetch all users who should be notified
+          const { data: allUsers } = await supabaseAdmin
+            .from("profiles")
+            .select("id, full_name, role, region, circle, division, subdivision")
+            .neq("id", user.id); // Exclude uploader
+
+          if (allUsers && allUsers.length > 0) {
+            const uploadNotifications: any[] = [];
+
+            for (const userProfile of allUsers) {
+              const { id, full_name, role, region, circle, division, subdivision } = userProfile;
+              let shouldNotify = false;
+
+              // Normalize role
+              const normalizedRole = role?.toLowerCase() || '';
+
+              // Check hierarchy
+              switch (normalizedRole) {
+                case 'superadmin':
+                case 'admin':
+                  shouldNotify = true;
+                  break;
+                case 'je':
+                  shouldNotify = region === workDetails.je_name;
+                  break;
+                case 'sub_division_head':
+                  shouldNotify = subdivision === workDetails.civil_sub_division;
+                  break;
+                case 'division_head':
+                  shouldNotify = division === workDetails.civil_division;
+                  break;
+                case 'circle_head':
+                  shouldNotify = circle === workDetails.civil_circle;
+                  break;
+                case 'zone_head':
+                  shouldNotify = region === workDetails.civil_zone;
+                  break;
+              }
+
+              // Check file_uploads preference
+              if (shouldNotify) {
+                const rolePrefs = prefs[normalizedRole] || {};
+                if (rolePrefs.file_uploads !== false) {
+                  uploadNotifications.push({
+                    user_id: id,
+                    work_id: workId,
+                    type: 'file_upload',
+                    message: `${profile?.full_name || user.email} uploaded a file "${fileName}" to "${workDetails.work_name}"`,
+                    created_by: user.id
+                  });
+                }
+              }
+            }
+
+            // Insert notifications
+            if (uploadNotifications.length > 0) {
+              const { error: notifError } = await supabaseAdmin
+                .from("notifications")
+                .insert(uploadNotifications);
+
+              if (notifError) {
+                console.error("Error creating upload notifications:", notifError);
+              } else {
+                console.log(`✅ Created ${uploadNotifications.length} file upload notifications`);
+              }
+            }
+          }
+        }
+      } catch (notifError) {
+        console.error("Error in upload notification creation:", notifError);
+      }
+    }
+
     // Revalidate the work page to show the new attachment
     if (workId) {
       revalidatePath(`/dashboard/work/${workId}`);

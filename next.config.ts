@@ -25,6 +25,12 @@ const nextConfig = {
 
   // Skip API routes during build (Android app will use live API from server)
   skipTrailingSlashRedirect: true,
+
+  // Disable dev indicators (Next.js logo at bottom)
+  devIndicators: {
+    buildActivity: false,
+    appIsrStatus: false,
+  },
 };
 
 module.exports = nextConfig;

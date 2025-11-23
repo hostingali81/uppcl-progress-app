@@ -64,32 +64,32 @@ export function ExportToPDFButton({ filteredWorks, selectedScheme }: ExportToPDF
   const [selectedColumns, setSelectedColumns] = useState<string[]>(['work_name', 'district_name', 'progress_percentage', 'scheme_name']);
 
   const toggleColumn = (key: string) => {
-    setSelectedColumns(prev => 
+    setSelectedColumns(prev =>
       prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
     );
   };
 
   const handleExport = () => {
     const doc = new jsPDF('l', 'mm', 'a4');
-    
+
     doc.setFontSize(16);
     doc.text("UPPCL Progress Report", 14, 15);
     doc.setFontSize(10);
     doc.text(`Scheme: ${selectedScheme}`, 14, 22);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 27);
-    
-    const headers = selectedColumns.map(key => 
+
+    const headers = selectedColumns.map(key =>
       columnOptions.find(col => col.key === key)?.label || key
     );
-    
-    const tableData = filteredWorks.map(work => 
+
+    const tableData = filteredWorks.map(work =>
       selectedColumns.map(key => {
         const value = work[key as keyof Work];
         if (key === 'progress_percentage') return `${value || 0}%`;
         return value || 'N/A';
       })
     );
-    
+
     autoTable(doc, {
       head: [headers],
       body: tableData,
@@ -97,7 +97,7 @@ export function ExportToPDFButton({ filteredWorks, selectedScheme }: ExportToPDF
       styles: { fontSize: 7 },
       headStyles: { fillColor: [59, 130, 246] }
     });
-    
+
     doc.save(`UPPCL-Progress-${new Date().toISOString().split('T')[0]}.pdf`);
     setIsOpen(false);
   };
@@ -105,9 +105,10 @@ export function ExportToPDFButton({ filteredWorks, selectedScheme }: ExportToPDF
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="flex items-center gap-2">
-          <FileDown className="h-4 w-4" />
-          Export PDF
+        <Button variant="outline" size="sm" className="flex items-center gap-1 sm:gap-2 rounded-full text-xs sm:text-sm px-2 sm:px-3">
+          <FileDown className="h-3 w-3 sm:h-4 sm:w-4" />
+          <span className="hidden sm:inline">Export PDF</span>
+          <span className="sm:hidden">PDF</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
@@ -115,16 +116,16 @@ export function ExportToPDFButton({ filteredWorks, selectedScheme }: ExportToPDF
           <DialogTitle>Select Columns for PDF Export</DialogTitle>
         </DialogHeader>
         <div className="flex gap-2 mb-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setSelectedColumns(columnOptions.map(c => c.key))}
           >
             Select All
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setSelectedColumns([])}
           >
             Unselect All

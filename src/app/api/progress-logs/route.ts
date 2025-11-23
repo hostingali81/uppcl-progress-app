@@ -108,6 +108,98 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to update work progress" }, { status: 500 });
     }
 
+    // CREATE PROGRESS UPDATE NOTIFICATIONS
+    console.log(`📊 Progress updated from ${currentWork.progress_percentage}% to ${progress}% - Creating notifications...`);
+
+    try {
+      // Import getSettings helper
+      const { getSettings } = await import("@/app/(main)/admin/settings/actions");
+
+      // Get notification settings
+      const settings = await getSettings(supabaseAdmin);
+      let prefs = {};
+      try {
+        prefs = JSON.parse(settings.notification_preferences || '{}');
+      } catch (e) {
+        console.error("Error parsing notification preferences:", e);
+        prefs = {};
+      }
+
+      // Fetch all users who should be notified
+      const { data: allUsers } = await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, role, region, circle, division, subdivision")
+        .neq("id", user.id); // Exclude the person who updated
+
+      if (allUsers && allUsers.length > 0) {
+        const progressNotifications: any[] = [];
+
+        for (const userProfile of allUsers) {
+          const { id, full_name, role, region, circle, division, subdivision } = userProfile;
+          let shouldNotify = false;
+
+          // Normalize role
+          const normalizedRole = role?.toLowerCase() || '';
+
+          // Check if user should receive notifications based on work hierarchy
+          switch (normalizedRole) {
+            case 'superadmin':
+            case 'admin':
+              shouldNotify = true;
+              break;
+            case 'je':
+              shouldNotify = region === currentWork.je_name;
+              break;
+            case 'sub_division_head':
+              shouldNotify = subdivision === currentWork.civil_sub_division;
+              break;
+            case 'division_head':
+              shouldNotify = division === currentWork.civil_division;
+              break;
+            case 'circle_head':
+              shouldNotify = circle === currentWork.civil_circle;
+              break;
+            case 'zone_head':
+              shouldNotify = region === currentWork.civil_zone;
+              break;
+          }
+
+          // Check progress_updates preference for this role
+          if (shouldNotify) {
+            const rolePrefs = prefs[normalizedRole] || {};
+            if (rolePrefs.progress_updates !== false) {
+              progressNotifications.push({
+                user_id: id,
+                work_id: workId,
+                type: 'progress_update',
+                message: `${userDisplayName} updated progress on "${currentWork.work_name}" from ${currentWork.progress_percentage || 0}% to ${progress}%`,
+                created_by: user.id
+              });
+            }
+          }
+        }
+
+        // Insert notifications
+        if (progressNotifications.length > 0) {
+          const { error: notifError } = await supabaseAdmin
+            .from("notifications")
+            .insert(progressNotifications);
+
+          if (notifError) {
+            console.error("Error creating progress notifications:", notifError);
+          } else {
+            console.log(`✅ Created ${progressNotifications.length} progress update notifications`);
+          }
+        } else {
+          console.log("ℹ️ No users to notify for progress update (settings disabled or no matching hierarchy)");
+        }
+      }
+    } catch (notifError) {
+      console.error("Error in notification creation:", notifError);
+      // Don't fail the whole request if notifications fail
+    }
+
+
     // Sync to Google Sheets if scheme_sr_no exists
     if (currentWork?.scheme_sr_no) {
       console.log('=== API PROGRESS UPDATE GOOGLE SHEETS SYNC START ===');

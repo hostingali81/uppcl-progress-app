@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CloudflareSettingsDialog } from "@/components/custom/CloudflareSettingsDialog";
 import { GoogleSheetSettingsDialog } from "@/components/custom/GoogleSheetSettingsDialog";
 import { PWASettingsDialog } from "@/components/custom/PWASettingsDialog";
+import { NotificationSettingsDialog } from "@/components/custom/NotificationSettingsDialog";
 import { SyncButton } from "./SyncButton";
-import { Settings, Cloud, FileSpreadsheet, Smartphone } from "lucide-react";
+import { Settings, Cloud, FileSpreadsheet, Smartphone, Bell } from "lucide-react";
 
 export default async function SettingsPage() {
   const { client: supabase } = await createSupabaseServerClient();
@@ -32,6 +33,15 @@ export default async function SettingsPage() {
     pwa_theme_color: settings.pwa_theme_color || '#3b82f6',
     pwa_background_color: settings.pwa_background_color || '#ffffff',
   };
+
+  // Parse notification settings safely (role-based)
+  let notificationSettings = {};
+  try {
+    notificationSettings = JSON.parse(settings.notification_preferences || '{}');
+  } catch (e) {
+    console.error("Error parsing notification preferences:", e);
+    notificationSettings = {};
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -118,6 +128,28 @@ export default async function SettingsPage() {
                 <strong>Note:</strong> After changing PWA settings, rebuild the app with <code className="bg-blue-100 px-1 rounded">npm run build</code> to apply changes.
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Notification Settings */}
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader className="border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Bell className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-semibold text-slate-900">Notification Settings</CardTitle>
+                <CardDescription className="text-slate-600">
+                  Manage which activities trigger notifications for each role.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <NotificationSettingsDialog
+              initialSettings={notificationSettings}
+            />
           </CardContent>
         </Card>
       </div>

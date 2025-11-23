@@ -266,170 +266,169 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
 
   return (
     <Card className="border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 backdrop-blur-sm">
-      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200 flex flex-row items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-            <MessageSquare className="h-5 w-5 text-white" />
+      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200">
+        <div className="flex items-start gap-2">
+          <div className="h-8 w-8 sm:h-10 sm:w-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+            <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
           </div>
-          <div>
-            <CardTitle className="text-xl font-bold text-slate-900">Discussion & Updates</CardTitle>
-            <p className="text-sm text-slate-600">Share updates and collaborate with your team</p>
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base sm:text-xl font-bold text-slate-900 truncate">Discussion & Updates</CardTitle>
+            <p className="text-xs sm:text-sm text-slate-600 truncate">Share updates and collaborate</p>
           </div>
-        </div>
-
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Add Comment
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md top-12 translate-y-0 sm:top-[50%] sm:translate-y-[-50%]">
-            <DialogHeader>
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <MessageSquare className="h-4 w-4 text-white" />
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full flex-shrink-0 text-xs sm:text-sm px-2 sm:px-4">
+                <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add Comment</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md top-12 translate-y-0 sm:top-[50%] sm:translate-y-[-50%]">
+              <DialogHeader>
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <MessageSquare className="h-4 w-4 text-white" />
+                  </div>
+                  <DialogTitle>
+                    {step === 1 ? "Add Comment" : "Upload Attachments"}
+                  </DialogTitle>
                 </div>
-                <DialogTitle>
-                  {step === 1 ? "Add Comment" : "Upload Attachments"}
-                </DialogTitle>
-              </div>
-            </DialogHeader>
+              </DialogHeader>
 
-            {step === 1 && (
-              <form onSubmit={handlePostSubmit} className="space-y-4">
-                <div className="relative">
-                  <Label>Comment</Label>
-                  <Textarea
-                    ref={textareaRef}
-                    value={commentContent}
-                    onChange={handleTextChange}
-                    placeholder="Write a comment... (Type '@' to mention someone)"
-                    disabled={isPending || isUploading}
-                    className="w-full min-h-[100px] resize-none mt-1"
-                    rows={4}
-                  />
-                  {showMentions && filteredUsers.length > 0 && (
-                    <div className="absolute z-10 w-64 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto top-full left-0">
-                      {filteredUsers.map((user) => (
-                        <button
-                          key={user.id}
-                          type="button"
-                          onClick={() => insertMention(user)}
-                          className="w-full px-4 py-2 text-left hover:bg-blue-50 flex items-center gap-2 text-sm"
-                        >
-                          <User className="h-4 w-4 text-slate-400" />
-                          <span className="font-medium text-slate-700">{user.display}</span>
-                        </button>
-                      ))}
+              {step === 1 && (
+                <form onSubmit={handlePostSubmit} className="space-y-4">
+                  <div className="relative">
+                    <Label>Comment</Label>
+                    <Textarea
+                      ref={textareaRef}
+                      value={commentContent}
+                      onChange={handleTextChange}
+                      placeholder="Write a comment... (Type '@' to mention someone)"
+                      disabled={isPending || isUploading}
+                      className="w-full min-h-[100px] resize-none mt-1"
+                      rows={4}
+                    />
+                    {showMentions && filteredUsers.length > 0 && (
+                      <div className="absolute z-10 w-64 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto top-full left-0">
+                        {filteredUsers.map((user) => (
+                          <button
+                            key={user.id}
+                            type="button"
+                            onClick={() => insertMention(user)}
+                            className="w-full px-4 py-2 text-left hover:bg-blue-50 flex items-center gap-2 text-sm"
+                          >
+                            <User className="h-4 w-4 text-slate-400" />
+                            <span className="font-medium text-slate-700">{user.display}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {mentionUsers.length > 0 && (
+                    <div className="text-xs text-slate-500">
+                      💡 Type @ to mention: {mentionUsers.slice(0, 3).map(u => u.display).join(', ')}{mentionUsers.length > 3 ? ` +${mentionUsers.length - 3} more` : ''}
                     </div>
                   )}
-                </div>
 
-                {mentionUsers.length > 0 && (
-                  <div className="text-xs text-slate-500">
-                    💡 Type @ to mention: {mentionUsers.slice(0, 3).map(u => u.display).join(', ')}{mentionUsers.length > 3 ? ` +${mentionUsers.length - 3} more` : ''}
-                  </div>
-                )}
-
-                {message && (
-                  <div className={`p-3 rounded ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                    {message.text}
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
-                  <Button type="submit" disabled={isPending || isUploading || !commentContent.trim()}>
-                    {(isPending || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Post Comment
-                  </Button>
-                </div>
-              </form>
-            )}
-
-            {step === 2 && (
-              <div className="space-y-4">
-                <div className="text-center py-4">
-                  <Target className="h-12 w-12 text-blue-600 mx-auto mb-3" />
-                  <h3 className="text-md font-semibold mb-1">Comment Posted!</h3>
-                  <p className="text-gray-600 text-sm mb-4">You can now upload attachments for this comment.</p>
-                </div>
-
-                <form onSubmit={handleAttachmentUpload} className="space-y-4">
-                  <div className="space-y-3">
-                    <Label htmlFor="attachment-upload">Select Files</Label>
-                    <Input
-                      id="attachment-upload"
-                      type="file"
-                      multiple
-                      onChange={handleFileSelect}
-                      className="file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    />
-                    <p className="text-xs text-gray-500">
-                      Max 10MB per file. Supported: Images, PDF, DOC, TXT
-                    </p>
-
-                    {attachments.length > 0 && (
-                      <div className="bg-slate-50 rounded-lg p-3 border">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Paperclip className="h-4 w-4 text-slate-500" />
-                          <span className="text-sm font-medium text-slate-700">Selected Files ({attachments.length})</span>
-                        </div>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {attachments.map((file, index) => (
-                            <div key={index} className="flex items-center justify-between bg-white p-2 rounded border">
-                              <div className="flex items-center gap-2 overflow-hidden">
-                                <Paperclip className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                                <span className="text-sm text-slate-700 truncate">{file.name}</span>
-                                <span className="text-xs text-slate-500 flex-shrink-0">({formatFileSize(file.size)})</span>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeAttachment(index)}
-                                className="h-6 w-6 p-0 hover:bg-red-100 flex-shrink-0"
-                              >
-                                <X className="h-3 w-3 text-red-500" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {message && (
-                      <div className={`p-3 rounded ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                        {message.text}
-                      </div>
-                    )}
-                  </div>
+                  {message && (
+                    <div className={`p-3 rounded ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                      {message.text}
+                    </div>
+                  )}
 
                   <div className="flex justify-end gap-2 pt-2">
-                    <Button type="submit" disabled={attachments.length === 0 || isUploading}>
-                      {isUploading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          Upload Files
-                        </>
-                      )}
-                    </Button>
-                    <Button variant="outline" onClick={handleClose}>
-                      <X className="h-4 w-4 mr-2" />
-                      Skip & Close
+                    <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
+                    <Button type="submit" disabled={isPending || isUploading || !commentContent.trim()}>
+                      {(isPending || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Post Comment
                     </Button>
                   </div>
                 </form>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-4">
+                  <div className="text-center py-4">
+                    <Target className="h-12 w-12 text-blue-600 mx-auto mb-3" />
+                    <h3 className="text-md font-semibold mb-1">Comment Posted!</h3>
+                    <p className="text-gray-600 text-sm mb-4">You can now upload attachments for this comment.</p>
+                  </div>
+
+                  <form onSubmit={handleAttachmentUpload} className="space-y-4">
+                    <div className="space-y-3">
+                      <Label htmlFor="attachment-upload">Select Files</Label>
+                      <Input
+                        id="attachment-upload"
+                        type="file"
+                        multiple
+                        onChange={handleFileSelect}
+                        className="file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Max 10MB per file. Supported: Images, PDF, DOC, TXT
+                      </p>
+
+                      {attachments.length > 0 && (
+                        <div className="bg-slate-50 rounded-lg p-3 border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Paperclip className="h-4 w-4 text-slate-500" />
+                            <span className="text-sm font-medium text-slate-700">Selected Files ({attachments.length})</span>
+                          </div>
+                          <div className="space-y-2 max-h-32 overflow-y-auto">
+                            {attachments.map((file, index) => (
+                              <div key={index} className="flex items-center justify-between bg-white p-2 rounded border">
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                  <Paperclip className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                  <span className="text-sm text-slate-700 truncate">{file.name}</span>
+                                  <span className="text-xs text-slate-500 flex-shrink-0">({formatFileSize(file.size)})</span>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeAttachment(index)}
+                                  className="h-6 w-6 p-0 hover:bg-red-100 flex-shrink-0"
+                                >
+                                  <X className="h-3 w-3 text-red-500" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {message && (
+                        <div className={`p-3 rounded ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                          {message.text}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button type="submit" disabled={attachments.length === 0 || isUploading}>
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Upload Files
+                          </>
+                        )}
+                      </Button>
+                      <Button variant="outline" onClick={handleClose}>
+                        <X className="h-4 w-4 mr-2" />
+                        Skip & Close
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardHeader>
       <CardContent className="p-6">
         <div className="space-y-4">

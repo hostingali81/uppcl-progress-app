@@ -85,6 +85,27 @@ export async function updatePWASettings(formData: FormData) {
   return { success: "PWA settings updated successfully! Rebuild the app to apply changes." };
 }
 
+// New action 4: To update Notification settings
+export async function updateNotificationSettings(settings: any) {
+  const { admin: supabase } = await createSupabaseServerClient();
+
+  console.log('💾 Saving notification settings:', JSON.stringify(settings, null, 2));
+
+  const { error } = await supabase.from("settings").upsert({
+    key: 'notification_preferences',
+    value: JSON.stringify(settings)
+  }, { onConflict: 'key' });
+
+  if (error) {
+    console.error('❌ Error saving notification settings:', error);
+    return { error: `Database Error: ${error.message}` };
+  }
+
+  console.log('✅ Notification settings saved successfully');
+  revalidatePath("/(main)/admin/settings");
+  return { success: "Notification settings updated successfully!" };
+}
+
 
 // Mapping Google Sheet data to our database column names (UPDATED FOR NEW SCHEMA)
 function mapRowToWork(row: (string | number)[], headers: string[]) {
