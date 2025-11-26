@@ -376,10 +376,10 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
                           </div>
                           <div className="space-y-2 max-h-32 overflow-y-auto">
                             {attachments.map((file, index) => (
-                              <div key={index} className="flex items-center justify-between bg-white p-2 rounded border">
-                                <div className="flex items-center gap-2 overflow-hidden">
+                              <div key={index} className="flex items-center justify-between gap-2 bg-white p-2 rounded border">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
                                   <Paperclip className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                                  <span className="text-sm text-slate-700 truncate">{file.name}</span>
+                                  <span className="text-sm text-slate-700 truncate" title={file.name}>{file.name}</span>
                                   <span className="text-xs text-slate-500 flex-shrink-0">({formatFileSize(file.size)})</span>
                                 </div>
                                 <Button

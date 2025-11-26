@@ -277,7 +277,16 @@ export function UpdateProgressForm({
                 />
                 <p className="text-xs text-gray-500">Supports: JPG, PNG, WEBP (Max: 5MB each)</p>
                 {selectedFiles.length > 0 && (
-                  <div className="text-sm text-gray-600">{selectedFiles.length} file{selectedFiles.length > 1 ? "s" : ""} selected</div>
+                  <div className="bg-slate-50 rounded-lg p-3 border">
+                    <div className="text-sm font-medium text-slate-700 mb-2">{selectedFiles.length} file{selectedFiles.length > 1 ? "s" : ""} selected</div>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {selectedFiles.map((file, index) => (
+                        <div key={index} className="text-sm text-slate-600 truncate" title={file.name}>
+                          • {file.name}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 {message && (
                   <div className={`p-3 rounded ${message.type === "error" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>

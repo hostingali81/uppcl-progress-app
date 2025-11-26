@@ -448,9 +448,9 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
                 <div className="space-y-2">
                   {files.map((file, index) => (
                     <div key={index} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                      <FileText className="h-4 w-4 text-slate-600" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-slate-900">{file.name}</p>
+                      <FileText className="h-4 w-4 text-slate-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate" title={file.name}>{file.name}</p>
                         <p className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                       </div>
                     </div>
