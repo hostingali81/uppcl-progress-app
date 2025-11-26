@@ -315,7 +315,7 @@ export default function WorkDetailClient({
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="divide-y divide-slate-100">
-                            <DetailRow label="Sanction Amount (Lacs)" value={work.sanction_amount_lacs ? formatIndianLakhs(work.sanction_amount_lacs * 100000) : 'N/A'} fieldName="sanction_amount_lacs" workId={work.id} type="number" />
+                            <DetailRow label="Sanction Amount (Lacs)" value={work.sanction_amount_lacs ? `₹${work.sanction_amount_lacs.toFixed(2)} Lakhs` : 'N/A'} fieldName="sanction_amount_lacs" workId={work.id} type="number" />
                             <DetailRow label="Agreement Amount" value={work.agreement_amount ? formatIndianCurrency(work.agreement_amount) : 'N/A'} fieldName="agreement_amount" workId={work.id} type="number" />
                             <DetailRow label="BOQ Amount" value={work.boq_amount ? formatIndianCurrency(work.boq_amount) : 'N/A'} fieldName="boq_amount" workId={work.id} type="number" />
                         </div>

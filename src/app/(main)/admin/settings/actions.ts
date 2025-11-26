@@ -164,7 +164,7 @@ function mapRowToWork(row: (string | number)[], headers: string[]) {
     'Expected Date of Completion': 'expected_completion_date',
 
     // Progress and status
-    'Weightage': 'weightage',
+    'Weightage %': 'weightage',
     'Present Progress in %': 'progress_percentage',
     'Remark': 'remark',
     'WBS Code': 'wbs_code',
@@ -378,7 +378,7 @@ export async function pushToGoogleSheet(workData: {
       'scheduled_completion_date': 'Scheduled Date of Completion',
       'actual_completion_date': 'Actual Date of Completion',
       'expected_completion_date': 'Expected Date of Completion',
-      'weightage': 'Weightage',
+      'weightage': 'Weightage %',
       'progress_percentage': 'Present Progress in %',
       'remark': 'Remark',
       'wbs_code': 'WBS Code',
@@ -431,11 +431,24 @@ export async function pushToGoogleSheet(workData: {
       const colLetter = getColumnLetter(colIndex);
       const cellRange = `${sheetName}!${colLetter}${rowIndex + 1}`;
 
-      console.log(`Mapping: ${dbField} -> ${sheetHeader} -> Column ${colLetter} (index ${colIndex}) -> Value: ${value}`);
+      // Format the value for Google Sheets
+      let formattedValue = value ?? '';
+
+      // Special handling for percentage fields
+      // These are stored as plain numbers (e.g., 30) but need to be displayed as percentages in sheets
+      if (dbField === 'weightage' || dbField === 'progress_percentage') {
+        if (value !== null && value !== undefined && value !== '') {
+          // Just send the number, Google Sheets will handle it as a number
+          // The column header "Weightage %" is just a label, not a format instruction
+          formattedValue = Number(value);
+        }
+      }
+
+      console.log(`Mapping: ${dbField} -> ${sheetHeader} -> Column ${colLetter} (index ${colIndex}) -> Value: ${formattedValue}`);
 
       updates.push({
         range: cellRange,
-        values: [[value ?? '']]
+        values: [[formattedValue]]
       });
     }
 
@@ -464,13 +477,17 @@ export async function pushToGoogleSheet(workData: {
 // syncWithGoogleSheet function (unchanged)
 export async function syncWithGoogleSheet() {
   try {
-    const { admin: supabase } = await createSupabaseServerClient();
+    const { client: supabase, admin: supabaseAdmin } = await createSupabaseServerClient();
+
+    // Use client (with cookies) for authentication check
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { return { error: "Authentication required." }; }
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single() as { data: { role: string } | null };
+
+    // Check user role using admin client
+    const { data: profile } = await supabaseAdmin.from("profiles").select("role").eq("id", user.id).single() as { data: { role: string } | null };
     if (profile?.role !== 'superadmin') { return { error: "Permission Denied: You must be a superadmin to perform this action." }; }
 
-    const settings = await getSettings(supabase);
+    const settings = await getSettings(supabaseAdmin);
     const sheetId = settings.google_sheet_id;
     const sheetName = settings.google_sheet_name;
     if (!sheetName) { throw new Error("Sheet Name is not configured."); }
@@ -540,14 +557,14 @@ export async function syncWithGoogleSheet() {
 
     const sheetRows = (rows || []).slice(1) as (string | number)[][];
     const sheetSrNos = new Set(sheetRows.map((row) => row[srNoIndex]).filter(Boolean));
-    const { data: existingWorks, error: fetchError } = await supabase.from('works').select('scheme_sr_no') as any;
+    const { data: existingWorks, error: fetchError } = await supabaseAdmin.from('works').select('scheme_sr_no') as any;
     if (fetchError) { throw new Error(`Could not fetch existing works: ${fetchError.message}`); }
 
     const dbSrNos = new Set((existingWorks || []).map((work: any) => work.scheme_sr_no));
     const srNosToDelete = [...dbSrNos].filter((srNo: any) => !sheetSrNos.has(srNo));
 
     if (srNosToDelete.length > 0) {
-      const { error: deleteError } = await supabase.from('works').delete().in('scheme_sr_no', srNosToDelete);
+      const { error: deleteError } = await supabaseAdmin.from('works').delete().in('scheme_sr_no', srNosToDelete);
       if (deleteError) { throw new Error(`Failed to delete old works: ${deleteError.message}`); }
     }
 
@@ -567,7 +584,7 @@ export async function syncWithGoogleSheet() {
     console.log("Sample work data:", dataToUpsert.slice(0, 2));
 
     if (dataToUpsert.length > 0) {
-      const { error: upsertError } = await (supabase.from('works') as any).upsert(dataToUpsert, { onConflict: 'scheme_sr_no' });
+      const { error: upsertError } = await (supabaseAdmin.from('works') as any).upsert(dataToUpsert, { onConflict: 'scheme_sr_no' });
       if (upsertError) {
         console.error("Upsert Error Details:", upsertError);
         throw new Error(`Supabase Upsert Error: ${upsertError.message}`);

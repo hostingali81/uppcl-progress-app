@@ -25,12 +25,12 @@ export async function updateWorkField(workId: number, fieldName: string, value: 
 
     const { client: supabase, admin: adminSupabase } = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
       console.log('ERROR: No user authenticated');
       return { error: "Authentication required." };
     }
-    
+
     console.log('User ID:', user.id);
 
     const allowedFields = [
@@ -54,12 +54,12 @@ export async function updateWorkField(workId: number, fieldName: string, value: 
       .select(`id, ${fieldName}`)
       .eq('id', workId)
       .single();
-    
+
     console.log('Before Update:', beforeUpdate);
 
     // Use admin client to bypass RLS for updates
     console.log('Update Data:', { [fieldName]: value || null });
-    
+
     // Type assertion to bypass TypeScript strict type checking
     const updateResult = await (adminSupabase as any)
       .from('works')
@@ -73,22 +73,22 @@ export async function updateWorkField(workId: number, fieldName: string, value: 
       console.error('Update error:', error);
       return { error: error.message };
     }
-    
+
     console.log('Update Result:', updateData);
-    
+
     // Verify the update
     const { data: afterUpdate } = await (adminSupabase as any)
       .from('works')
       .select(`id, ${fieldName}`)
       .eq('id', workId)
       .single();
-    
+
     console.log('After Update:', afterUpdate);
-    
+
     // Clear all relevant caches
     cache.clear();
     console.log('Cache cleared');
-    
+
     // Get the updated work data including scheme_sr_no for Google Sheets sync
     const { data: updatedWork } = await (adminSupabase as any)
       .from('works')
@@ -102,9 +102,9 @@ export async function updateWorkField(workId: number, fieldName: string, value: 
         scheme_sr_no: updatedWork.scheme_sr_no,
         [fieldName]: value || null
       };
-      
+
       console.log('Syncing to Google Sheets:', syncData);
-      
+
       // Push to Google Sheets (don't block on errors)
       try {
         const syncResult = await pushToGoogleSheet(syncData);
@@ -113,10 +113,10 @@ export async function updateWorkField(workId: number, fieldName: string, value: 
         console.error('Google Sheets sync failed:', syncError);
       }
     }
-    
+
     revalidatePath('/dashboard');
     revalidatePath(`/dashboard/work/${workId}`);
-    
+
     console.log('=== UPDATE WORK FIELD END ===');
     return { success: "Updated successfully." };
   } catch (error) {
@@ -143,17 +143,17 @@ export async function deleteWork(workId: number) {
     console.error('Delete error:', error);
     return { error: error.message };
   }
-  
+
   // Clear all relevant caches
   cache.clear(); // Clear all caches to ensure fresh data
-  
+
   // Note: For deletions, you may want to manually delete from Google Sheets
   // or run a full sync. Automatic deletion from sheets is risky.
   // For now, we'll just log it.
   if (workToDelete?.scheme_sr_no) {
     console.log(`Work ${workToDelete.scheme_sr_no} deleted from database. Consider syncing Google Sheets.`);
   }
-  
+
   revalidatePath('/dashboard');
   return { success: "Work deleted successfully. Note: Please sync Google Sheets to reflect this deletion." };
 }
@@ -167,11 +167,16 @@ export async function exportToExcel(works: any[], selectedColumns: string[] = []
       'civil_circle': 'Civil Circle',
       'civil_division': 'Civil Division',
       'civil_sub_division': 'Civil Sub-Division',
+      'zone_name': 'Zone Name',
+      'circle_name': 'Circle Name',
+      'division_name': 'Division Name',
+      'sub_division_name': 'Sub-Division Name',
       'district_name': 'District Name',
       'je_name': 'JE Name',
       'work_category': 'Work Category',
       'wbs_code': 'WBS Code',
       'work_name': 'Name of Work',
+      'sanction_amount_lacs': 'Sanction Amount (Rs. Lacs)',
       'amount_as_per_bp_lacs': 'Amount as per BP (Rs. Lacs)',
       'boq_amount': 'BoQ Amount',
       'agreement_amount': 'Agreement Amount',
@@ -188,7 +193,7 @@ export async function exportToExcel(works: any[], selectedColumns: string[] = []
       'start_date': 'Date of Start (As per Agr./ Actual)',
       'scheduled_completion_date': 'Scheduled Date of Completion',
       'actual_completion_date': 'Actual Date of Completion',
-      'weightage': 'Weightage',
+      'weightage': 'Weightage %',
       'progress_percentage': 'Present Progress in %',
       'remark': 'Remark',
       'mb_status': 'MB Status',
@@ -222,7 +227,22 @@ export async function exportToExcel(works: any[], selectedColumns: string[] = []
     const mappedData = works.map(work => {
       const mapped: any = {};
       colsToSelect.forEach(col => {
-        mapped[columnMapping[col]] = work[col];
+        let val = work[col];
+
+        // Fallbacks for specific columns if value is missing
+        if (!val || val === '') {
+          switch (col) {
+            case 'zone_name': val = work.civil_zone; break;
+            case 'circle_name': val = work.civil_circle; break;
+            case 'division_name': val = work.civil_division; break;
+            case 'sub_division_name': val = work.civil_sub_division; break;
+            case 'teco_status': val = work.teco; break;
+            case 'fico_status': val = work.fico; break;
+            case 'updated_at': val = work.created_at; break;
+          }
+        }
+
+        mapped[columnMapping[col]] = val;
       });
       return mapped;
     });
@@ -234,7 +254,7 @@ export async function exportToExcel(works: any[], selectedColumns: string[] = []
     // Write file to buffer and then convert to Base64 string
     const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
     const base64Data = buffer.toString("base64");
-    
+
     // Create file name
     const fileName = `Pragati-Works-Export-${new Date().toISOString().split('T')[0]}.xlsx`;
 

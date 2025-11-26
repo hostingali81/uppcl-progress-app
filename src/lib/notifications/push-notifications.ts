@@ -1,5 +1,6 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { Capacitor } from '@capacitor/core';
 
 export class NotificationService {
     private static initialized = false;
@@ -71,8 +72,15 @@ export class NotificationService {
 
     /**
      * Create notification channels for Android
+     * Note: This only works on native platforms (Android/iOS), not on web
      */
     private static async createChannels() {
+        // Skip channel creation on web - it's not supported
+        if (!Capacitor.isNativePlatform()) {
+            console.log('ℹ️ Skipping notification channel creation on web platform');
+            return;
+        }
+
         try {
             // High Priority Channel - Urgent updates
             try {

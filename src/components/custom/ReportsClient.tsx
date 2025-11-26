@@ -9,20 +9,24 @@ import { ExportToPDFButton } from "@/components/custom/ExportToPDFButton";
 import { DashboardFilters } from "@/components/custom/DashboardFilters";
 import { DateFilter } from "@/components/custom/DateFilter";
 import { Tooltip } from "@/components/ui/tooltip";
-import { FileText, Download, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { FileText, Download, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, LayoutList, Table as TableIcon } from "lucide-react";
 import Link from "next/link";
 import type { Work, ProgressLog } from "@/lib/types";
+import { SummaryReportTable } from "@/components/custom/SummaryReportTable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ReportsClientProps {
   works: Work[];
   profile: {
     role: string;
   };
+  userId: string;
 }
 
-export function ReportsClient({ works, profile }: ReportsClientProps) {
+export function ReportsClient({ works, profile, userId }: ReportsClientProps) {
   const [filteredWorks, setFilteredWorks] = useState<Work[]>(works);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("detailed");
   const [sort, setSort] = useState<{ column: string; direction: 'asc' | 'desc' }>({
     column: '',
     direction: 'asc'
@@ -340,6 +344,87 @@ export function ReportsClient({ works, profile }: ReportsClientProps) {
       <ArrowDown className="h-4 w-4 text-blue-600" />;
   };
 
+  // Determine grouping logic for summary report based on user role
+  // Show one level below the user's hierarchy
+  const { groupingField, groupingLabel } = useMemo(() => {
+    const role = profile.role;
+
+    // Superadmin sees zone-wise summary
+    if (role === 'superadmin') {
+      return { groupingField: 'civil_zone' as keyof Work, groupingLabel: 'Zone' };
+    }
+
+    // Zone head sees circle-wise summary (one level below zone)
+    if (role === 'zone_head') {
+      return { groupingField: 'civil_circle' as keyof Work, groupingLabel: 'Circle' };
+    }
+
+    // Circle head sees division-wise summary (one level below circle)
+    if (role === 'circle_head') {
+      return { groupingField: 'civil_division' as keyof Work, groupingLabel: 'Division' };
+    }
+
+    // Division head sees sub-division-wise summary (one level below division)
+    if (role === 'division_head') {
+      return { groupingField: 'civil_sub_division' as keyof Work, groupingLabel: 'Sub-Division' };
+    }
+
+    // Sub-division head and JE see work category summary (since they manage individual works)
+    if (role === 'sub_division_head' || role === 'je') {
+      return { groupingField: 'work_category' as keyof Work, groupingLabel: 'Work Category' };
+    }
+
+    // Default fallback
+    return { groupingField: 'civil_zone' as keyof Work, groupingLabel: 'Zone' };
+  }, [profile.role]);
+
+  // Determine scheme name from filtered works
+  const schemeName = useMemo(() => {
+    if (filteredWorks.length === 0) return 'All Schemes';
+
+    // Get unique scheme names
+    const schemes = [...new Set(filteredWorks.map(w => w.scheme_name).filter(Boolean))];
+
+    if (schemes.length === 1) {
+      return schemes[0] as string;
+    } else if (schemes.length > 1) {
+      return `${schemes.length} Schemes`;
+    }
+    return 'All Schemes';
+  }, [filteredWorks]);
+
+  // Determine office name from user profile
+  const officeName = useMemo(() => {
+    const role = profile.role;
+    const profileData = profile as any;
+
+    if (role === 'superadmin') {
+      return 'UPPCL Headquarters';
+    }
+
+    if (role === 'zone_head' && profileData.zone) {
+      return `${profileData.zone} Zone`;
+    }
+
+    if (role === 'circle_head' && profileData.circle) {
+      return `${profileData.circle} Circle`;
+    }
+
+    if (role === 'division_head' && profileData.division) {
+      return `${profileData.division} Division`;
+    }
+
+    if (role === 'sub_division_head' && profileData.subdivision) {
+      return `${profileData.subdivision} Sub-Division`;
+    }
+
+    if (role === 'je' && profileData.region) {
+      return `${profileData.region} Region`;
+    }
+
+    return 'UPPCL';
+  }, [profile]);
+
   return (
     <div className="p-2 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
       <div className="space-y-4">
@@ -405,267 +490,289 @@ export function ReportsClient({ works, profile }: ReportsClientProps) {
         selectedDate={selectedDate}
       />
 
-      {/* Export Options */}
-      <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="border-b border-slate-200 p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-white">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-start gap-2">
-              <div className="w-5 h-5 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <FileText className="h-3 w-3 text-slate-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <CardTitle className="text-sm sm:text-base font-semibold text-slate-900 truncate">Export Reports</CardTitle>
-                <CardDescription className="text-xs text-slate-600 truncate">
-                  {filteredWorks.length} works filtered
-                </CardDescription>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 justify-start sm:justify-end">
-              <ExportToExcelButton
-                selectedScheme="All"
-                filteredWorks={filteredWorks}
-              />
-              <ExportToPDFButton
-                selectedScheme="All"
-                filteredWorks={filteredWorks}
-              />
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4 sm:gap-0">
+          <TabsList className="bg-slate-100 p-1 rounded-lg shadow-sm w-full sm:w-auto grid grid-cols-2 sm:flex h-auto">
+            <TabsTrigger
+              value="detailed"
+              className="flex items-center justify-center sm:justify-start gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all duration-200 rounded-md px-4 py-2"
+            >
+              <LayoutList className="h-4 w-4" />
+              <span className="font-medium">Detailed Report</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="summary"
+              className="flex items-center justify-center sm:justify-start gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all duration-200 rounded-md px-4 py-2"
+            >
+              <TableIcon className="h-4 w-4" />
+              <span className="font-medium">Summary Report</span>
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Data Table */}
-      <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="border-b border-slate-200 p-3 sm:p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
-              <CardTitle className="text-base sm:text-lg font-semibold text-slate-900">Filtered Data Preview</CardTitle>
-              <CardDescription className="text-xs sm:text-sm text-slate-600">
-                Showing {filteredWorks.length} works based on applied filters
-              </CardDescription>
-            </div>
-            {filteredWorks.length > 25 && (
-              <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200 w-fit">
-                Showing first 25 works • Export for full data
-              </Badge>
-            )}
+          {/* Export Options */}
+          <div className="flex items-center justify-end gap-3 w-full sm:w-auto">
+            <ExportToExcelButton
+              selectedScheme="All"
+              filteredWorks={filteredWorks}
+              isSummary={activeTab === 'summary'}
+              groupingField={groupingField}
+              groupingLabel={groupingLabel}
+              schemeName={schemeName}
+              officeName={officeName}
+              userId={userId}
+            />
+            <ExportToPDFButton
+              selectedScheme="All"
+              filteredWorks={filteredWorks}
+              isSummary={activeTab === 'summary'}
+              groupingField={groupingField}
+              groupingLabel={groupingLabel}
+              schemeName={schemeName}
+              officeName={officeName}
+              userId={userId}
+            />
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {/* Mobile Card Layout */}
-          <div className="block sm:hidden">
-            {filteredWorks.length > 0 ? (
-              <div className="divide-y divide-slate-200">
-                {filteredWorks.slice(0, 25).map((work: Work, index: number) => (
-                  <div key={work.id} className="p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          {work.is_blocked && (
-                            <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <Link
-                              href={`/dashboard/work/${work.id}`}
-                              className="font-semibold text-blue-600 hover:text-blue-700 text-sm block"
-                              title={work.work_name || 'No name'}
-                            >
-                              <span className="truncate block" style={{ maxWidth: '200px' }}>{work.work_name || 'No name'}</span>
-                            </Link>
-                          </div>
-                        </div>
-                        <div className="text-xs text-slate-500 space-y-1">
-                          <div><span className="font-medium">WBS:</span> {work.wbs_code || 'N/A'}</div>
-                          <div><span className="font-medium">District:</span> {work.district_name || 'N/A'}</div>
-                        </div>
-                      </div>
-                      <div className="text-right ml-2 flex-shrink-0">
-                        <div className="text-lg font-bold text-slate-900">
-                          {work.progress_percentage || 0}%
-                        </div>
-                        <div className="w-16 h-1.5 bg-slate-200 rounded-full mt-1 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${(work.progress_percentage || 0) === 100 ? 'bg-green-500' :
-                              (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
-                                (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
-                                  (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
-                                    'bg-red-500'
-                              }`}
-                            style={{ width: `${work.progress_percentage || 0}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center text-xs text-slate-600">
-                      <span>{work.scheme_name || 'No scheme'}</span>
-                      <span>{work.civil_circle || 'No circle'}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-8 text-center">
-                <FileText className="h-8 w-8 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500 font-medium mb-1">No works found</p>
-                <p className="text-xs text-slate-400">Try adjusting your filters</p>
-              </div>
-            )}
-          </div>
+        </div >
 
-          {/* Desktop Table Layout */}
-          <div className="hidden sm:block">
-            <Table className="w-full">
-              <TableHeader>
-                <TableRow className="border-slate-200">
-                  <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[200px]" onClick={() => handleSort('work_name')}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">Work Details</span>
-                      {getSortIcon('work_name')}
-                    </div>
-                  </TableHead>
-                  <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('district_name')}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">Location</span>
-                      {getSortIcon('district_name')}
-                    </div>
-                  </TableHead>
-                  <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('scheme_name')}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">Scheme & Category</span>
-                      {getSortIcon('scheme_name')}
-                    </div>
-                  </TableHead>
-                  <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none text-right" onClick={() => handleSort('progress_percentage')}>
-                    <div className="flex items-center justify-end gap-2">
-                      <span className="text-sm">Progress</span>
-                      {getSortIcon('progress_percentage')}
-                    </div>
-                  </TableHead>
-                  <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('agreement_amount')}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">Contract & Payments</span>
-                      {getSortIcon('agreement_amount')}
-                    </div>
-                  </TableHead>
-                  <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('start_date')}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">Status</span>
-                      {getSortIcon('start_date')}
-                    </div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+        <TabsContent value="detailed" className="mt-0">
+          {/* Data Table */}
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader className="border-b border-slate-200 p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base sm:text-lg font-semibold text-slate-900">Filtered Data Preview</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm text-slate-600">
+                    Showing {filteredWorks.length} works based on applied filters
+                  </CardDescription>
+                </div>
+                {filteredWorks.length > 25 && (
+                  <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200 w-fit">
+                    Showing first 25 works • Export for full data
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {/* Mobile Card Layout */}
+              <div className="block sm:hidden">
                 {filteredWorks.length > 0 ? (
-                  filteredWorks.slice(0, 25).map((work: Work) => (
-                    <TableRow key={work.id} className="hover:bg-slate-50 transition-colors">
-                      {/* Work Details Column */}
-                      <TableCell className="align-top">
-                        <div className="space-y-2">
-                          <div className="flex items-start gap-2">
-                            {work.is_blocked && (
-                              <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0 mt-0.5" />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <Link
-                                href={`/dashboard/work/${work.id}`}
-                                className="font-semibold text-blue-600 hover:text-blue-700 text-sm leading-tight block"
-                                title={work.work_name || 'No name'}
-                              >
-                                <span className="truncate block w-full max-w-full" style={{ maxWidth: '500px' }}>{work.work_name || 'No name'}</span>
-                              </Link>
+                  <div className="divide-y divide-slate-200">
+                    {filteredWorks.slice(0, 25).map((work: Work, index: number) => (
+                      <div key={work.id} className="p-4 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              {work.is_blocked && (
+                                <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <Link
+                                  href={`/dashboard/work/${work.id}`}
+                                  className="font-semibold text-blue-600 hover:text-blue-700 text-sm block"
+                                  title={work.work_name || 'No name'}
+                                >
+                                  <span className="truncate block" style={{ maxWidth: '200px' }}>{work.work_name || 'No name'}</span>
+                                </Link>
+                              </div>
+                            </div>
+                            <div className="text-xs text-slate-500 space-y-1">
+                              <div><span className="font-medium">WBS:</span> {work.wbs_code || 'N/A'}</div>
+                              <div><span className="font-medium">District:</span> {work.district_name || 'N/A'}</div>
                             </div>
                           </div>
-                          <div className="text-xs text-slate-500 space-y-0.5">
-                            <div><strong>WBS:</strong> {work.wbs_code || 'N/A'}</div>
-                            <div><strong>Sanction:</strong> ₹{(work.sanction_amount_lacs || 0).toFixed(2)} L</div>
+                          <div className="text-right ml-2 flex-shrink-0">
+                            <div className="text-lg font-bold text-slate-900">
+                              {work.progress_percentage || 0}%
+                            </div>
+                            <div className="w-16 h-1.5 bg-slate-200 rounded-full mt-1 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${(work.progress_percentage || 0) === 100 ? 'bg-green-500' :
+                                  (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
+                                    (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
+                                      (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
+                                        'bg-red-500'
+                                  }`}
+                                style={{ width: `${work.progress_percentage || 0}%` }}
+                              />
+                            </div>
                           </div>
                         </div>
-                      </TableCell>
-
-                      {/* Location Column */}
-                      <TableCell className="align-top">
-                        <div className="text-xs space-y-1">
-                          <div><strong>District:</strong> {work.district_name || 'N/A'}</div>
-                          <div><strong>Circle:</strong> {work.civil_circle || 'N/A'}</div>
-                          <div><strong>Division:</strong> {work.civil_division || 'N/A'}</div>
-                        </div>
-                      </TableCell>
-
-                      {/* Scheme & Category Column */}
-                      <TableCell className="align-top">
-                        <div className="text-xs space-y-1">
-                          <div><strong>Scheme:</strong> {work.scheme_name || 'N/A'}</div>
-                          <div><strong>Category:</strong> {work.work_category || 'N/A'}</div>
-                        </div>
-                      </TableCell>
-
-                      {/* Progress Column */}
-                      <TableCell className="align-top">
-                        <div className="space-y-2">
-                          <div className="text-sm font-semibold text-slate-900">
-                            {work.progress_percentage || 0}%
-                          </div>
-                          <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${(work.progress_percentage || 0) === 100 ? 'bg-green-500' :
-                                (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
-                                  (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
-                                    (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
-                                      'bg-red-500'
-                                }`}
-                              style={{ width: `${work.progress_percentage || 0}%` }}
-                            />
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      {/* Contract & Payments Column */}
-                      <TableCell className="align-top">
-                        <div className="text-xs space-y-1">
-                          <div><strong>Agreement:</strong> ₹{(work.agreement_amount || 0).toLocaleString('en-IN') || 'N/A'}</div>
-                          <div><strong>MB Status:</strong> {work.mb_status || 'N/A'}</div>
-                          <div><strong>TECO Status:</strong> {work.teco_status || 'N/A'}</div>
-                        </div>
-                      </TableCell>
-
-                      {/* Status Column */}
-                      <TableCell className="align-top">
-                        <div className="text-xs space-y-1">
-                          <div><strong>FICO Status:</strong> {work.fico_status || 'N/A'}</div>
-                          <div><strong>Start Date:</strong> {work.start_date ? new Date(work.start_date).toLocaleDateString('en-IN') : 'N/A'}</div>
-                          <div><strong>Completion:</strong> {work.actual_completion_date ? new Date(work.actual_completion_date).toLocaleDateString('en-IN') : work.scheduled_completion_date ? new Date(work.scheduled_completion_date).toLocaleDateString('en-IN') + ' (scheduled)' : 'N/A'}</div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3">
-                        <FileText className="h-10 w-10 text-slate-300" />
-                        <div>
-                          <p className="text-slate-500 font-medium mb-1">No works found</p>
-                          <p className="text-xs text-slate-400">Try adjusting your filters or check your permissions</p>
+                        <div className="flex justify-between items-center text-xs text-slate-600">
+                          <span>{work.scheme_name || 'No scheme'}</span>
+                          <span>{work.civil_circle || 'No circle'}</span>
                         </div>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center">
+                    <FileText className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500 font-medium mb-1">No works found</p>
+                    <p className="text-xs text-slate-400">Try adjusting your filters</p>
+                  </div>
                 )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {filteredWorks.length > 25 && (
-            <div className="p-3 sm:p-4 border-t border-slate-200 bg-slate-50/50">
-              <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600">
-                <span>Showing first 25 of {filteredWorks.length} works</span>
-                <span className="font-medium">Export to Excel/PDF for complete data</span>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+
+              {/* Desktop Table Layout */}
+              <div className="hidden sm:block">
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow className="border-slate-200">
+                      <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[200px]" onClick={() => handleSort('work_name')}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Work Details</span>
+                          {getSortIcon('work_name')}
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('district_name')}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Location</span>
+                          {getSortIcon('district_name')}
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('scheme_name')}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Scheme & Category</span>
+                          {getSortIcon('scheme_name')}
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none text-right" onClick={() => handleSort('progress_percentage')}>
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="text-sm">Progress</span>
+                          {getSortIcon('progress_percentage')}
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('agreement_amount')}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Contract & Payments</span>
+                          {getSortIcon('agreement_amount')}
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('start_date')}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Status</span>
+                          {getSortIcon('start_date')}
+                        </div>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredWorks.length > 0 ? (
+                      filteredWorks.slice(0, 25).map((work: Work) => (
+                        <TableRow key={work.id} className="hover:bg-slate-50 transition-colors">
+                          {/* Work Details Column */}
+                          <TableCell className="align-top">
+                            <div className="space-y-2">
+                              <div className="flex items-start gap-2">
+                                {work.is_blocked && (
+                                  <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0 mt-0.5" />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <Link
+                                    href={`/dashboard/work/${work.id}`}
+                                    className="font-semibold text-blue-600 hover:text-blue-700 text-sm leading-tight block"
+                                    title={work.work_name || 'No name'}
+                                  >
+                                    <span className="truncate block w-full max-w-full" style={{ maxWidth: '500px' }}>{work.work_name || 'No name'}</span>
+                                  </Link>
+                                </div>
+                              </div>
+                              <div className="text-xs text-slate-500 space-y-0.5">
+                                <div><strong>WBS:</strong> {work.wbs_code || 'N/A'}</div>
+                                <div><strong>Sanction:</strong> ₹{(work.sanction_amount_lacs || 0).toFixed(2)} L</div>
+                              </div>
+                            </div>
+                          </TableCell>
+
+                          {/* Location Column */}
+                          <TableCell className="align-top">
+                            <div className="text-xs space-y-1">
+                              <div><strong>District:</strong> {work.district_name || 'N/A'}</div>
+                              <div><strong>Circle:</strong> {work.civil_circle || 'N/A'}</div>
+                              <div><strong>Division:</strong> {work.civil_division || 'N/A'}</div>
+                            </div>
+                          </TableCell>
+
+                          {/* Scheme & Category Column */}
+                          <TableCell className="align-top">
+                            <div className="text-xs space-y-1">
+                              <div><strong>Scheme:</strong> {work.scheme_name || 'N/A'}</div>
+                              <div><strong>Category:</strong> {work.work_category || 'N/A'}</div>
+                            </div>
+                          </TableCell>
+
+                          {/* Progress Column */}
+                          <TableCell className="align-top">
+                            <div className="space-y-2">
+                              <div className="text-sm font-semibold text-slate-900">
+                                {work.progress_percentage || 0}%
+                              </div>
+                              <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${(work.progress_percentage || 0) === 100 ? 'bg-green-500' :
+                                    (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
+                                      (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
+                                        (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
+                                          'bg-red-500'
+                                    }`}
+                                  style={{ width: `${work.progress_percentage || 0}%` }}
+                                />
+                              </div>
+                            </div>
+                          </TableCell>
+
+                          {/* Contract & Payments Column */}
+                          <TableCell className="align-top">
+                            <div className="text-xs space-y-1">
+                              <div><strong>Agreement:</strong> ₹{(work.agreement_amount || 0).toLocaleString('en-IN') || 'N/A'}</div>
+                              <div><strong>MB Status:</strong> {work.mb_status || 'N/A'}</div>
+                              <div><strong>TECO Status:</strong> {work.teco_status || 'N/A'}</div>
+                            </div>
+                          </TableCell>
+
+                          {/* Status Column */}
+                          <TableCell className="align-top">
+                            <div className="text-xs space-y-1">
+                              <div><strong>FICO Status:</strong> {work.fico_status || 'N/A'}</div>
+                              <div><strong>Start Date:</strong> {work.start_date ? new Date(work.start_date).toLocaleDateString('en-IN') : 'N/A'}</div>
+                              <div><strong>Completion:</strong> {work.actual_completion_date ? new Date(work.actual_completion_date).toLocaleDateString('en-IN') : work.scheduled_completion_date ? new Date(work.scheduled_completion_date).toLocaleDateString('en-IN') + ' (scheduled)' : 'N/A'}</div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-12">
+                          <div className="flex flex-col items-center gap-3">
+                            <FileText className="h-10 w-10 text-slate-300" />
+                            <div>
+                              <p className="text-slate-500 font-medium mb-1">No works found</p>
+                              <p className="text-xs text-slate-400">Try adjusting your filters or check your permissions</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {filteredWorks.length > 25 && (
+                <div className="p-3 sm:p-4 border-t border-slate-200 bg-slate-50/50">
+                  <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600">
+                    <span>Showing first 25 of {filteredWorks.length} works</span>
+                    <span className="font-medium">Export to Excel/PDF for complete data</span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="summary">
+          <SummaryReportTable works={filteredWorks} groupingField={groupingField} groupingLabel={groupingLabel} />
+        </TabsContent>
+      </Tabs >
+    </div >
   );
 }

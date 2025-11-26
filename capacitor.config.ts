@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
     url: 'https://dvvnl.vercel.app', // Production URL
-    // url: 'http://192.168.1.35:3000', // Local Development URL
+
     cleartext: true
   },
   plugins: {

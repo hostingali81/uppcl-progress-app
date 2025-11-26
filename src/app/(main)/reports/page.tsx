@@ -61,5 +61,5 @@ export default async function ReportsPage() {
 
   const { data: works } = await worksQuery;
 
-  return <ReportsClient works={(works as Work[]) || []} profile={profile} />;
+  return <ReportsClient works={(works as Work[]) || []} profile={profile} userId={user.id} />;
 }

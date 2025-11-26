@@ -79,12 +79,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid file format - not File, Blob, or string" }, { status: 400 });
     }
 
-    const settings = await getSettings(supabase);
+    const settings = await getSettings(supabaseAdmin);
     const accountId = settings.cloudflare_account_id;
     const accessKeyId = settings.cloudflare_access_key_id;
     const secretAccessKey = settings.cloudflare_secret_access_key;
     const bucketName = settings.cloudflare_r2_bucket_name;
     const publicUrl = settings.cloudflare_public_r2_url;
+
+    console.log('Cloudflare R2 Settings Check:', {
+      hasAccountId: !!accountId,
+      hasAccessKeyId: !!accessKeyId,
+      hasSecretAccessKey: !!secretAccessKey,
+      hasBucketName: !!bucketName,
+      hasPublicUrl: !!publicUrl
+    });
 
     if (!accountId || !accessKeyId || !secretAccessKey || !bucketName || !publicUrl) {
       return NextResponse.json({ error: "Cloudflare R2 settings are not configured" }, { status: 500 });
