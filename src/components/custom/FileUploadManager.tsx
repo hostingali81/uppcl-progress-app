@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FileText, ImageIcon, Trash2, User, Loader2, Upload, Paperclip, X, CheckCircle, AlertCircle, Download } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/imageCompression";
 
 // Type definition for attachments
 type Attachment = {
@@ -273,9 +274,13 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
 
     // Validate each file before uploading
     for (const file of files) {
-      if (file.size > MAX_FILE_SIZE) {
+      // For non-images, keep the 10MB limit. For images, we'll try to compress, so allow larger files (e.g. 50MB)
+      const isImage = file.type.startsWith('image/');
+      const effectiveLimit = isImage ? 50 * 1024 * 1024 : MAX_FILE_SIZE;
+
+      if (file.size > effectiveLimit) {
         toast.error("File too large", {
-          description: `File ${file.name} is too large. Maximum size is 10MB.`,
+          description: `File ${file.name} is too large. Maximum size is ${isImage ? '50MB' : '10MB'}.`,
         });
         return;
       }
@@ -294,15 +299,27 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
     startTransition(async () => {
       let uploadCount = 0;
       for (const file of files) {
-        console.log('Uploading file via API route for:', { fileName: file.name, fileType: file.type, fileSize: file.size });
+        let fileToUpload = file;
+
+        // Compress image if it is an image
+        if (file.type.startsWith('image/')) {
+          try {
+            toast.info(`Compressing ${file.name}...`);
+            fileToUpload = await compressImage(file);
+          } catch (error) {
+            console.error("Compression failed, uploading original", error);
+          }
+        }
+
+        console.log('Uploading file via API route for:', { fileName: fileToUpload.name, fileType: fileToUpload.type, fileSize: fileToUpload.size });
 
         // Create FormData for API upload
         const uploadFormData = new FormData();
-        uploadFormData.append("file", file);
+        uploadFormData.append("file", fileToUpload);
         uploadFormData.append("workId", workId.toString());
         uploadFormData.append("attachmentType", selectedAttachmentType);
 
-        console.log(`Starting file upload to /api/upload for ${file.name}...`);
+        console.log(`Starting file upload to /api/upload for ${fileToUpload.name}...`);
 
         try {
           const uploadResponse = await fetch("/api/upload", {
@@ -310,22 +327,22 @@ export function FileUploadManager({ workId, attachments, currentUserId }: FileUp
             body: uploadFormData,
           });
 
-          console.log('API upload response status for', file.name, ':', uploadResponse.status);
+          console.log('API upload response status for', fileToUpload.name, ':', uploadResponse.status);
 
           if (!uploadResponse.ok) {
             const errorData = await uploadResponse.json().catch(() => ({ error: 'Failed to upload file' }));
-            console.error('Upload failed for', file.name, ':', errorData.error);
+            console.error('Upload failed for', fileToUpload.name, ':', errorData.error);
             toast.error("Upload failed", {
-              description: `Upload failed for ${file.name}: ${errorData.error}`,
+              description: `Upload failed for ${fileToUpload.name}: ${errorData.error}`,
             });
             return;
           }
 
           const uploadData = await uploadResponse.json();
-          console.log('File upload successful for', file.name, ':', uploadData);
+          console.log('File upload successful for', fileToUpload.name, ':', uploadData);
 
         } catch (uploadError: unknown) {
-          const fileName = file?.name || 'the selected file';
+          const fileName = fileToUpload?.name || 'the selected file';
           const errorMessage = uploadError instanceof Error
             ? uploadError.message
             : 'An unknown error occurred during upload.';

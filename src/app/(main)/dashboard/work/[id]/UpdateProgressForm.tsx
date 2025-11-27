@@ -25,6 +25,7 @@ import {
   Edit3,
   X,
 } from "lucide-react";
+import { compressImage } from "@/lib/imageCompression";
 
 interface UpdateProgressFormProps {
   workId: number;
@@ -126,8 +127,17 @@ export function UpdateProgressForm({
 
     try {
       const uploadPromises = selectedFiles.map(async (file) => {
+        let fileToUpload = file;
+        try {
+          // Compress image before upload
+          // toast.info(`Compressing ${file.name}...`); // Optional: might be too spammy if many files
+          fileToUpload = await compressImage(file);
+        } catch (error) {
+          console.error("Compression failed, uploading original", error);
+        }
+
         const uploadFormData = new FormData();
-        uploadFormData.append("file", file);
+        uploadFormData.append("file", fileToUpload);
         uploadFormData.append("workId", workId.toString());
         uploadFormData.append("progress_log_id", progressLogId.toString());
         uploadFormData.append("attachmentType", "site_photo");

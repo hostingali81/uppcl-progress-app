@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { compressImage } from "@/lib/imageCompression";
 
 type Comment = {
   id: number;
@@ -130,8 +131,11 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
         'application/vnd.openxmlformats-officedocument' // Generic fallback
       ];
 
-      if (file.size > maxSize) {
-        alert(`File "${file.name}" is too large. Maximum size is 10MB.`);
+      const isImage = file.type.startsWith('image/');
+      const effectiveLimit = isImage ? 50 * 1024 * 1024 : 10 * 1024 * 1024; // 50MB for images, 10MB for others
+
+      if (file.size > effectiveLimit) {
+        alert(`File "${file.name}" is too large. Maximum size is ${isImage ? '50MB' : '10MB'}.`);
         return false;
       }
 
@@ -193,8 +197,20 @@ export function CommentsSection({ workId, comments, mentionUsers, currentUserId,
 
     try {
       const uploadPromises = attachments.map(async (file) => {
+        let fileToUpload = file;
+
+        // Compress image if it is an image
+        if (file.type.startsWith('image/')) {
+          try {
+            // toast.info(`Compressing ${file.name}...`);
+            fileToUpload = await compressImage(file);
+          } catch (error) {
+            console.error("Compression failed, uploading original", error);
+          }
+        }
+
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', fileToUpload);
         formData.append('workId', workId.toString());
         formData.append('attachmentType', 'document');
         formData.append('comment_id', newCommentId.toString());
