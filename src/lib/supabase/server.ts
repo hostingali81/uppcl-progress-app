@@ -41,7 +41,14 @@ export const createSupabaseServerClient = async (): Promise<SupabaseServerClient
     client: createServerClient<Database>(
       SUPABASE_URL,
       ANON_KEY,
-      { cookies: cookieHandler }
+      {
+        cookies: cookieHandler,
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+        }
+      }
     ) as any,
     admin: createServerClient<Database>(
       SUPABASE_URL,
