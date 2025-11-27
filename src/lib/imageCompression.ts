@@ -9,7 +9,7 @@ import imageCompression from 'browser-image-compression';
  */
 export async function compressImage(
   file: File,
-  maxSizeMB: number = 4.5,
+  maxSizeMB: number = 2,
   maxWidthOrHeight: number = 1920
 ): Promise<File> {
   // Only compress images
@@ -28,7 +28,7 @@ export async function compressImage(
     console.log(`Attempting to compress ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
     const compressedFile = await imageCompression(file, options);
     console.log(`Compressed ${file.name} to ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
-    
+
     // Create a new File object from the Blob to ensure it has the correct name and lastModified
     return new File([compressedFile], file.name, {
       type: file.type,
