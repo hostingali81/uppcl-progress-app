@@ -8,6 +8,7 @@ import { handleUserProfile } from '@/types/profile';
 import type { UserDetails } from '@/types/profile';
 import { NotificationInitializer } from '@/components/custom/NotificationInitializer';
 import { PullToRefresh } from '@/components/custom/PullToRefresh';
+import { MainLayoutClient } from './layout-client';
 
 export default async function MainLayout({
   children,
@@ -31,20 +32,9 @@ export default async function MainLayout({
 
     // Return layout with profile data
     return (
-      <div className="flex h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
-        <NotificationInitializer />
-        <Sidebar userDetails={userDetails} />
-        <div className="flex flex-1 flex-col min-w-0">
-          <Header userDetails={userDetails} />
-          <PullToRefresh>
-            <main className="min-h-full p-4 md:p-6">
-              <ErrorBoundary>
-                {children}
-              </ErrorBoundary>
-            </main>
-          </PullToRefresh>
-        </div>
-      </div>
+      <MainLayoutClient userDetails={userDetails}>
+        {children}
+      </MainLayoutClient>
     );
   } catch (error) {
     console.error('Layout error:', error);
