@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "549956712620",
+    "project_id": "uppclprogressapp",
+    "storage_bucket": "uppclprogressapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:549956712620:android:ecb111fa2c5c61a3fb4709",
+        "android_client_info": {
+          "package_name": "com.progress.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEFAlElBFSw9gqc8kLH5jIDvRvbVHqq9c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

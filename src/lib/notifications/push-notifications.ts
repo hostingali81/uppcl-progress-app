@@ -1,4 +1,5 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { PushNotifications } from '@capacitor/push-notifications';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
 
@@ -34,11 +35,22 @@ export class NotificationService {
      */
     private static async requestPermissions() {
         try {
-            // NOTE: Push notifications disabled to avoid Firebase error
-            // To enable: Set up Firebase and add google-services.json to android/app
-            console.log('ℹ️ Push notifications disabled - using local notifications only');
+            if (Capacitor.isNativePlatform()) {
+                // Request push notification permissions
+                const result = await PushNotifications.requestPermissions();
 
-            // Request local notification permissions
+                if (result.receive === 'granted') {
+                    console.log('✅ Push notification permission granted');
+                    // Register with FCM
+                    await PushNotifications.register();
+                } else {
+                    console.log('ℹ️ Push notification permission denied');
+                }
+            } else {
+                console.log('ℹ️ Push notifications not supported on web');
+            }
+
+            // Request local notification permissions (fallback/additional)
             try {
                 const localResult = await LocalNotifications.requestPermissions();
 
@@ -68,6 +80,50 @@ export class NotificationService {
             const url = action.notification.extra?.url || '/notifications';
             window.location.href = url;
         });
+
+        if (Capacitor.isNativePlatform()) {
+            // Push notification registration success
+            PushNotifications.addListener('registration', async (token) => {
+                console.log('✅ Push registration success, token:', token.value);
+
+                // Save token to database
+                try {
+                    await this.savePushToken(token.value);
+                } catch (error) {
+                    console.error('Failed to save push token:', error);
+                }
+            });
+
+            // Push notification registration error
+            PushNotifications.addListener('registrationError', (error) => {
+                console.error('❌ Push registration failed:', error);
+            });
+
+            // Push notification received
+            PushNotifications.addListener('pushNotificationReceived', (notification) => {
+                console.log('📩 Push notification received:', notification);
+
+                // Show as local notification to ensure consistent UI/sound
+                // (Push notifications automatically show system UI when app is in background,
+                // but we might want to handle foreground specially)
+                this.sendLocalNotification(
+                    notification.title || 'New Notification',
+                    notification.body || '',
+                    {
+                        sound: 'default',
+                        vibrate: true,
+                        actionUrl: notification.data?.url
+                    }
+                );
+            });
+
+            // Push notification tapped
+            PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+                console.log('👆 Push notification tapped:', action);
+                const url = action.notification.data?.url || '/notifications';
+                window.location.href = url;
+            });
+        }
     }
 
     /**
@@ -250,5 +306,29 @@ export class NotificationService {
     static async areNotificationsEnabled(): Promise<boolean> {
         const result = await LocalNotifications.checkPermissions();
         return result.display === 'granted';
+    }
+
+    /**
+     * Save push notification token to database
+     */
+    private static async savePushToken(token: string) {
+        try {
+            const response = await fetch('/api/push-token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to save token: ${response.statusText}`);
+            }
+
+            console.log('✅ Push token saved to database');
+        } catch (error) {
+            console.error('❌ Error saving push token:', error);
+            throw error;
+        }
     }
 }
