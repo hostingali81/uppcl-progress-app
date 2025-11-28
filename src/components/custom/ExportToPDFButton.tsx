@@ -24,7 +24,7 @@ interface ExportToPDFButtonProps {
 // All available columns (authoritative list)
 const ALL_COLUMNS = [
   'id', 'scheme_name', 'zone_name', 'circle_name', 'division_name', 'sub_division_name', 'district_name', 'je_name',
-  'work_category', 'wbs_code', 'work_name', 'sanction_amount_lacs', 'amount_as_per_bp_lacs', 'boq_amount', 'agreement_amount', 'rate_as_per_ag',
+  'work_category', 'wbs_code', 'work_name', 'sanction_amount_lacs', 'boq_amount', 'agreement_amount', 'rate_as_per_ag',
   'tender_no', 'nit_date', 'part1_opening_date', 'loi_no_and_date', 'part2_opening_date', 'agreement_no_and_date',
   'firm_name_and_contact', 'firm_contact_no', 'firm_email', 'start_date', 'scheduled_completion_date', 'actual_completion_date', 'weightage', 'progress_percentage',
   'remark', 'mb_status', 'teco_status', 'fico_status', 'updated_at', 'is_blocked', 'blocker_remark',
@@ -185,7 +185,7 @@ export function ExportToPDFButton({ selectedScheme, filteredWorks, isSummary, gr
 
         autoTable(doc, {
           startY: 37,
-          margin: { top: 5, right: 5, bottom: 5, left: 5 }, // Minimum margins
+          margin: { top: 5, right: 5, bottom: 15, left: 5 }, // Increased bottom margin for footer
           head: [[
             'S. No.',
             groupingLabel,
@@ -265,7 +265,7 @@ export function ExportToPDFButton({ selectedScheme, filteredWorks, isSummary, gr
             }
           }
 
-          if ((col === 'updated_at' || col.includes('date')) && val) {
+          if ((col === 'updated_at' || (col.includes('date') && !col.includes('no_and_date'))) && val) {
             try {
               return new Date(val as string).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
             } catch (e) {
@@ -279,7 +279,7 @@ export function ExportToPDFButton({ selectedScheme, filteredWorks, isSummary, gr
 
       autoTable(doc, {
         startY: 37,
-        margin: { top: 5, right: 5, bottom: 5, left: 5 }, // Minimum margins
+        margin: { top: 5, right: 5, bottom: 15, left: 5 }, // Increased bottom margin for footer
         head: [tableColumn],
         body: tableRows,
         theme: 'grid',

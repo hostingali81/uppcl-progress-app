@@ -177,7 +177,6 @@ export async function exportToExcel(works: any[], selectedColumns: string[] = []
       'wbs_code': 'WBS Code',
       'work_name': 'Name of Work',
       'sanction_amount_lacs': 'Sanction Amount (Rs. Lacs)',
-      'amount_as_per_bp_lacs': 'Amount as per BP (Rs. Lacs)',
       'boq_amount': 'BoQ Amount',
       'agreement_amount': 'Agreement Amount',
       'rate_as_per_ag': 'Rate as per Ag. (% above/ below)',

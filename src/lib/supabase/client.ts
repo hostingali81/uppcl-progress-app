@@ -61,9 +61,11 @@ export const createClient = () => {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storage: storage as any,
-      storageKey: 'supabase.auth.token',
-      flowType: 'pkce', // Use PKCE flow for better security
+      ...(Capacitor.isNativePlatform() ? {
+        storage: storage as any,
+        storageKey: 'supabase.auth.token',
+        flowType: 'pkce',
+      } : {})
     }
   })
 }

@@ -137,7 +137,6 @@ function mapRowToWork(row: (string | number)[], headers: string[]) {
 
     // Financial details
     'Sanction Amount (Rs. Lacs)': 'sanction_amount_lacs',
-    'Amount as per BP (Rs. Lacs)': 'sanction_amount_lacs',  // Map to sanction_amount_lacs
     'Tender No.': 'tender_no',
     'BoQ Amount': 'boq_amount',
     'Agreement Amount': 'agreement_amount',
@@ -190,7 +189,7 @@ function mapRowToWork(row: (string | number)[], headers: string[]) {
       }
       if (value !== null) {
         // Handle numeric fields (updated for new schema)
-        if (['sanction_amount_lacs', 'amount_as_per_bp_lacs', 'boq_amount', 'agreement_amount', 'bill_amount_with_tax'].includes(dbColumn)) {
+        if (['sanction_amount_lacs', 'boq_amount', 'agreement_amount', 'bill_amount_with_tax'].includes(dbColumn)) {
           value = parseFloat(String(value).replace(/,/g, '')) || null;
         }
         // Handle percentage fields
