@@ -19,6 +19,18 @@ export function GoogleSheetSettingsDialog({ settings }: { settings: Settings }) 
         event.preventDefault();
         setMessage(null);
         const formData = new FormData(event.currentTarget);
+
+        // Validate credentials JSON on client-side before submitting
+        const credentials = formData.get('google_service_account_credentials') as string;
+        if (credentials && credentials.trim() !== '') {
+            try {
+                JSON.parse(credentials);
+            } catch (error) {
+                setMessage(`Invalid JSON format in credentials: ${error instanceof Error ? error.message : 'Please check the format'}`);
+                return;
+            }
+        }
+
         startTransition(async () => {
             const result = await updateGoogleSheetSettings(formData);
             setMessage(result.error || result.success || null);
@@ -49,21 +61,21 @@ export function GoogleSheetSettingsDialog({ settings }: { settings: Settings }) 
                     <div className="flex-1 overflow-y-auto space-y-4 p-1 -mr-6 pr-6">
                         <div className="space-y-2"> <Label htmlFor="google_sheet_id">Google Sheet ID</Label> <Input id="google_sheet_id" name="google_sheet_id" defaultValue={settings.google_sheet_id} /> </div>
                         <div className="space-y-2"> <Label htmlFor="google_sheet_name">Sheet Name (e.g., Sheet1)</Label> <Input id="google_sheet_name" name="google_sheet_name" defaultValue={settings.google_sheet_name} /> </div>
-                        <div className="space-y-2"> 
-                            <Label htmlFor="google_service_account_credentials">Service Account Credentials (JSON)</Label> 
-                            <Textarea 
-                                id="google_service_account_credentials" 
-                                name="google_service_account_credentials" 
+                        <div className="space-y-2">
+                            <Label htmlFor="google_service_account_credentials">Service Account Credentials (JSON)</Label>
+                            <Textarea
+                                id="google_service_account_credentials"
+                                name="google_service_account_credentials"
                                 defaultValue={formattedJson}
-                                rows={12} // A few more rows so scrolling is clear
+                                rows={12}
                                 className="whitespace-pre-wrap break-all"
-                            /> 
+                            />
                         </div>
                     </div>
                     {/* --- Footer is now outside scroll area --- */}
                     <DialogFooter className="pt-4 mt-4 border-t">
-                        <EnhancedButton 
-                            type="submit" 
+                        <EnhancedButton
+                            type="submit"
                             loading={isPending}
                             loadingText="Saving Google Sheet Settings..."
                             className="google-sheet-button"

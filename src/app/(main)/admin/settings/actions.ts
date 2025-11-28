@@ -21,6 +21,63 @@ export async function getSettings(supabase: any) {
   }, {});
 }
 
+// Helper function to sanitize credentials JSON
+// This handles credentials that may have escaped newlines or other control characters
+// Helper function to sanitize credentials JSON
+// This handles credentials that may have escaped newlines or other control characters
+function sanitizeCredentialsJSON(credentialsString: string): string {
+  if (!credentialsString || credentialsString.trim() === '') {
+    return '{}';
+  }
+
+  // Robustly handle newlines inside strings
+  // We iterate character by character to track if we are inside a string literal
+  let result = '';
+  let inString = false;
+  let isEscaped = false;
+
+  for (let i = 0; i < credentialsString.length; i++) {
+    const char = credentialsString[i];
+
+    if (isEscaped) {
+      result += char;
+      isEscaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      isEscaped = true;
+      result += char;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      result += char;
+      continue;
+    }
+
+    if (inString) {
+      const code = char.charCodeAt(0);
+      if (code < 32) {
+        if (char === '\n') result += '\\n';
+        else if (char === '\r') result += ''; // Ignore CR inside strings
+        else if (char === '\t') result += '\\t';
+        else {
+          // Escape other control characters
+          result += '\\u' + code.toString(16).padStart(4, '0');
+        }
+      } else {
+        result += char;
+      }
+    } else {
+      result += char;
+    }
+  }
+
+  return result;
+}
+
 // New action 1: To update only Cloudflare settings
 export async function updateCloudflareSettings(formData: FormData) {
   const { admin: supabase } = await createSupabaseServerClient();
@@ -51,10 +108,27 @@ export async function updateCloudflareSettings(formData: FormData) {
 export async function updateGoogleSheetSettings(formData: FormData) {
   const { admin: supabase } = await createSupabaseServerClient();
 
+  // Get and validate credentials JSON
+  const credentialsRaw = formData.get('google_service_account_credentials') as string | null;
+  let validatedCredentials: string | null = null;
+
+  if (credentialsRaw && credentialsRaw.trim() !== '') {
+    try {
+      // Parse the JSON to validate it and remove any control characters
+      const parsed = JSON.parse(credentialsRaw);
+      // Re-stringify to ensure proper formatting
+      validatedCredentials = JSON.stringify(parsed);
+    } catch (error) {
+      return {
+        error: `Invalid JSON in Service Account Credentials: ${error instanceof Error ? error.message : 'Please check the format'}`
+      };
+    }
+  }
+
   const settingsToUpdate: Database['public']['Tables']['settings']['Insert'][] = [
     { key: 'google_sheet_id', value: formData.get('google_sheet_id') as string | null },
     { key: 'google_sheet_name', value: formData.get('google_sheet_name') as string | null },
-    { key: 'google_service_account_credentials', value: formData.get('google_service_account_credentials') as string | null },
+    { key: 'google_service_account_credentials', value: validatedCredentials },
   ];
 
   const { error } = await supabase.from("settings").upsert(settingsToUpdate as any, { onConflict: 'key' });
@@ -272,7 +346,7 @@ function mapRowToWork(row: (string | number)[], headers: string[]) {
   return workObject;
 }
 
-// New function to push data back to Google Sheets
+// New function to push data back to Google Sheets (Multi-Sheet Support)
 export async function pushToGoogleSheet(workData: {
   scheme_sr_no: string;
   [key: string]: any;
@@ -281,10 +355,19 @@ export async function pushToGoogleSheet(workData: {
     const { admin: supabase } = await createSupabaseServerClient();
     const settings = await getSettings(supabase);
     const sheetId = settings.google_sheet_id;
-    const sheetName = settings.google_sheet_name;
-    const credentials = JSON.parse(settings.google_service_account_credentials || '{}');
 
-    if (!sheetId || !sheetName || !credentials.client_email) {
+    // Parse credentials with error handling and sanitization
+    let credentials;
+    try {
+      const sanitizedCredentials = sanitizeCredentialsJSON(settings.google_service_account_credentials || '{}');
+      credentials = JSON.parse(sanitizedCredentials);
+    } catch (parseError) {
+      return {
+        error: `Invalid Google Service Account credentials format. Please update credentials in settings. Error: ${parseError instanceof Error ? parseError.message : 'Invalid JSON'}`
+      };
+    }
+
+    if (!sheetId || !credentials.client_email) {
       return { error: "Google Sheets not configured properly." };
     }
 
@@ -301,51 +384,74 @@ export async function pushToGoogleSheet(workData: {
     const client = await auth.getClient();
     const sheets = google.sheets({ version: 'v4', auth: client as any });
 
-    // Get current sheet data to find the row
-    const response = await sheets.spreadsheets.values.get({
+    // Get all sheets in the spreadsheet
+    const metadataResponse = await sheets.spreadsheets.get({
       spreadsheetId: sheetId,
-      range: sheetName,
     });
 
-    const rows = response.data.values as (string | number)[][] | undefined;
-    if (!rows || rows.length < 2) {
-      return { error: "Sheet is empty or has no data." };
+    const sheetList = metadataResponse.data.sheets;
+    if (!sheetList || sheetList.length === 0) {
+      return { error: "No sheets found in the spreadsheet." };
     }
 
-    const headers = rows[0] as string[];
+    // Search all sheets for the work item
+    let targetSheet: string | null = null;
+    let targetRowIndex = -1;
+    let targetHeaders: string[] = [];
+    let targetSrNoIndex = -1;
 
-    // Find the Sr. No. column
-    const uniqueIdCandidates = [
-      'Sr. No. OF SCEME', 'S.N.', 'Sr. No.', 'Sr No', 'Sr. No. OF SCHEME',
-      'Sr. No. of Scheme', 'Scheme Sr No', 'Scheme Sr. No', 'SR NO', 'SR. NO',
-    ];
+    for (const sheet of sheetList) {
+      const sheetName = sheet.properties?.title;
+      if (!sheetName) continue;
 
-    let srNoIndex = -1;
-    for (const candidate of uniqueIdCandidates) {
-      const idx = headers.findIndex((h: string) => String(h).trim().toLowerCase() === candidate.trim().toLowerCase());
-      if (idx !== -1) { srNoIndex = idx; break; }
-    }
+      try {
+        const response = await sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: sheetName,
+        });
 
-    if (srNoIndex === -1) {
-      return { error: "Could not find Sr. No. column in sheet." };
-    }
+        const rows = response.data.values as (string | number)[][] | undefined;
+        if (!rows || rows.length < 2) continue;
 
-    // Find the row with matching scheme_sr_no
-    let rowIndex = -1;
-    for (let i = 1; i < rows.length; i++) {
-      if (rows[i][srNoIndex] === workData.scheme_sr_no) {
-        rowIndex = i;
-        break;
+        const headers = rows[0] as string[];
+
+        // Find Sr. No. column
+        const uniqueIdCandidates = [
+          'Sr. No. OF SCEME', 'S.N.', 'Sr. No.', 'Sr No', 'Sr. No. OF SCHEME',
+          'Sr. No. of Scheme', 'Scheme Sr No', 'Scheme Sr. No', 'SR NO', 'SR. NO',
+        ];
+
+        let srNoIndex = -1;
+        for (const candidate of uniqueIdCandidates) {
+          const idx = headers.findIndex((h: string) => String(h).trim().toLowerCase() === candidate.trim().toLowerCase());
+          if (idx !== -1) { srNoIndex = idx; break; }
+        }
+
+        if (srNoIndex === -1) continue;
+
+        // Search for the work item in this sheet
+        for (let i = 1; i < rows.length; i++) {
+          if (rows[i][srNoIndex] === workData.scheme_sr_no) {
+            targetSheet = sheetName;
+            targetRowIndex = i;
+            targetHeaders = headers;
+            targetSrNoIndex = srNoIndex;
+            break;
+          }
+        }
+
+        if (targetSheet) break; // Found it!
+      } catch (error) {
+        console.error(`Error searching sheet "${sheetName}":`, error);
+        continue;
       }
     }
 
-    if (rowIndex === -1) {
-      return { error: `Work with Sr. No. ${workData.scheme_sr_no} not found in sheet.` };
+    if (!targetSheet || targetRowIndex === -1) {
+      return { error: `Work with Sr. No. ${workData.scheme_sr_no} not found in any sheet.` };
     }
 
     // Create reverse mapping (database column -> sheet header)
-    // IMPORTANT: These must match EXACTLY with your Google Sheet column headers
-    // Based on your latest headers: S.N., Scheme Name, Sr. No. OF SCEME, Civil Zone, etc.
     const dbToSheetMap: { [key: string]: string } = {
       'scheme_sr_no': 'Sr. No. OF SCEME',
       'scheme_name': 'Scheme Name',
@@ -390,10 +496,10 @@ export async function pushToGoogleSheet(workData: {
       'distribution_sub_division': 'Distribution Sub-Division',
     };
 
-    // Helper function to convert column index to A1 notation (handles AA, AB, etc.)
+    // Helper function to convert column index to A1 notation
     const getColumnLetter = (index: number): string => {
       let columnName = '';
-      let num = index + 1; // Convert to 1-based
+      let num = index + 1;
       while (num > 0) {
         const remainder = (num - 1) % 26;
         columnName = String.fromCharCode(65 + remainder) + columnName;
@@ -405,45 +511,28 @@ export async function pushToGoogleSheet(workData: {
     // Prepare updates for changed fields
     const updates: any[] = [];
 
-    console.log('=== FIELD MAPPING DEBUG ===');
-    console.log('Available headers in sheet:', headers);
-
     for (const [dbField, value] of Object.entries(workData)) {
-      if (dbField === 'scheme_sr_no' || dbField === 'updated_at') continue; // Skip ID and timestamp
+      if (dbField === 'scheme_sr_no' || dbField === 'updated_at') continue;
 
       const sheetHeader = dbToSheetMap[dbField];
-      if (!sheetHeader) {
-        console.log(`No mapping for field: ${dbField}`);
-        continue;
-      }
+      if (!sheetHeader) continue;
 
-      const colIndex = headers.findIndex((h: string) =>
+      const colIndex = targetHeaders.findIndex((h: string) =>
         String(h).trim().toLowerCase() === sheetHeader.trim().toLowerCase()
       );
 
-      if (colIndex === -1) {
-        console.log(`Column not found in sheet for: ${dbField} -> ${sheetHeader}`);
-        continue;
-      }
+      if (colIndex === -1) continue;
 
-      // Convert column index to A1 notation (handles columns beyond Z)
       const colLetter = getColumnLetter(colIndex);
-      const cellRange = `${sheetName}!${colLetter}${rowIndex + 1}`;
+      const cellRange = `${targetSheet}!${colLetter}${targetRowIndex + 1}`;
 
-      // Format the value for Google Sheets
       let formattedValue = value ?? '';
 
-      // Special handling for percentage fields
-      // These are stored as plain numbers (e.g., 30) but need to be displayed as percentages in sheets
       if (dbField === 'weightage' || dbField === 'progress_percentage') {
         if (value !== null && value !== undefined && value !== '') {
-          // Just send the number, Google Sheets will handle it as a number
-          // The column header "Weightage %" is just a label, not a format instruction
           formattedValue = Number(value);
         }
       }
-
-      console.log(`Mapping: ${dbField} -> ${sheetHeader} -> Column ${colLetter} (index ${colIndex}) -> Value: ${formattedValue}`);
 
       updates.push({
         range: cellRange,
@@ -451,13 +540,10 @@ export async function pushToGoogleSheet(workData: {
       });
     }
 
-    console.log('=== END FIELD MAPPING DEBUG ===');
-
     if (updates.length === 0) {
       return { success: "No fields to update in sheet." };
     }
 
-    // Batch update all cells
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: sheetId,
       requestBody: {
@@ -466,121 +552,172 @@ export async function pushToGoogleSheet(workData: {
       }
     });
 
-    return { success: `Updated ${updates.length} field(s) in Google Sheet.` };
+    return { success: `Updated ${updates.length} field(s) in sheet "${targetSheet}".` };
   } catch (error: unknown) {
     console.error("Push to Google Sheet failed:", error);
     return { error: error instanceof Error ? error.message : 'Unknown error occurred' };
   }
 }
 
-// syncWithGoogleSheet function (unchanged)
+// syncWithGoogleSheet function
 export async function syncWithGoogleSheet() {
   try {
     const { client: supabase, admin: supabaseAdmin } = await createSupabaseServerClient();
 
-    // Use client (with cookies) for authentication check
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { return { error: "Authentication required." }; }
 
-    // Check user role using admin client
     const { data: profile } = await supabaseAdmin.from("profiles").select("role").eq("id", user.id).single() as { data: { role: string } | null };
     if (profile?.role !== 'superadmin') { return { error: "Permission Denied: You must be a superadmin to perform this action." }; }
 
     const settings = await getSettings(supabaseAdmin);
     const sheetId = settings.google_sheet_id;
-    const sheetName = settings.google_sheet_name;
-    if (!sheetName) { throw new Error("Sheet Name is not configured."); }
-    const credentials = JSON.parse(settings.google_service_account_credentials);
-    if (!sheetId || !credentials) { throw new Error("Google Sheet ID or credentials are not configured."); }
+    // We no longer strictly require google_sheet_name for single sheet sync, 
+    // but we might use it as a filter if provided. For now, we'll sync ALL sheets.
 
-    // Create auth client with current timestamp for token
+    // Parse credentials with error handling and sanitization
+    let credentials;
+    try {
+      const sanitizedCredentials = sanitizeCredentialsJSON(settings.google_service_account_credentials || '{}');
+      credentials = JSON.parse(sanitizedCredentials);
+    } catch (parseError) {
+      // DEBUG LOGGING
+      console.error("JSON Parse Error Details:", parseError);
+      console.error("Raw Credentials Length:", (settings.google_service_account_credentials || '').length);
+      console.error("Sanitized Credentials Preview:", sanitizeCredentialsJSON(settings.google_service_account_credentials || '').substring(0, 200) + "...");
+
+      throw new Error(`Invalid Google Service Account credentials format. Please update credentials in admin settings. Error: ${parseError instanceof Error ? parseError.message : 'Invalid JSON'}`);
+    }
+
+    if (!sheetId || !credentials || !credentials.client_email) {
+      throw new Error("Google Sheet ID or credentials are not configured properly.");
+    }
+
     const auth = new google.auth.GoogleAuth({
       credentials: {
         ...credentials,
-        // Ensure token is fresh with proper timestamps
-        iat: Math.floor(Date.now() / 1000), // Current time in seconds
-        exp: Math.floor(Date.now() / 1000) + 3600, // Expires in 1 hour
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600,
       },
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
     });
 
-    // Get authenticated client
     const client = await auth.getClient();
     const sheets = google.sheets({ version: 'v4', auth: client as any });
 
-    // Make the API request
-    const response = await sheets.spreadsheets.values.get({
+    // 1. Get Spreadsheet Metadata to list all sheets
+    const metadataResponse = await sheets.spreadsheets.get({
       spreadsheetId: sheetId,
-      range: sheetName,
     });
-    const rows = response.data.values as (string | number)[][] | undefined;
-    if (!rows || rows.length < 2) { throw new Error("No data found in the specified sheet."); }
 
-    const headers = (rows && rows[0] ? (rows[0] as string[]) : []) as string[];
-    console.log("Google Sheet Headers:", headers);
-    console.log("First few rows:", rows.slice(0, 3));
-
-    // Try multiple possible header names for the unique ID column (tolerant to variations)
-    const uniqueIdCandidates = [
-      'Sr. No. OF SCEME',
-      'S.N.',
-      'Sr. No.',
-      'Sr No',
-      'Sr. No. OF SCHEME',
-      'Sr. No. of Scheme',
-      'Scheme Sr No',
-      'Scheme Sr. No',
-      'SR NO',
-      'SR. NO',
-    ];
-
-    let srNoIndex = -1;
-    for (const candidate of uniqueIdCandidates) {
-      const idx = headers.findIndex((h: string) => String(h).trim().toLowerCase() === candidate.trim().toLowerCase());
-      if (idx !== -1) { srNoIndex = idx; break; }
+    const sheetList = metadataResponse.data.sheets;
+    if (!sheetList || sheetList.length === 0) {
+      throw new Error("No sheets found in the spreadsheet.");
     }
 
-    // If exact matches failed, try fuzzy match: look for header that contains both 'sr' and 'no' or 'scheme'
-    if (srNoIndex === -1) {
-      srNoIndex = headers.findIndex((h: string | undefined) => {
-        if (!h) return false;
-        const key = String(h).toLowerCase();
-        return (key.includes('sr') && key.includes('no')) || key.includes('scheme');
-      });
+    console.log(`Found ${sheetList.length} sheets in the spreadsheet.`);
+
+    let totalRowsProcessed = 0;
+    const allWorksToUpsert: any[] = [];
+    const allSheetSrNos = new Set<string>();
+    const processedSheets: string[] = [];
+
+    // 2. Iterate through ALL sheets
+    for (const sheet of sheetList) {
+      const title = sheet.properties?.title;
+      if (!title) continue;
+
+      console.log(`Processing sheet: ${title}`);
+
+      try {
+        const response = await sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: title, // Fetch the whole sheet
+        });
+
+        const rows = response.data.values as (string | number)[][] | undefined;
+        if (!rows || rows.length < 2) {
+          console.log(`Skipping sheet "${title}": Not enough data (rows: ${rows?.length || 0})`);
+          continue;
+        }
+
+        const headers = (rows && rows[0] ? (rows[0] as string[]) : []) as string[];
+
+        // Check if this sheet looks like a data sheet (has Sr. No. column)
+        const uniqueIdCandidates = [
+          'Sr. No. OF SCEME', 'S.N.', 'Sr. No.', 'Sr No', 'Sr. No. OF SCHEME',
+          'Sr. No. of Scheme', 'Scheme Sr No', 'Scheme Sr. No', 'SR NO', 'SR. NO',
+        ];
+
+        let srNoIndex = -1;
+        for (const candidate of uniqueIdCandidates) {
+          const idx = headers.findIndex((h: string) => String(h).trim().toLowerCase() === candidate.trim().toLowerCase());
+          if (idx !== -1) { srNoIndex = idx; break; }
+        }
+
+        if (srNoIndex === -1) {
+          // Fuzzy match fallback
+          srNoIndex = headers.findIndex((h: string | undefined) => {
+            if (!h) return false;
+            const key = String(h).toLowerCase();
+            return (key.includes('sr') && key.includes('no')) || key.includes('scheme');
+          });
+        }
+
+        if (srNoIndex === -1) {
+          console.log(`Skipping sheet "${title}": Could not find unique ID column.`);
+          continue;
+        }
+
+        // Process rows for this sheet
+        const sheetRows = (rows || []).slice(1) as (string | number)[][];
+        sheetRows.forEach(row => {
+          const srNo = row[srNoIndex];
+          if (srNo) allSheetSrNos.add(String(srNo));
+        });
+
+        const works = sheetRows
+          .map((row) => mapRowToWork(row as (string | number)[], headers))
+          .filter((work: any) => work.scheme_sr_no && String(work.scheme_sr_no).trim() !== '');
+
+        allWorksToUpsert.push(...works);
+        totalRowsProcessed += rows.length - 1;
+        processedSheets.push(title);
+
+      } catch (sheetError) {
+        console.error(`Error processing sheet "${title}":`, sheetError);
+        // Continue to next sheet instead of failing everything
+      }
     }
 
-    if (srNoIndex === -1) {
-      console.error('Available headers from sheet:', headers);
-      throw new Error(`The required unique ID column (Sr. No.) was not found in the sheet. Expected one of: ${uniqueIdCandidates.join(', ')}.`);
+    if (processedSheets.length === 0) {
+      throw new Error("No valid data sheets found to sync.");
     }
 
-    const sheetRows = (rows || []).slice(1) as (string | number)[][];
-    const sheetSrNos = new Set(sheetRows.map((row) => row[srNoIndex]).filter(Boolean));
+    // 3. Handle Deletions (Global)
+    // We fetch ALL works from DB and compare with the combined set of SrNos from ALL sheets
     const { data: existingWorks, error: fetchError } = await supabaseAdmin.from('works').select('scheme_sr_no') as any;
     if (fetchError) { throw new Error(`Could not fetch existing works: ${fetchError.message}`); }
 
     const dbSrNos = new Set((existingWorks || []).map((work: any) => work.scheme_sr_no));
-    const srNosToDelete = [...dbSrNos].filter((srNo: any) => !sheetSrNos.has(srNo));
+    const srNosToDelete = [...dbSrNos].filter((srNo: any) => !allSheetSrNos.has(srNo));
 
     if (srNosToDelete.length > 0) {
+      console.log(`Deleting ${srNosToDelete.length} old works...`);
       const { error: deleteError } = await supabaseAdmin.from('works').delete().in('scheme_sr_no', srNosToDelete);
       if (deleteError) { throw new Error(`Failed to delete old works: ${deleteError.message}`); }
     }
 
-    const allWorks = sheetRows
-      .map((row) => mapRowToWork(row as (string | number)[], headers))
-      .filter((work: any) => work.scheme_sr_no && String(work.scheme_sr_no).trim() !== '');
-
-    // Remove duplicates - keep only the last occurrence of each scheme_sr_no
+    // 4. Upsert All Works
+    // Remove duplicates - keep only the last occurrence of each scheme_sr_no across ALL sheets
     const uniqueWorks = new Map();
-    allWorks.forEach((work: any) => {
+    allWorksToUpsert.forEach((work: any) => {
       uniqueWorks.set(work.scheme_sr_no, work);
     });
     const dataToUpsert = Array.from(uniqueWorks.values());
 
-    console.log(`Total rows processed: ${rows.length - 1}`);
+    console.log(`Total rows processed across ${processedSheets.length} sheets: ${totalRowsProcessed}`);
     console.log(`Valid works to upsert: ${dataToUpsert.length}`);
-    console.log("Sample work data:", dataToUpsert.slice(0, 2));
 
     if (dataToUpsert.length > 0) {
       const { error: upsertError } = await (supabaseAdmin.from('works') as any).upsert(dataToUpsert, { onConflict: 'scheme_sr_no' });
@@ -592,7 +729,8 @@ export async function syncWithGoogleSheet() {
 
     revalidatePath("/(main)/admin/settings");
     revalidatePath("/dashboard");
-    return { success: `Sync complete. Upserted: ${dataToUpsert.length}, Deleted: ${srNosToDelete.length}.` };
+    return { success: `Sync complete from ${processedSheets.length} sheets (${processedSheets.join(', ')}). Upserted: ${dataToUpsert.length}, Deleted: ${srNosToDelete.length}.` };
+
   } catch (error: unknown) {
     console.error("SYNC FAILED:", error);
     return { error: error instanceof Error ? error.message : 'Unknown error occurred' };

@@ -21,13 +21,13 @@ export const viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover', // Important for safe area insets
+  themeColor: "#3b82f6",
 };
 
 export const metadata: Metadata = {
   title: "UPPCL Progress Tracker - Offline-First PWA",
   description: "Track work progress offline and sync when online",
   manifest: "/manifest.json",
-  themeColor: "#3b82f6",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
