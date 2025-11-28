@@ -158,8 +158,15 @@ export async function deleteWork(workId: number) {
   return { success: "Work deleted successfully. Note: Please sync Google Sheets to reflect this deletion." };
 }
 
-export async function exportToExcel(works: any[], selectedColumns: string[] = []) {
+export async function exportToExcel(
+  works: any[],
+  selectedColumns: string[] = [],
+  schemeName: string = "All Schemes",
+  officeName: string = "UPPCL"
+) {
   try {
+    const ExcelJS = (await import('exceljs')).default;
+
     const columnMapping: { [key: string]: string } = {
       'id': 'ID',
       'scheme_name': 'Scheme Name',
@@ -222,10 +229,74 @@ export async function exportToExcel(works: any[], selectedColumns: string[] = []
       return { error: "No data available for export." };
     }
 
-    // Map data with proper headers
-    const mappedData = works.map(work => {
-      const mapped: any = {};
-      colsToSelect.forEach(col => {
+    // Create workbook and worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Works');
+
+    // Set page setup for A4 printing
+    worksheet.pageSetup = {
+      paperSize: 9, // A4
+      orientation: 'landscape',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: {
+        left: 0.25,
+        right: 0.25,
+        top: 0.75,
+        bottom: 0.75,
+        header: 0.3,
+        footer: 0.3
+      }
+    };
+
+    // Add Title Row
+    worksheet.mergeCells('A1', `${String.fromCharCode(64 + colsToSelect.length)}1`);
+    const titleRow = worksheet.getRow(1);
+    titleRow.getCell(1).value = `Progress Report of Civil Work of "${schemeName}"`;
+    titleRow.getCell(1).font = { bold: true, size: 14 };
+    titleRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+
+    // Add Subtitle Row
+    worksheet.mergeCells('A2', `${String.fromCharCode(64 + colsToSelect.length)}2`);
+    const subtitleRow = worksheet.getRow(2);
+    subtitleRow.getCell(1).value = `under ${officeName}, DVVNL, Agra`;
+    subtitleRow.getCell(1).font = { bold: true, size: 12 };
+    subtitleRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+
+    // Add Date Row
+    worksheet.mergeCells('A3', `${String.fromCharCode(64 + colsToSelect.length)}3`);
+    const dateRow = worksheet.getRow(3);
+    dateRow.getCell(1).value = `Generated on: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+    dateRow.getCell(1).font = { size: 10 };
+    dateRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+
+    // Empty rows (auto height)
+
+    // Add Header Row (Row 6)
+    const headerRow = worksheet.getRow(6);
+    colsToSelect.forEach((col, index) => {
+      const cell = headerRow.getCell(index + 1);
+      cell.value = columnMapping[col];
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF4472C4' } // Blue color
+      };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+    });
+
+    // Add Data Rows
+    works.forEach((work, rowIndex) => {
+      const row = worksheet.getRow(7 + rowIndex);
+      colsToSelect.forEach((col, colIndex) => {
         let val = work[col];
 
         // Fallbacks for specific columns if value is missing
@@ -241,17 +312,39 @@ export async function exportToExcel(works: any[], selectedColumns: string[] = []
           }
         }
 
-        mapped[columnMapping[col]] = val;
+        const cell = row.getCell(colIndex + 1);
+        cell.value = val;
+        cell.alignment = { vertical: 'middle', wrapText: true };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
       });
-      return mapped;
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(mappedData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Works");
+    // Set column widths
+    colsToSelect.forEach((col, index) => {
+      const header = columnMapping[col];
+      let maxLength = header.length;
 
-    // Write file to buffer and then convert to Base64 string
-    const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
+      // Check first 10 rows of data to adjust width
+      const sampleSize = Math.min(works.length, 10);
+      for (let i = 0; i < sampleSize; i++) {
+        const val = works[i][col];
+        if (val) {
+          const len = String(val).length;
+          if (len > maxLength) maxLength = len;
+        }
+      }
+
+      // Set width (cap at 50)
+      worksheet.getColumn(index + 1).width = Math.min(maxLength + 2, 50);
+    });
+
+    // Write file to buffer
+    const buffer = await workbook.xlsx.writeBuffer();
     const base64Data = buffer.toString("base64");
 
     // Create file name

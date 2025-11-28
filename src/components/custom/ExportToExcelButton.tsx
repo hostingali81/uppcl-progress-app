@@ -1,8 +1,8 @@
 import { useTransition, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { exportToExcel } from "@/app/(main)/dashboard/actions";
-import { Download, Loader2, FileDown } from "lucide-react";
-import * as XLSX from "xlsx";
+import { Download, Loader2 } from "lucide-react";
+import ExcelJS from "exceljs";
 import { generateSummaryData } from "@/lib/reportUtils";
 import {
   Dialog,
@@ -105,17 +105,61 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
   const selectAll = () => setSelectedColumns(ALL_COLUMNS.slice());
   const clearAll = () => setSelectedColumns([]);
 
-  const handleExport = (cols?: string[]) => {
+  const handleExport = async (cols?: string[]) => {
     setMessage(null);
 
     if (isSummary) {
       try {
         const summaryData = generateSummaryData(filteredWorks, groupingField);
         const sortedGroups = Object.keys(summaryData.groups).sort();
-        const rows: any[] = [];
 
-        // Header
-        rows.push([
+        // Create workbook and worksheet
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Summary Report');
+
+        // Set page setup for A4 printing
+        worksheet.pageSetup = {
+          paperSize: 9, // A4
+          orientation: 'landscape',
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+          margins: {
+            left: 0.25,
+            right: 0.25,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3
+          }
+        };
+
+        // Add Title Row
+        worksheet.mergeCells('A1:I1');
+        const titleRow = worksheet.getRow(1);
+        titleRow.getCell(1).value = `Progress Report of Civil Work of "${schemeName}"`;
+        titleRow.getCell(1).font = { bold: true, size: 14 };
+        titleRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+
+        // Add Subtitle Row
+        worksheet.mergeCells('A2:I2');
+        const subtitleRow = worksheet.getRow(2);
+        subtitleRow.getCell(1).value = `under ${officeName}, DVVNL, Agra`;
+        subtitleRow.getCell(1).font = { bold: true, size: 12 };
+        subtitleRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+
+        // Add Date Row
+        worksheet.mergeCells('A3:I3');
+        const dateRow = worksheet.getRow(3);
+        dateRow.getCell(1).value = `Generated on: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+        dateRow.getCell(1).font = { size: 10 };
+        dateRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+
+        // Empty rows (auto height)
+
+        // Table Header (Row 6)
+        const headerRow = worksheet.getRow(6);
+        const headers = [
           'S.No.',
           groupingLabel,
           'Total No. of NIT Published',
@@ -125,63 +169,153 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
           'Total No of Bids for which LOI',
           'Total No. of Agreement Signed',
           'Work Started'
-        ]);
+        ];
 
+        headers.forEach((header, index) => {
+          const cell = headerRow.getCell(index + 1);
+          cell.value = header;
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF4472C4' } // Blue color
+          };
+          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        });
+
+        let currentRow = 7;
         let srNo = 1;
+
         sortedGroups.forEach((groupName) => {
           const groupData = summaryData.groups[groupName];
           const categories = Object.keys(groupData.categories).sort();
 
           // Group Header Row
-          rows.push([srNo++, groupName, '', '', '', '', '', '', '']);
+          const groupRow = worksheet.getRow(currentRow);
+          groupRow.getCell(1).value = srNo++;
+          groupRow.getCell(2).value = groupName;
+          for (let i = 3; i <= 9; i++) {
+            groupRow.getCell(i).value = '';
+          }
+          groupRow.eachCell((cell) => {
+            cell.font = { bold: true };
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' }
+            };
+          });
+          currentRow++;
 
           // Categories
           categories.forEach((category, index) => {
             const catData = groupData.categories[category];
-            rows.push([
-              index + 1,
-              category,
-              catData.nitPublished,
-              catData.tender,
-              catData.part1,
-              catData.part2,
-              catData.loi,
-              catData.agreementSigned,
-              catData.workStarted
-            ]);
+            const catRow = worksheet.getRow(currentRow);
+            catRow.getCell(1).value = index + 1;
+            catRow.getCell(2).value = category;
+            catRow.getCell(3).value = catData.nitPublished;
+            catRow.getCell(4).value = catData.tender;
+            catRow.getCell(5).value = catData.part1;
+            catRow.getCell(6).value = catData.part2;
+            catRow.getCell(7).value = catData.loi;
+            catRow.getCell(8).value = catData.agreementSigned;
+            catRow.getCell(9).value = catData.workStarted;
+
+            catRow.eachCell((cell) => {
+              cell.alignment = { vertical: 'middle' };
+              cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+              };
+            });
+            currentRow++;
           });
 
           // Group Total
-          rows.push([
-            '',
-            'Total',
-            groupData.totals.nitPublished,
-            groupData.totals.tender,
-            groupData.totals.part1,
-            groupData.totals.part2,
-            groupData.totals.loi,
-            groupData.totals.agreementSigned,
-            groupData.totals.workStarted
-          ]);
+          const totalRow = worksheet.getRow(currentRow);
+          totalRow.getCell(1).value = '';
+          totalRow.getCell(2).value = 'Total';
+          totalRow.getCell(3).value = groupData.totals.nitPublished;
+          totalRow.getCell(4).value = groupData.totals.tender;
+          totalRow.getCell(5).value = groupData.totals.part1;
+          totalRow.getCell(6).value = groupData.totals.part2;
+          totalRow.getCell(7).value = groupData.totals.loi;
+          totalRow.getCell(8).value = groupData.totals.agreementSigned;
+          totalRow.getCell(9).value = groupData.totals.workStarted;
+
+          totalRow.eachCell((cell) => {
+            cell.font = { bold: true };
+            cell.alignment = { vertical: 'middle' };
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' }
+            };
+          });
+          currentRow++;
         });
 
         // Grand Total
-        rows.push([
-          '',
-          `Grand Total of ${officeName}`, // Use officeName here as well
-          summaryData.grandTotal.nitPublished,
-          summaryData.grandTotal.tender,
-          summaryData.grandTotal.part1,
-          summaryData.grandTotal.part2,
-          summaryData.grandTotal.loi,
-          summaryData.grandTotal.agreementSigned,
-          summaryData.grandTotal.workStarted
-        ]);
+        const grandTotalRow = worksheet.getRow(currentRow);
+        grandTotalRow.getCell(1).value = '';
+        grandTotalRow.getCell(2).value = `Grand Total of ${officeName}`;
+        grandTotalRow.getCell(3).value = summaryData.grandTotal.nitPublished;
+        grandTotalRow.getCell(4).value = summaryData.grandTotal.tender;
+        grandTotalRow.getCell(5).value = summaryData.grandTotal.part1;
+        grandTotalRow.getCell(6).value = summaryData.grandTotal.part2;
+        grandTotalRow.getCell(7).value = summaryData.grandTotal.loi;
+        grandTotalRow.getCell(8).value = summaryData.grandTotal.agreementSigned;
+        grandTotalRow.getCell(9).value = summaryData.grandTotal.workStarted;
 
-        const ws = XLSX.utils.aoa_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Summary Report");
-        XLSX.writeFile(wb, `UPPCL-Summary-${new Date().toISOString().split('T')[0]}.xlsx`);
+        grandTotalRow.eachCell((cell) => {
+          cell.font = { bold: true };
+          cell.alignment = { vertical: 'middle' };
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFD9E1F2' } // Light blue
+          };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        });
+
+        // Set column widths
+        worksheet.getColumn(1).width = 8;  // S.No.
+        worksheet.getColumn(2).width = 30; // Grouping
+        worksheet.getColumn(3).width = 15; // NIT
+        worksheet.getColumn(4).width = 15; // Tender
+        worksheet.getColumn(5).width = 15; // Part 1
+        worksheet.getColumn(6).width = 15; // Part 2
+        worksheet.getColumn(7).width = 15; // LOI
+        worksheet.getColumn(8).width = 15; // Agreement
+        worksheet.getColumn(9).width = 15; // Started
+
+        // Write file
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `UPPCL-Summary-${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
         setMessage("Export successful!");
         setOpen(false);
       } catch (error) {
@@ -193,7 +327,7 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
 
     startTransition(async () => {
       const colsToSend = cols ?? selectedColumns;
-      const result = await exportToExcel(filteredWorks, colsToSend);
+      const result = await exportToExcel(filteredWorks, colsToSend, schemeName, officeName);
       if (result.error) {
         setMessage(`Error: ${result.error}`);
       } else if (result.success) {
