@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMe
 import { Filter, X, Info, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { Work } from "@/lib/types";
+import styles from './analytics-premium.module.css';
 
 interface AnalyticsClientProps {
   works: Work[];
@@ -466,13 +467,13 @@ export function AnalyticsClient({
       case 'completed': return 'Completed Works';
       case 'in_progress': return 'In Progress Works';
       case 'not_started': return 'Not Started Works';
-      case 'blocked': return 'Blocked Works';
+      case 'blocked': return 'High Priority or Blocked Works';
       default: return 'All Works';
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full overflow-x-hidden">
       {/* Filter Status */}
       {activeFilter !== 'all' && (
         <Card className="border-blue-200 bg-blue-50">
@@ -503,14 +504,14 @@ export function AnalyticsClient({
         </Card>
       )}
 
-      {/* Filters Container */}
-      <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-4">
+      {/* Premium Filters Container */}
+      <Card className={`${styles.filterBar} border-2`}>
+        <CardContent className="p-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Scheme Selector */}
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-700 block">NAME OF SCHEME</label>
-              <div className="flex flex-col sm:flex-row xl:flex-col 2xl:flex-row gap-3">
+            <div className="flex flex-col gap-3 min-w-0">
+              <label className={styles.filterLabel}>NAME OF SCHEME</label>
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch min-w-0">
                 <DropdownMenu
                   open={schemesDropdownOpen}
                   onOpenChange={(open) => {
@@ -520,21 +521,21 @@ export function AnalyticsClient({
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-between bg-white border-slate-200 hover:bg-slate-50 text-sm h-11 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className={`${styles.filterDropdown} w-full sm:flex-1 justify-between text-sm h-12 min-w-0`}
                     >
-                      <span className="truncate">{selectedSchemes.length === 0 ? 'All Schemes' : `${selectedSchemes.length} scheme${selectedSchemes.length === 1 ? '' : 's'} selected`}</span>
-                      <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
+                      <span className="truncate font-medium">{selectedSchemes.length === 0 ? 'All Schemes' : `${selectedSchemes.length} scheme${selectedSchemes.length === 1 ? '' : 's'} selected`}</span>
+                      <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-[300px] max-h-[400px] overflow-y-auto shadow-lg border-slate-200 rounded-lg" align="start">
-                    <div className="px-3 py-2 border-b border-slate-200">
+                  <DropdownMenuContent className="w-[320px] max-h-[450px] overflow-y-auto shadow-xl border-slate-200 rounded-xl" align="start">
+                    <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-900">Select Schemes</span>
+                        <span className="font-bold text-slate-900">Select Schemes</span>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleSelectAllSchemes(selectedSchemes.length !== getAvailableSchemes().length)}
-                          className="text-xs h-7 px-2 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                          className="text-xs h-8 px-3 border-slate-300 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-all"
                         >
                           {selectedSchemes.length === getAvailableSchemes().length ? 'Deselect All' : 'Select All'}
                         </Button>
@@ -547,10 +548,10 @@ export function AnalyticsClient({
                           checked={selectedSchemes.includes(scheme)}
                           onCheckedChange={(checked) => handleSchemeToggle(scheme, checked)}
                           onSelect={(event) => event.preventDefault()}
-                          className="cursor-pointer px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:text-blue-900 transition-colors"
+                          className="cursor-pointer px-4 py-2.5 hover:bg-blue-50 focus:bg-blue-50 focus:text-blue-900 transition-all"
                         >
                           <div className="flex items-center space-x-2">
-                            <span className={`w-4 h-4 rounded border-2 border-slate-300 bg-white flex items-center justify-center transition-colors ${selectedSchemes.includes(scheme)
+                            <span className={`w-4 h-4 rounded border-2 border-slate-300 bg-white flex items-center justify-center transition-all ${selectedSchemes.includes(scheme)
                               ? 'bg-blue-500 border-blue-500'
                               : 'hover:border-blue-300'
                               }`}>
@@ -560,7 +561,7 @@ export function AnalyticsClient({
                                 </svg>
                               )}
                             </span>
-                            <span className="text-sm truncate">{scheme}</span>
+                            <span className="text-sm font-medium truncate">{scheme}</span>
                           </div>
                         </DropdownMenuCheckboxItem>
                       ))}
@@ -568,18 +569,19 @@ export function AnalyticsClient({
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-md whitespace-nowrap min-w-fit">
-                  <span className="font-medium">{selectedSchemes.length === 0 ? 'All' : selectedSchemes.length}</span>
+                <div className={`${styles.filterBadge} flex-shrink-0`}>
+                  <span className={styles.filterBadgeCount}>{selectedSchemes.length === 0 ? 'All' : selectedSchemes.length}</span>
                   <span className="text-slate-400">•</span>
-                  <span>{works.filter(w => selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '')).length} works</span>
+                  <span className="hidden sm:inline">{works.filter(w => selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '')).length} works</span>
+                  <span className="sm:hidden">{works.filter(w => selectedSchemes.length === 0 || selectedSchemes.includes(w.scheme_name || '')).length}</span>
                 </div>
               </div>
             </div>
 
             {/* Work Category Selector */}
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-700 block">WORK CATEGORY</label>
-              <div className="flex flex-col sm:flex-row xl:flex-col 2xl:flex-row gap-3">
+            <div className="flex flex-col gap-3 min-w-0">
+              <label className={styles.filterLabel}>WORK CATEGORY</label>
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch min-w-0">
                 <DropdownMenu
                   open={categoriesDropdownOpen}
                   onOpenChange={(open) => {
@@ -589,21 +591,21 @@ export function AnalyticsClient({
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-between bg-white border-slate-200 hover:bg-slate-50 text-sm h-11 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className={`${styles.filterDropdown} w-full sm:flex-1 justify-between text-sm h-12 min-w-0`}
                     >
-                      <span className="truncate">{selectedWorkCategories.length === 0 ? 'All Categories' : `${selectedWorkCategories.length} categor${selectedWorkCategories.length === 1 ? 'y' : 'ies'} selected`}</span>
-                      <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
+                      <span className="truncate font-medium">{selectedWorkCategories.length === 0 ? 'All Categories' : `${selectedWorkCategories.length} categor${selectedWorkCategories.length === 1 ? 'y' : 'ies'} selected`}</span>
+                      <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-[300px] max-h-[400px] overflow-y-auto shadow-lg border-slate-200 rounded-lg" align="start">
-                    <div className="px-3 py-2 border-b border-slate-200">
+                  <DropdownMenuContent className="w-[320px] max-h-[450px] overflow-y-auto shadow-xl border-slate-200 rounded-xl" align="start">
+                    <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-900">Select Categories</span>
+                        <span className="font-bold text-slate-900">Select Categories</span>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleSelectAllCategories(selectedWorkCategories.length !== getAvailableCategories().length)}
-                          className="text-xs h-7 px-2 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                          className="text-xs h-8 px-3 border-slate-300 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-all"
                         >
                           {selectedWorkCategories.length === getAvailableCategories().length ? 'Deselect All' : 'Select All'}
                         </Button>
@@ -616,10 +618,10 @@ export function AnalyticsClient({
                           checked={selectedWorkCategories.includes(category)}
                           onCheckedChange={(checked) => handleCategoryToggle(category, checked)}
                           onSelect={(event) => event.preventDefault()}
-                          className="cursor-pointer px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:text-blue-900 transition-colors"
+                          className="cursor-pointer px-4 py-2.5 hover:bg-blue-50 focus:bg-blue-50 focus:text-blue-900 transition-all"
                         >
                           <div className="flex items-center space-x-2">
-                            <span className={`w-4 h-4 rounded border-2 border-slate-300 bg-white flex items-center justify-center transition-colors ${selectedWorkCategories.includes(category)
+                            <span className={`w-4 h-4 rounded border-2 border-slate-300 bg-white flex items-center justify-center transition-all ${selectedWorkCategories.includes(category)
                               ? 'bg-blue-500 border-blue-500'
                               : 'hover:border-blue-300'
                               }`}>
@@ -629,7 +631,7 @@ export function AnalyticsClient({
                                 </svg>
                               )}
                             </span>
-                            <span className="text-sm truncate">{category}</span>
+                            <span className="text-sm font-medium truncate">{category}</span>
                           </div>
                         </DropdownMenuCheckboxItem>
                       ))}
@@ -637,10 +639,11 @@ export function AnalyticsClient({
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-md whitespace-nowrap min-w-fit">
-                  <span className="font-medium">{selectedWorkCategories.length === 0 ? 'All' : selectedWorkCategories.length}</span>
+                <div className={`${styles.filterBadge} flex-shrink-0`}>
+                  <span className={styles.filterBadgeCount}>{selectedWorkCategories.length === 0 ? 'All' : selectedWorkCategories.length}</span>
                   <span className="text-slate-400">•</span>
-                  <span>{works.filter(w => selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '')).length} works</span>
+                  <span className="hidden sm:inline">{works.filter(w => selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '')).length} works</span>
+                  <span className="sm:hidden">{works.filter(w => selectedWorkCategories.length === 0 || selectedWorkCategories.includes(w.work_category || '')).length}</span>
                 </div>
               </div>
             </div>

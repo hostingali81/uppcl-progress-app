@@ -83,17 +83,17 @@ export function EditableWorkTable({ works, onUpdate }: EditableWorkTableProps) {
               if (e.key === 'Escape') handleCancel();
             }}
           />
-          <button 
-            onClick={() => handleSave(work.id as number, field)} 
-            disabled={isPending} 
+          <button
+            onClick={() => handleSave(work.id as number, field)}
+            disabled={isPending}
             className="text-green-600 hover:text-green-700 p-1 hover:bg-green-50 rounded"
             title="Save"
           >
             <Check className="h-4 w-4" />
           </button>
-          <button 
-            onClick={handleCancel} 
-            disabled={isPending} 
+          <button
+            onClick={handleCancel}
+            disabled={isPending}
             className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded"
             title="Cancel"
           >
@@ -104,8 +104,8 @@ export function EditableWorkTable({ works, onUpdate }: EditableWorkTableProps) {
     }
 
     return (
-      <div 
-        className="group flex items-center gap-2 cursor-pointer py-1 px-2 rounded hover:bg-slate-100 transition-colors" 
+      <div
+        className="group flex items-center gap-2 cursor-pointer py-1 px-2 rounded hover:bg-slate-100 transition-colors"
         onClick={() => handleEdit(work.id as number, field, value)}
         title="Click to edit"
       >
@@ -143,9 +143,9 @@ export function EditableWorkTable({ works, onUpdate }: EditableWorkTableProps) {
               <TableRow key={work.id} className="hover:bg-slate-50 border-b">
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    {work.is_blocked && <span title="Blocked"><AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" /></span>}
-                    <Link 
-                      href={`/dashboard/work/${work.id}`} 
+                    {work.is_blocked && <span title="High Priority or Blocked"><AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" /></span>}
+                    <Link
+                      href={`/dashboard/work/${work.id}`}
                       className="text-blue-600 hover:underline text-xs sm:text-sm flex items-center gap-1"
                       title="View details"
                     >

@@ -1,10 +1,11 @@
 // src/components/custom/AnalyticsCharts.tsx
 "use client";
 
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart as PieChartIcon, BarChart3, TrendingUp, DollarSign, CheckCircle, Clock, Play } from "lucide-react";
+import { PieChart as PieChartIcon, BarChart3, TrendingUp, DollarSign, CheckCircle, Clock, Play, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
+import styles from './analytics-premium.module.css';
 
 // Step 1: Define the shape of the props this component will receive.
 type AnalyticsChartsProps = {
@@ -35,9 +36,18 @@ type AnalyticsChartsProps = {
 export function AnalyticsCharts({ statusData, financialData, districtData, monthlyData, chartTitle, kpis, colors, onKPIClick, activeFilter }: AnalyticsChartsProps) {
   // Define the colors for the Pie chart based on the KPI colors
   const pieChartColors = {
-    Completed: '#16a34a', // text-green-600
-    'In Progress': '#9333ea', // text-purple-600
-    'Not Started': '#4b5563', // text-gray-600
+    Completed: '#10b981', // Green
+    'In Progress': '#8b5cf6', // Purple
+    'Not Started': '#f59e0b', // Orange
+  };
+
+  // Bar chart color gradient based on workload
+  const getBarColor = (value: number) => {
+    const max = Math.max(...districtData.map(d => d.total));
+    const ratio = value / max;
+    if (ratio > 0.7) return '#3b82f6'; // High - Blue
+    if (ratio > 0.4) return '#14b8a6'; // Medium - Teal
+    return '#8b5cf6'; // Low - Purple
   };
 
   // Check if we're on mobile for responsive adjustments
@@ -75,152 +85,180 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
     return `₹${value.toFixed(2)}`;
   };
 
+  // Custom label component for donut center
+  const renderCenterLabel = (value: string) => {
+    return (
+      <text
+        x="50%"
+        y="50%"
+        textAnchor="middle"
+        dominantBaseline="middle"
+        className="fill-slate-900 text-xl font-bold"
+      >
+        {value}
+      </text>
+    );
+  };
+
+  const inProgressWorks = kpis.totalWorks - kpis.completedWorks - kpis.notStartedWorks;
+
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card 
-          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-blue-300' : ''} ${activeFilter === 'all' ? 'ring-2 ring-blue-500 border-blue-500' : ''}`}
+      {/* Premium KPI Cards */}
+      <div className={styles.kpiGrid}>
+        {/* Total Works - Blue */}
+        <div
+          className={`${styles.kpiCard} ${styles.kpiCardBlue} ${activeFilter === 'all' ? styles.active : ''}`}
           onClick={() => onKPIClick?.('all')}
         >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Total Works</p>
-                <p className="text-2xl font-bold text-slate-900">{kpis.totalWorks}</p>
-              </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-blue-600" />
-              </div>
+          <div className={styles.kpiContent}>
+            <div className={styles.kpiIcon}>
+              <TrendingUp className="h-6 w-6 text-white" />
             </div>
-          </CardContent>
-        </Card>
+            <p className={styles.kpiLabel}>Total Works</p>
+            <p className={styles.kpiValue}>{kpis.totalWorks}</p>
+            <div className={styles.kpiPercentage}>
+              <span>100% of portfolio</span>
+            </div>
+          </div>
+        </div>
 
-        <Card 
-          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-green-300' : ''} ${activeFilter === 'completed' ? 'ring-2 ring-green-500 border-green-500' : ''}`}
+        {/* Completed - Green */}
+        <div
+          className={`${styles.kpiCard} ${styles.kpiCardGreen} ${activeFilter === 'completed' ? styles.active : ''}`}
           onClick={() => onKPIClick?.('completed')}
         >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Completed</p>
-                <p className="text-2xl font-bold text-green-600">{kpis.completedWorks}</p>
-                <p className="text-xs text-slate-500">{((kpis.completedWorks / kpis.totalWorks) * 100).toFixed(1)}%</p>
-              </div>
-              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-green-600" />
-              </div>
+          <div className={styles.kpiContent}>
+            <div className={styles.kpiIcon}>
+              <CheckCircle className="h-6 w-6 text-white" />
             </div>
-          </CardContent>
-        </Card>
+            <p className={styles.kpiLabel}>Completed</p>
+            <p className={styles.kpiValue}>{kpis.completedWorks}</p>
+            <div className={styles.kpiPercentage}>
+              <span>{((kpis.completedWorks / kpis.totalWorks) * 100).toFixed(1)}% complete</span>
+            </div>
+          </div>
+        </div>
 
-        <Card 
-          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-purple-300' : ''} ${activeFilter === 'in_progress' ? 'ring-2 ring-purple-500 border-purple-500' : ''}`}
+        {/* In Progress - Purple */}
+        <div
+          className={`${styles.kpiCard} ${styles.kpiCardPurple} ${activeFilter === 'in_progress' ? styles.active : ''}`}
           onClick={() => onKPIClick?.('in_progress')}
         >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">In Progress</p>
-                <p className="text-2xl font-bold text-purple-600">{kpis.totalWorks - kpis.completedWorks - kpis.notStartedWorks}</p>
-                <p className="text-xs text-slate-500">{(((kpis.totalWorks - kpis.completedWorks - kpis.notStartedWorks) / kpis.totalWorks) * 100).toFixed(1)}%</p>
-              </div>
-              <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Clock className="h-6 w-6 text-purple-600" />
-              </div>
+          <div className={styles.kpiContent}>
+            <div className={styles.kpiIcon}>
+              <Clock className="h-6 w-6 text-white" />
             </div>
-          </CardContent>
-        </Card>
+            <p className={styles.kpiLabel}>In Progress</p>
+            <p className={styles.kpiValue}>{inProgressWorks}</p>
+            <div className={styles.kpiPercentage}>
+              <span>{((inProgressWorks / kpis.totalWorks) * 100).toFixed(1)}% ongoing</span>
+            </div>
+          </div>
+        </div>
 
-        <Card 
-          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-gray-300' : ''} ${activeFilter === 'not_started' ? 'ring-2 ring-gray-500 border-gray-500' : ''}`}
+        {/* Not Started - Orange */}
+        <div
+          className={`${styles.kpiCard} ${styles.kpiCardOrange} ${activeFilter === 'not_started' ? styles.active : ''}`}
           onClick={() => onKPIClick?.('not_started')}
         >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Not Started</p>
-                <p className="text-2xl font-bold text-gray-600">{kpis.notStartedWorks}</p>
-                <p className="text-xs text-slate-500">{((kpis.notStartedWorks / kpis.totalWorks) * 100).toFixed(1)}%</p>
-              </div>
-              <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                <Play className="h-6 w-6 text-gray-600" />
-              </div>
+          <div className={styles.kpiContent}>
+            <div className={styles.kpiIcon}>
+              <Play className="h-6 w-6 text-white" />
             </div>
-          </CardContent>
-        </Card>
+            <p className={styles.kpiLabel}>Not Started</p>
+            <p className={styles.kpiValue}>{kpis.notStartedWorks}</p>
+            <div className={styles.kpiPercentage}>
+              <span>{((kpis.notStartedWorks / kpis.totalWorks) * 100).toFixed(1)}% pending</span>
+            </div>
+          </div>
+        </div>
 
-        <Card 
-          className={`border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 ${onKPIClick ? 'cursor-pointer hover:border-red-300' : ''} ${activeFilter === 'blocked' ? 'ring-2 ring-red-500 border-red-500' : ''}`}
+        {/* Blocked - Red */}
+        <div
+          className={`${styles.kpiCard} ${styles.kpiCardRed} ${activeFilter === 'blocked' ? styles.active : ''}`}
           onClick={() => onKPIClick?.('blocked')}
         >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Blocked</p>
-                <p className="text-2xl font-bold text-red-600">{kpis.blockedWorks}</p>
-                <p className="text-xs text-slate-500">{((kpis.blockedWorks / kpis.totalWorks) * 100).toFixed(1)}%</p>
-              </div>
-              <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-red-600" />
-              </div>
+          <div className={styles.kpiContent}>
+            <div className={styles.kpiIcon}>
+              <AlertCircle className="h-6 w-6 text-white" />
             </div>
-          </CardContent>
-        </Card>
+            <p className={styles.kpiLabel}>High Priority or Blocked</p>
+            <p className={styles.kpiValue}>{kpis.blockedWorks}</p>
+            <div className={styles.kpiPercentage}>
+              <span>{((kpis.blockedWorks / kpis.totalWorks) * 100).toFixed(1)}% high priority/blocked</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Work Status Distribution */}
-        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="border-b border-slate-200">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <PieChartIcon className="h-5 w-5 text-green-600" />
+      {/* Premium Charts Grid */}
+      <div className={styles.chartsGrid}>
+        {/* Work Status Distribution - Clean Donut Chart */}
+        <Card className={`${styles.chartCard}`}>
+          <CardHeader className={styles.chartHeader}>
+            <div className={styles.chartHeaderContent}>
+              <div className={`${styles.chartIconWrapper} ${styles.green}`}>
+                <PieChartIcon className="h-5 w-5 text-white" />
               </div>
-              <CardTitle className="text-lg font-semibold text-slate-900">Work Status Distribution</CardTitle>
+              <CardTitle className={styles.chartTitle}>Work Status Distribution</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            <ResponsiveContainer width="100%" height={320}>
+          <CardContent className={styles.chartContent}>
+            <ResponsiveContainer width="100%" height={340}>
               <PieChart>
                 <Pie
                   data={statusData}
                   cx="50%"
                   cy="50%"
-                  outerRadius={isMobile ? 60 : 90}
+                  innerRadius={isMobile ? 50 : 70}
+                  outerRadius={isMobile ? 80 : 110}
                   fill="#8884d8"
                   dataKey="value"
                   nameKey="name"
-                  strokeWidth={2}
+                  strokeWidth={3}
                   stroke="#fff"
-                  isAnimationActive={false}
+                  isAnimationActive={true}
+                  animationDuration={800}
+                  animationBegin={0}
                   style={{ outline: 'none' }}
-                  activeShape={false}
-                  label={(entry: any) => {
+                  label={!isMobile ? (entry: any) => {
                     const total = statusData.reduce((sum, item) => sum + item.value, 0);
                     const percent = ((entry.value / total) * 100).toFixed(0);
-                    return isMobile ? entry.value.toString() : `${entry.value} (${percent}%)`;
-                  }}
-                  labelLine={isMobile ? false : { stroke: '#666666', strokeWidth: 1 }}>
+                    return `${entry.value} (${percent}%)`;
+                  } : undefined}
+                  labelLine={!isMobile ? { stroke: '#94a3b8', strokeWidth: 1.5 } : false}
+                >
                   {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={pieChartColors[entry.name as keyof typeof pieChartColors]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={pieChartColors[entry.name as keyof typeof pieChartColors]}
+                      className="hover:opacity-90 transition-opacity cursor-pointer"
+                    />
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const total = statusData.reduce((sum, item) => sum + item.value, 0);
+                      const percent = ((data.value as number / total) * 100).toFixed(1);
+                      return (
+                        <div className={styles.customTooltip}>
+                          <p className={styles.tooltipLabel}>{data.name}</p>
+                          <p className={styles.tooltipValue}>{data.value} works ({percent}%)</p>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
                 <Legend content={({ payload }) => (
-                  <div className="flex flex-wrap justify-center gap-4 text-xs mt-4">
+                  <div className={styles.customLegend}>
                     {payload?.map((entry: any, index: number) => (
-                      <div key={index} className="flex items-center gap-2">
+                      <div key={index} className={styles.legendItem}>
                         <div
-                          className="w-3 h-3 rounded"
+                          className={styles.legendDot}
                           style={{ backgroundColor: entry.color }}
                         />
                         <span>{entry.value}</span>
@@ -233,168 +271,206 @@ export function AnalyticsCharts({ statusData, financialData, districtData, month
           </CardContent>
         </Card>
 
-        {/* Financial Progress */}
-        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="border-b border-slate-200">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-purple-600" />
+        {/* Financial Progress - Donut with Center Label */}
+        <Card className={styles.chartCard}>
+          <CardHeader className={styles.chartHeader}>
+            <div className={styles.chartHeaderContent}>
+              <div className={`${styles.chartIconWrapper} ${styles.purple}`}>
+                <DollarSign className="h-5 w-5 text-white" />
               </div>
-              <CardTitle className="text-lg font-semibold text-slate-900">Financial Progress</CardTitle>
+              <CardTitle className={styles.chartTitle}>Financial Progress</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            <ResponsiveContainer width="100%" height={320}>
+          <CardContent className={styles.chartContent}>
+            <ResponsiveContainer width="100%" height={340}>
               <PieChart>
                 <Pie
                   data={financialData}
                   cx="50%"
                   cy="50%"
-                  outerRadius={isMobile ? 60 : 90}
+                  innerRadius={isMobile ? 50 : 70}
+                  outerRadius={isMobile ? 80 : 110}
                   fill="#8884d8"
                   dataKey="value"
                   nameKey="name"
-                  strokeWidth={2}
+                  strokeWidth={3}
                   stroke="#fff"
+                  isAnimationActive={true}
+                  animationDuration={800}
+                  animationBegin={100}
                   style={{ outline: 'none' }}
-                  label={(entry: any) => {
-                    const total = financialData.reduce((sum, item) => sum + item.value, 0);
-                    return isMobile ? formatCurrency(entry.value) : formatCurrency(entry.value);
-                  }}
-                  labelLine={!isMobile && { stroke: '#666666', strokeWidth: 1 }}
+                  label={!isMobile ? (entry: any) => formatCurrency(entry.value) : undefined}
+                  labelLine={!isMobile ? { stroke: '#94a3b8', strokeWidth: 1.5 } : false}
                 >
                   {financialData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={pieChartColors[entry.name as keyof typeof pieChartColors]}
+                      className="hover:opacity-90 transition-opacity cursor-pointer"
                     />
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value) => [formatCurrency(value as number), 'Value']}
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const total = financialData.reduce((sum, item) => sum + item.value, 0);
+                      const percent = ((data.value as number / total) * 100).toFixed(1);
+                      return (
+                        <div className={styles.customTooltip}>
+                          <p className={styles.tooltipLabel}>{data.name}</p>
+                          <p className={styles.tooltipValue}>{formatCurrency(data.value as number)}</p>
+                          <p className="text-xs text-slate-600 mt-1">{percent}% of total</p>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
-                <Legend
-                  wrapperStyle={{ paddingTop: '10px' }}
-                  content={({ payload }) => (
-                    <div className="flex flex-wrap justify-center gap-4 text-xs mt-4">
-                      {payload?.map((entry: any, index: number) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded"
-                            style={{ backgroundColor: entry.color }}
-                          />
-                          <span>{entry.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                />
+                <Legend content={({ payload }) => (
+                  <div className={styles.customLegend}>
+                    {payload?.map((entry: any, index: number) => (
+                      <div key={index} className={styles.legendItem}>
+                        <div
+                          className={styles.legendDot}
+                          style={{ backgroundColor: entry.color }}
+                        />
+                        <span>{entry.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* District-wise Works */}
-        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="border-b border-slate-200">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-blue-600" />
+        {/* District-wise Works - Rounded Bar Chart */}
+        <Card className={styles.chartCard}>
+          <CardHeader className={styles.chartHeader}>
+            <div className={styles.chartHeaderContent}>
+              <div className={`${styles.chartIconWrapper} ${styles.blue}`}>
+                <BarChart3 className="h-5 w-5 text-white" />
               </div>
-              <CardTitle className="text-lg font-semibold text-slate-900">{chartTitle}</CardTitle>
+              <CardTitle className={styles.chartTitle}>{chartTitle}</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={districtData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fontSize: 12, fill: '#64748b' }}
+          <CardContent className={styles.chartContent}>
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={districtData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.6} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: '#64748b' }}
                   axisLine={{ stroke: '#e2e8f0' }}
-                  tickLine={{ stroke: '#e2e8f0' }}
+                  tickLine={false}
+                  angle={-15}
+                  textAnchor="end"
+                  height={60}
                 />
-                <YAxis 
+                <YAxis
                   tick={{ fontSize: 12, fill: '#64748b' }}
-                  axisLine={{ stroke: '#e2e8f0' }}
-                  tickLine={{ stroke: '#e2e8f0' }}
+                  axisLine={false}
+                  tickLine={false}
                 />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className={styles.customTooltip}>
+                          <p className={styles.tooltipLabel}>{payload[0].payload.name}</p>
+                          <p className={styles.tooltipValue}>{payload[0].value} works</p>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
+                  cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }}
                 />
-                <Legend />
                 <Bar
                   dataKey="total"
-                  fill={colors.barChart}
+                  fill="url(#barGradient)"
                   name="Total Works"
-                  radius={[4, 4, 0, 0]}
-                  style={{ outline: 'none' }}
-                  className="focus:outline-none"
-                  label={{ position: 'top', fontSize: 12, fill: '#64748b' }}
+                  radius={[8, 8, 0, 0]}
+                  isAnimationActive={true}
+                  animationDuration={800}
+                  animationBegin={200}
+                  label={{ position: 'top', fontSize: 11, fill: '#64748b', fontWeight: 600 }}
                 />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Monthly Progress Trend */}
-        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="border-b border-slate-200">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-orange-600" />
+        {/* Weekly Progress - Smooth Curved Line Chart */}
+        <Card className={styles.chartCard}>
+          <CardHeader className={styles.chartHeader}>
+            <div className={styles.chartHeaderContent}>
+              <div className={`${styles.chartIconWrapper} ${styles.orange}`}>
+                <TrendingUp className="h-5 w-5 text-white" />
               </div>
-              <CardTitle className="text-lg font-semibold text-slate-900">Weekly Progress Trend</CardTitle>
+              <CardTitle className={styles.chartTitle}>Weekly Progress Trend</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <CardContent className={styles.chartContent}>
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={monthlyData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
                 <XAxis
                   dataKey="week"
-                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
                   axisLine={{ stroke: '#e2e8f0' }}
-                  tickLine={{ stroke: '#e2e8f0' }}
+                  tickLine={false}
+                  angle={-15}
+                  textAnchor="end"
+                  height={60}
                 />
-                <YAxis 
+                <YAxis
                   tick={{ fontSize: 12, fill: '#64748b' }}
-                  axisLine={{ stroke: '#e2e8f0' }}
-                  tickLine={{ stroke: '#e2e8f0' }}
+                  axisLine={false}
+                  tickLine={false}
                   tickFormatter={(value) => `${Math.round(value)}%`}
                 />
-                <Tooltip 
-                  formatter={(value, name) => [
-                    `${Math.round(value as number)}%`, 
-                    name === 'completionRate' ? 'Completion Rate (%)' : name
-                  ]}
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className={styles.customTooltip}>
+                          <p className={styles.tooltipLabel}>{payload[0].payload.week}</p>
+                          <p className={styles.tooltipValue}>{Math.round(payload[0].value as number)}%</p>
+                          <p className="text-xs text-slate-600 mt-1">
+                            {payload[0].payload.completed} of {payload[0].payload.total} completed
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
+                  cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '5 5' }}
                 />
-                <Legend />
-                <Area 
-                  type="monotone" 
-                  dataKey="completionRate" 
-                  stroke={colors.barChart} 
-                  fill={`${colors.barChart}20`}
-                  name="Completion Rate (%)"
-                  style={{ outline: 'none' }}
-                  className="focus:outline-none"
+                <Line
+                  type="monotone"
+                  dataKey="completionRate"
+                  stroke="#3b82f6"
+                  strokeWidth={3}
+                  fill="url(#lineGradient)"
+                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 5 }}
+                  activeDot={{ r: 7, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
+                  isAnimationActive={true}
+                  animationDuration={1000}
+                  animationBegin={300}
                 />
-              </AreaChart>
+              </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>

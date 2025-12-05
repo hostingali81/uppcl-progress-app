@@ -14,6 +14,7 @@ import Link from "next/link";
 import type { Work, ProgressLog } from "@/lib/types";
 import { SummaryReportTable } from "@/components/custom/SummaryReportTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import styles from "./reports-premium.module.css";
 
 interface ReportsClientProps {
   works: Work[];
@@ -426,50 +427,98 @@ export function ReportsClient({ works, profile, userId }: ReportsClientProps) {
   }, [profile]);
 
   return (
-    <div className="p-2 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
+    <div className="p-2 sm:p-4 lg:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Reports</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-2">
+              <span>Reports</span>
+              <span className="text-3xl">📊</span>
+            </h1>
             <p className="mt-1 sm:mt-2 text-sm sm:text-base text-slate-600">
-              Generate and export reports. Your role: <Badge variant="outline" className="ml-1 text-xs">{profile.role}</Badge>
+              Generate, filter & export detailed works report
             </p>
           </div>
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Premium KPI Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-3 sm:p-4">
-            <div className="text-xs sm:text-sm text-slate-600">Total Works</div>
-            <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalWorks}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-3 sm:p-4">
-            <div className="text-xs sm:text-sm text-slate-600">Completed</div>
-            <div className="text-xl sm:text-2xl font-bold text-green-600 mt-1">{summaryStats.completedWorks}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-3 sm:p-4">
-            <div className="text-xs sm:text-sm text-slate-600">In Progress</div>
-            <div className="text-xl sm:text-2xl font-bold text-blue-600 mt-1">{summaryStats.inProgressWorks}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-3 sm:p-4">
-            <div className="text-xs sm:text-sm text-slate-600">Not Started</div>
-            <div className="text-xl sm:text-2xl font-bold text-orange-600 mt-1">{summaryStats.notStartedWorks}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-3 sm:p-4">
-            <div className="text-xs sm:text-sm text-slate-600">Blocked</div>
-            <div className="text-xl sm:text-2xl font-bold text-red-600 mt-1">{summaryStats.blockedWorks}</div>
-          </CardContent>
-        </Card>
+        {/* Total Works */}
+        <div className={`${styles.kpiCard} ${styles.kpiCardBlue}`}>
+          <div className={styles.kpiContent}>
+            <div className={styles.kpiIcon}>
+              <LayoutList className="h-6 w-6 text-white" />
+            </div>
+            <div className={styles.kpiLabel}>Total Works</div>
+            <div className={styles.kpiValue}>{summaryStats.totalWorks}</div>
+            <div className={styles.kpiPercentage}>
+              <span>100% of dataset</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Completed */}
+        <div className={`${styles.kpiCard} ${styles.kpiCardGreen}`}>
+          <div className={styles.kpiContent}>
+            <div className={styles.kpiIcon}>
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className={styles.kpiLabel}>Completed</div>
+            <div className={styles.kpiValue}>{summaryStats.completedWorks}</div>
+            <div className={styles.kpiPercentage}>
+              <span>{summaryStats.totalWorks > 0 ? Math.round((summaryStats.completedWorks / summaryStats.totalWorks) * 100) : 0}% complete</span>
+            </div>
+          </div>
+        </div>
+
+        {/* In Progress */}
+        <div className={`${styles.kpiCard} ${styles.kpiCardPurple}`}>
+          <div className={styles.kpiContent}>
+            <div className={styles.kpiIcon}>
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div className={styles.kpiLabel}>In Progress</div>
+            <div className={styles.kpiValue}>{summaryStats.inProgressWorks}</div>
+            <div className={styles.kpiPercentage}>
+              <span>{summaryStats.totalWorks > 0 ? Math.round((summaryStats.inProgressWorks / summaryStats.totalWorks) * 100) : 0}% ongoing</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Not Started */}
+        <div className={`${styles.kpiCard} ${styles.kpiCardOrange}`}>
+          <div className={styles.kpiContent}>
+            <div className={styles.kpiIcon}>
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className={styles.kpiLabel}>Not Started</div>
+            <div className={styles.kpiValue}>{summaryStats.notStartedWorks}</div>
+            <div className={styles.kpiPercentage}>
+              <span>{summaryStats.totalWorks > 0 ? Math.round((summaryStats.notStartedWorks / summaryStats.totalWorks) * 100) : 0}% pending</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Blocked */}
+        <div className={`${styles.kpiCard} ${styles.kpiCardRed}`}>
+          <div className={styles.kpiContent}>
+            <div className={styles.kpiIcon}>
+              <AlertTriangle className="h-6 w-6 text-white" />
+            </div>
+            <div className={styles.kpiLabel}>High Priority or Blocked</div>
+            <div className={styles.kpiValue}>{summaryStats.blockedWorks}</div>
+            <div className={styles.kpiPercentage}>
+              <span>{summaryStats.totalWorks > 0 ? Math.round((summaryStats.blockedWorks / summaryStats.totalWorks) * 100) : 0}% high priority/blocked</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
@@ -491,48 +540,55 @@ export function ReportsClient({ works, profile, userId }: ReportsClientProps) {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4 sm:gap-0">
-          <TabsList className="bg-slate-100 p-1 rounded-lg shadow-sm w-full sm:w-auto grid grid-cols-2 sm:flex h-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+          {/* Enhanced Report Type Tabs */}
+          <TabsList className="bg-slate-100 p-1 rounded-xl shadow-sm w-full sm:w-auto grid grid-cols-2 sm:flex h-auto">
             <TabsTrigger
               value="detailed"
-              className="flex items-center justify-center sm:justify-start gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all duration-200 rounded-md px-4 py-2"
+              className="flex items-center justify-center sm:justify-start gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-6 py-3 relative overflow-hidden"
             >
-              <LayoutList className="h-4 w-4" />
-              <span className="font-medium">Detailed Report</span>
+              <LayoutList className="h-5 w-5" />
+              <span className="font-semibold">📄 Detailed Report</span>
+              <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 transition-transform duration-200 ${activeTab === 'detailed' ? 'scale-x-100' : 'scale-x-0'}`} />
             </TabsTrigger>
             <TabsTrigger
               value="summary"
-              className="flex items-center justify-center sm:justify-start gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all duration-200 rounded-md px-4 py-2"
+              className="flex items-center justify-center sm:justify-start gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-6 py-3 relative overflow-hidden"
             >
-              <TableIcon className="h-4 w-4" />
-              <span className="font-medium">Summary Report</span>
+              <TableIcon className="h-5 w-5" />
+              <span className="font-semibold">📊 Summary Report</span>
+              <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 transition-transform duration-200 ${activeTab === 'summary' ? 'scale-x-100' : 'scale-x-0'}`} />
             </TabsTrigger>
           </TabsList>
 
-          {/* Export Options */}
+          {/* Enhanced Export Options */}
           <div className="flex items-center justify-end gap-3 w-full sm:w-auto">
-            <ExportToExcelButton
-              selectedScheme="All"
-              filteredWorks={filteredWorks}
-              isSummary={activeTab === 'summary'}
-              groupingField={groupingField}
-              groupingLabel={groupingLabel}
-              schemeName={schemeName}
-              officeName={officeName}
-              userId={userId}
-            />
-            <ExportToPDFButton
-              selectedScheme="All"
-              filteredWorks={filteredWorks}
-              isSummary={activeTab === 'summary'}
-              groupingField={groupingField}
-              groupingLabel={groupingLabel}
-              schemeName={schemeName}
-              officeName={officeName}
-              userId={userId}
-            />
+            <div className={styles.exportButton}>
+              <ExportToExcelButton
+                selectedScheme="All"
+                filteredWorks={filteredWorks}
+                isSummary={activeTab === 'summary'}
+                groupingField={groupingField}
+                groupingLabel={groupingLabel}
+                schemeName={schemeName}
+                officeName={officeName}
+                userId={userId}
+              />
+            </div>
+            <div className={styles.exportButton}>
+              <ExportToPDFButton
+                selectedScheme="All"
+                filteredWorks={filteredWorks}
+                isSummary={activeTab === 'summary'}
+                groupingField={groupingField}
+                groupingLabel={groupingLabel}
+                schemeName={schemeName}
+                officeName={officeName}
+                userId={userId}
+              />
+            </div>
           </div>
-        </div >
+        </div>
 
         <TabsContent value="detailed" className="mt-0">
           {/* Data Table */}
@@ -613,148 +669,150 @@ export function ReportsClient({ works, profile, userId }: ReportsClientProps) {
                 )}
               </div>
 
-              {/* Desktop Table Layout */}
+              {/* Desktop Table Layout - Enhanced */}
               <div className="hidden sm:block">
-                <Table className="w-full">
-                  <TableHeader>
-                    <TableRow className="border-slate-200">
-                      <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[200px]" onClick={() => handleSort('work_name')}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Work Details</span>
-                          {getSortIcon('work_name')}
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('district_name')}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Location</span>
-                          {getSortIcon('district_name')}
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('scheme_name')}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Scheme & Category</span>
-                          {getSortIcon('scheme_name')}
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none text-right" onClick={() => handleSort('progress_percentage')}>
-                        <div className="flex items-center justify-end gap-2">
-                          <span className="text-sm">Progress</span>
-                          {getSortIcon('progress_percentage')}
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('agreement_amount')}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Contract & Payments</span>
-                          {getSortIcon('agreement_amount')}
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('start_date')}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Status</span>
-                          {getSortIcon('start_date')}
-                        </div>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredWorks.length > 0 ? (
-                      filteredWorks.slice(0, 25).map((work: Work) => (
-                        <TableRow key={work.id} className="hover:bg-slate-50 transition-colors">
-                          {/* Work Details Column */}
-                          <TableCell className="align-top">
-                            <div className="space-y-2">
-                              <div className="flex items-start gap-2">
-                                {work.is_blocked && (
-                                  <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0 mt-0.5" />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <Link
-                                    href={`/dashboard/work/${work.id}`}
-                                    className="font-semibold text-blue-600 hover:text-blue-700 text-sm leading-tight block"
-                                    title={work.work_name || 'No name'}
-                                  >
-                                    <span className="truncate block w-full max-w-full" style={{ maxWidth: '500px' }}>{work.work_name || 'No name'}</span>
-                                  </Link>
+                <div className={styles.tableWrapper}>
+                  <Table className="w-full">
+                    <TableHeader className={styles.stickyHeader}>
+                      <TableRow className="border-slate-200 bg-white">
+                        <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[200px]" onClick={() => handleSort('work_name')}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">Work Details</span>
+                            {getSortIcon('work_name')}
+                          </div>
+                        </TableHead>
+                        <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('district_name')}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">Location</span>
+                            {getSortIcon('district_name')}
+                          </div>
+                        </TableHead>
+                        <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('scheme_name')}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">Scheme & Category</span>
+                            {getSortIcon('scheme_name')}
+                          </div>
+                        </TableHead>
+                        <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none text-right" onClick={() => handleSort('progress_percentage')}>
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-sm">Progress</span>
+                            {getSortIcon('progress_percentage')}
+                          </div>
+                        </TableHead>
+                        <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('agreement_amount')}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">Contract & Payments</span>
+                            {getSortIcon('agreement_amount')}
+                          </div>
+                        </TableHead>
+                        <TableHead className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none" onClick={() => handleSort('start_date')}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">Status</span>
+                            {getSortIcon('start_date')}
+                          </div>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredWorks.length > 0 ? (
+                        filteredWorks.slice(0, 25).map((work: Work) => (
+                          <TableRow key={work.id} className="hover:bg-slate-50 transition-colors">
+                            {/* Work Details Column */}
+                            <TableCell className="align-top">
+                              <div className="space-y-2">
+                                <div className="flex items-start gap-2">
+                                  {work.is_blocked && (
+                                    <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0 mt-0.5" />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <Link
+                                      href={`/dashboard/work/${work.id}`}
+                                      className="font-semibold text-blue-600 hover:text-blue-700 text-sm leading-tight block"
+                                      title={work.work_name || 'No name'}
+                                    >
+                                      <span className="truncate block w-full max-w-full" style={{ maxWidth: '500px' }}>{work.work_name || 'No name'}</span>
+                                    </Link>
+                                  </div>
+                                </div>
+                                <div className="text-xs text-slate-500 space-y-0.5">
+                                  <div><strong>WBS:</strong> {work.wbs_code || 'N/A'}</div>
+                                  <div><strong>Sanction:</strong> ₹{(work.sanction_amount_lacs || 0).toFixed(2)} L</div>
                                 </div>
                               </div>
-                              <div className="text-xs text-slate-500 space-y-0.5">
-                                <div><strong>WBS:</strong> {work.wbs_code || 'N/A'}</div>
-                                <div><strong>Sanction:</strong> ₹{(work.sanction_amount_lacs || 0).toFixed(2)} L</div>
+                            </TableCell>
+
+                            {/* Location Column */}
+                            <TableCell className="align-top">
+                              <div className="text-xs space-y-1">
+                                <div><strong>District:</strong> {work.district_name || 'N/A'}</div>
+                                <div><strong>Circle:</strong> {work.civil_circle || 'N/A'}</div>
+                                <div><strong>Division:</strong> {work.civil_division || 'N/A'}</div>
                               </div>
-                            </div>
-                          </TableCell>
+                            </TableCell>
 
-                          {/* Location Column */}
-                          <TableCell className="align-top">
-                            <div className="text-xs space-y-1">
-                              <div><strong>District:</strong> {work.district_name || 'N/A'}</div>
-                              <div><strong>Circle:</strong> {work.civil_circle || 'N/A'}</div>
-                              <div><strong>Division:</strong> {work.civil_division || 'N/A'}</div>
-                            </div>
-                          </TableCell>
-
-                          {/* Scheme & Category Column */}
-                          <TableCell className="align-top">
-                            <div className="text-xs space-y-1">
-                              <div><strong>Scheme:</strong> {work.scheme_name || 'N/A'}</div>
-                              <div><strong>Category:</strong> {work.work_category || 'N/A'}</div>
-                            </div>
-                          </TableCell>
-
-                          {/* Progress Column */}
-                          <TableCell className="align-top">
-                            <div className="space-y-2">
-                              <div className="text-sm font-semibold text-slate-900">
-                                {work.progress_percentage || 0}%
+                            {/* Scheme & Category Column */}
+                            <TableCell className="align-top">
+                              <div className="text-xs space-y-1">
+                                <div><strong>Scheme:</strong> {work.scheme_name || 'N/A'}</div>
+                                <div><strong>Category:</strong> {work.work_category || 'N/A'}</div>
                               </div>
-                              <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all duration-500 ${(work.progress_percentage || 0) === 100 ? 'bg-green-500' :
-                                    (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
-                                      (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
-                                        (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
-                                          'bg-red-500'
-                                    }`}
-                                  style={{ width: `${work.progress_percentage || 0}%` }}
-                                />
+                            </TableCell>
+
+                            {/* Progress Column */}
+                            <TableCell className="align-top">
+                              <div className="space-y-2">
+                                <div className="text-sm font-semibold text-slate-900">
+                                  {work.progress_percentage || 0}%
+                                </div>
+                                <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-500 ${(work.progress_percentage || 0) === 100 ? 'bg-green-500' :
+                                      (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
+                                        (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
+                                          (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
+                                            'bg-red-500'
+                                      }`}
+                                    style={{ width: `${work.progress_percentage || 0}%` }}
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          </TableCell>
+                            </TableCell>
 
-                          {/* Contract & Payments Column */}
-                          <TableCell className="align-top">
-                            <div className="text-xs space-y-1">
-                              <div><strong>Agreement:</strong> ₹{(work.agreement_amount || 0).toLocaleString('en-IN') || 'N/A'}</div>
-                              <div><strong>MB Status:</strong> {work.mb_status || 'N/A'}</div>
-                              <div><strong>TECO Status:</strong> {work.teco_status || 'N/A'}</div>
-                            </div>
-                          </TableCell>
+                            {/* Contract & Payments Column */}
+                            <TableCell className="align-top">
+                              <div className="text-xs space-y-1">
+                                <div><strong>Agreement:</strong> ₹{(work.agreement_amount || 0).toLocaleString('en-IN') || 'N/A'}</div>
+                                <div><strong>MB Status:</strong> {work.mb_status || 'N/A'}</div>
+                                <div><strong>TECO Status:</strong> {work.teco_status || 'N/A'}</div>
+                              </div>
+                            </TableCell>
 
-                          {/* Status Column */}
-                          <TableCell className="align-top">
-                            <div className="text-xs space-y-1">
-                              <div><strong>FICO Status:</strong> {work.fico_status || 'N/A'}</div>
-                              <div><strong>Start Date:</strong> {work.start_date ? new Date(work.start_date).toLocaleDateString('en-IN') : 'N/A'}</div>
-                              <div><strong>Completion:</strong> {work.actual_completion_date ? new Date(work.actual_completion_date).toLocaleDateString('en-IN') : work.scheduled_completion_date ? new Date(work.scheduled_completion_date).toLocaleDateString('en-IN') + ' (scheduled)' : 'N/A'}</div>
+                            {/* Status Column */}
+                            <TableCell className="align-top">
+                              <div className="text-xs space-y-1">
+                                <div><strong>FICO Status:</strong> {work.fico_status || 'N/A'}</div>
+                                <div><strong>Start Date:</strong> {work.start_date ? new Date(work.start_date).toLocaleDateString('en-IN') : 'N/A'}</div>
+                                <div><strong>Completion:</strong> {work.actual_completion_date ? new Date(work.actual_completion_date).toLocaleDateString('en-IN') : work.scheduled_completion_date ? new Date(work.scheduled_completion_date).toLocaleDateString('en-IN') + ' (scheduled)' : 'N/A'}</div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-12">
+                            <div className="flex flex-col items-center gap-3">
+                              <FileText className="h-10 w-10 text-slate-300" />
+                              <div>
+                                <p className="text-slate-500 font-medium mb-1">No works found</p>
+                                <p className="text-xs text-slate-400">Try adjusting your filters or check your permissions</p>
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-12">
-                          <div className="flex flex-col items-center gap-3">
-                            <FileText className="h-10 w-10 text-slate-300" />
-                            <div>
-                              <p className="text-slate-500 font-medium mb-1">No works found</p>
-                              <p className="text-xs text-slate-400">Try adjusting your filters or check your permissions</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
 
               {filteredWorks.length > 25 && (

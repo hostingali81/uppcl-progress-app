@@ -9,11 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Pagination } from "@/components/ui/pagination";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import styles from './dashboard.module.css';
 
-
-
-import { AlertTriangle, TrendingUp, Clock, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown, Play, Info, ChevronDown, Filter, X } from "lucide-react";
+import { AlertTriangle, TrendingUp, Clock, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Play, Info, ChevronDown, Filter, X, Search, Package, AlertOctagon } from "lucide-react";
 
 import type { Work, ProgressLog } from "@/lib/types";
 
@@ -597,70 +597,81 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
 
 
 
-      {/* KPI Summary Cards - Ultra Compact Mobile Version */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2 lg:gap-4">
-        <Card
-          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'all' ? 'ring-2 ring-blue-500' : 'hover:shadow-sm'} rounded-lg`}
-          onClick={() => handleKPIClick('all')}
-        >
-          <CardContent className="p-2.5 sm:p-2 lg:p-4">
-            <div className="text-sm sm:text-xs text-slate-600 leading-tight">Total Works</div>
-            <div className="text-2xl sm:text-lg lg:text-2xl font-bold text-slate-900 leading-tight">{summaryStats.totalWorks}</div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'completed' ? 'ring-2 ring-green-500' : 'hover:shadow-sm'} rounded-lg`}
-          onClick={() => handleKPIClick('completed')}
-        >
-          <CardContent className="p-2.5 sm:p-2 lg:p-4">
-            <div className="text-sm sm:text-xs text-slate-600 leading-tight">Completed</div>
-            <div className="text-2xl sm:text-lg lg:text-2xl font-bold text-green-600 leading-tight">{summaryStats.completedWorks}</div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'in_progress' ? 'ring-2 ring-blue-500' : 'hover:shadow-sm'} rounded-lg`}
-          onClick={() => handleKPIClick('in_progress')}
-        >
-          <CardContent className="p-2.5 sm:p-2 lg:p-4">
-            <div className="text-sm sm:text-xs text-slate-600 leading-tight">In Progress</div>
-            <div className="text-2xl sm:text-lg lg:text-2xl font-bold text-blue-600 leading-tight">{summaryStats.inProgressWorks}</div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'not_started' ? 'ring-2 ring-orange-500' : 'hover:shadow-md'} rounded-lg`}
-          onClick={() => handleKPIClick('not_started')}
-        >
-          <CardContent className="p-2.5 sm:p-2 lg:p-4">
-            <div className="text-sm sm:text-xs text-slate-600 leading-tight">Not Started</div>
-            <div className="text-2xl sm:text-lg lg:text-2xl font-bold text-orange-600 leading-tight">{summaryStats.notStartedWorks}</div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`border-slate-200 shadow-sm cursor-pointer transition-all ${activeKPI === 'blocked' ? 'ring-2 ring-red-500' : 'hover:shadow-md'} rounded-lg`}
-          onClick={() => handleKPIClick('blocked')}
-        >
-          <CardContent className="p-2.5 sm:p-2 lg:p-4">
-            <div className="text-sm sm:text-xs text-slate-600 leading-tight">Blocked</div>
-            <div className="text-2xl sm:text-lg lg:text-2xl font-bold text-red-600 leading-tight">{summaryStats.blockedWorks}</div>
-          </CardContent>
-        </Card>
+      {/* Premium Status Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
+        <div className={`${styles.statusCard} ${styles.total} ${activeKPI === 'all' ? styles.active : ''}`} onClick={() => handleKPIClick('all')}>
+          <div className={styles.cardContent}>
+            <div className={styles.cardHeader}>
+              <div className={styles.cardTitle}>Total Works</div>
+              <div className={styles.cardIcon}><Package className="h-4 w-4 text-white" /></div>
+            </div>
+            <div className={styles.cardNumber}>{summaryStats.totalWorks}</div>
+            <div className={styles.cardSubtext}>Works Count</div>
+          </div>
+        </div>
+        <div className={`${styles.statusCard} ${styles.completed} ${activeKPI === 'completed' ? styles.active : ''}`} onClick={() => handleKPIClick('completed')}>
+          <div className={styles.cardContent}>
+            <div className={styles.cardHeader}>
+              <div className={styles.cardTitle}>Completed</div>
+              <div className={styles.cardIcon}><CheckCircle2 className="h-4 w-4 text-white" /></div>
+            </div>
+            <div className={styles.cardNumber}>{summaryStats.completedWorks}</div>
+            <div className={styles.cardSubtext}>Works Count</div>
+          </div>
+        </div>
+        <div className={`${styles.statusCard} ${styles.inProgress} ${activeKPI === 'in_progress' ? styles.active : ''}`} onClick={() => handleKPIClick('in_progress')}>
+          <div className={styles.cardContent}>
+            <div className={styles.cardHeader}>
+              <div className={styles.cardTitle}>In Progress</div>
+              <div className={styles.cardIcon}><Clock className="h-4 w-4 text-white" /></div>
+            </div>
+            <div className={styles.cardNumber}>{summaryStats.inProgressWorks}</div>
+            <div className={styles.cardSubtext}>Works Count</div>
+          </div>
+        </div>
+        <div className={`${styles.statusCard} ${styles.notStarted} ${activeKPI === 'not_started' ? styles.active : ''}`} onClick={() => handleKPIClick('not_started')}>
+          <div className={styles.cardContent}>
+            <div className={styles.cardHeader}>
+              <div className={styles.cardTitle}>Not Started</div>
+              <div className={styles.cardIcon}><Play className="h-4 w-4 text-white" /></div>
+            </div>
+            <div className={styles.cardNumber}>{summaryStats.notStartedWorks}</div>
+            <div className={styles.cardSubtext}>Works Count</div>
+          </div>
+        </div>
+        <div className={`${styles.statusCard} ${styles.blocked} ${activeKPI === 'blocked' ? styles.active : ''}`} onClick={() => handleKPIClick('blocked')}>
+          <div className={styles.cardContent}>
+            <div className={styles.cardHeader}>
+              <div className={styles.cardTitle}>High Priority or Blocked</div>
+              <div className={styles.cardIcon}><AlertOctagon className="h-4 w-4 text-white" /></div>
+            </div>
+            <div className={styles.cardNumber}>{summaryStats.blockedWorks}</div>
+            <div className={styles.cardSubtext}>Works Count</div>
+          </div>
+        </div>
       </div>
 
 
       {/* Works Table */}
-      <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="border-b border-slate-200 p-3 sm:p-6">
-          <div>
-            <CardTitle className="text-lg sm:text-xl font-semibold text-slate-900">Works Overview</CardTitle>
-            <CardDescription className="text-sm text-slate-600">
-              Detailed list of all works assigned to you ({filteredWorks.length} works)
-            </CardDescription>
+      <Card className={`${styles.tableContainer} border-slate-200 shadow-md`}>
+        <CardHeader className="border-b border-slate-200 p-4 sm:p-6">
+          <div className="flex flex-col gap-4">
+            <div>
+              <CardTitle className="text-lg sm:text-xl font-semibold text-slate-900">Works Overview</CardTitle>
+              <CardDescription className="text-sm text-slate-600">
+                Detailed list of all works assigned to you ({filteredWorks.length} works)
+              </CardDescription>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input type="text" placeholder="Search by site name, WBS code, or district..." value={regionalFilters.search || ''} onChange={(e) => setRegionalFilters(prev => ({ ...prev, search: e.target.value }))} className="pl-10 h-10 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className={styles.tableWrapper}>
             <Table className="min-w-[300px] sm:min-w-[400px]">
-              <TableHeader>
+              <TableHeader className={styles.stickyHeader}>
                 <TableRow className="border-slate-200">
                   <TableHead
                     className="font-semibold text-slate-900 cursor-pointer hover:bg-slate-50 transition-colors select-none min-w-[150px] sm:min-w-[180px]"
@@ -707,7 +718,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                       <TableCell className="min-w-[150px] sm:min-w-[180px]">
                         <div className="flex items-center gap-2">
                           {work.is_blocked && (
-                            <span title="This work is blocked" className="flex items-center">
+                            <span title="This work is High Priority or Blocked" className="flex items-center">
                               <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />
                             </span>
                           )}
@@ -739,16 +750,13 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
                       </TableCell>
                       <TableCell className="text-right w-[90px] sm:w-[110px]">
                         <div className="flex items-center justify-end gap-2">
-                          <div className="w-12 sm:w-16 bg-slate-200 rounded-full h-2 relative overflow-hidden">
-                            <div
-                              className={`h-2 rounded-full transition-all duration-500 ${(work.progress_percentage || 0) === 100 ? 'bg-green-500' :
-                                (work.progress_percentage || 0) >= 75 ? 'bg-blue-500' :
-                                  (work.progress_percentage || 0) >= 50 ? 'bg-yellow-500' :
-                                    (work.progress_percentage || 0) >= 25 ? 'bg-orange-500' :
-                                      'bg-red-500'
-                                }`}
-                              style={{ width: `${work.progress_percentage || 0}%` }}
-                            ></div>
+                          <div className={styles.progressBarContainer}>
+                            {(work.progress_percentage || 0) > 0 && (
+                              <div
+                                className={`${styles.progressBarFill} ${styles.animated} ${(work.progress_percentage || 0) === 100 ? styles.progressCompleted : (work.progress_percentage || 0) >= 75 ? styles.progressHigh : (work.progress_percentage || 0) >= 50 ? styles.progressMedium : (work.progress_percentage || 0) >= 25 ? styles.progressLow : styles.progressVeryLow}`}
+                                style={{ width: `${work.progress_percentage || 0}%` }}
+                              ></div>
+                            )}
                           </div>
                           <span className="text-slate-600 font-medium text-[15px] sm:text-sm min-w-[30px] sm:min-w-[35px] text-right">
                             {work.progress_percentage || 0}%

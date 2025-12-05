@@ -261,7 +261,7 @@ export default function WorkDetailClient({
                                 <EditableStatusRow label="MB Status" fieldName="mb_status" currentValue={work.mb_status} workId={work.id} />
                                 <EditableStatusRow label="TECO Status" fieldName="teco_status" currentValue={work.teco_status || work.teco} workId={work.id} />
                                 <EditableStatusRow label="FICO Status" fieldName="fico_status" currentValue={work.fico_status || work.fico} workId={work.id} />
-                                <DetailRow label="Is Blocked" value={work.is_blocked ? 'Yes' : 'No'} />
+                                <DetailRow label="Is High Priority or Blocked" value={work.is_blocked ? 'Yes' : 'No'} />
                                 <DetailRow label="Last Bill No." value={latestBillNumber} />
                                 <ClickableDetailRow
                                     label="Total Billed Amount"

@@ -1,0 +1,310 @@
+/* Dashboard Premium Styling & Animations */
+
+/* ==================== CSS Variables ==================== */
+:root {
+    --dashboard-primary: #3b82f6;
+    --dashboard-success: #10b981;
+    --dashboard-warning: #f59e0b;
+    --dashboard-danger: #ef4444;
+    --dashboard-info: #06b6d4;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+/* ==================== Animations ==================== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes progressFill {
+    from {
+        width: 0;
+    }
+
+    to {
+        width: var(--progress-width);
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* ==================== Premium Status Cards ==================== */
+.statusCard {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: fadeIn 0.5s ease-out;
+}
+
+.statusCard::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, var(--card-accent), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.statusCard:hover::before {
+    opacity: 1;
+}
+
+.statusCard:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
+    border-color: var(--card-accent);
+}
+
+.statusCard.active {
+    border-color: var(--card-accent);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.cardContent {
+    padding: 1.25rem;
+    position: relative;
+    z-index: 1;
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.cardTitle {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.cardIcon {
+    width: 2rem;
+    height: 2rem;
+    padding: 0.5rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--card-accent-light), var(--card-accent));
+    opacity: 0.9;
+    transition: all 0.3s ease;
+}
+
+.statusCard:hover .cardIcon {
+    opacity: 1;
+    transform: scale(1.1) rotate(5deg);
+}
+
+.cardNumber {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    color: #0f172a;
+    background: linear-gradient(135deg, var(--card-accent), var(--card-accent-dark));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.cardSubtext {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+/* Card Variants */
+.statusCard.total {
+    --card-accent: #3b82f6;
+    --card-accent-light: #dbeafe;
+    --card-accent-dark: #1e40af;
+}
+
+.statusCard.completed {
+    --card-accent: #10b981;
+    --card-accent-light: #d1fae5;
+    --card-accent-dark: #047857;
+}
+
+.statusCard.inProgress {
+    --card-accent: #06b6d4;
+    --card-accent-light: #cffafe;
+    --card-accent-dark: #0e7490;
+}
+
+.statusCard.notStarted {
+    --card-accent: #f59e0b;
+    --card-accent-light: #fef3c7;
+    --card-accent-dark: #d97706;
+}
+
+.statusCard.blocked {
+    --card-accent: #ef4444;
+    --card-accent-light: #fee2e2;
+    --card-accent-dark: #dc2626;
+}
+
+/* ==================== Enhanced Table Styling ==================== */
+.tableContainer {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+.tableWrapper {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: calc(100vh - 400px);
+    position: relative;
+}
+
+.stickyHeader {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(to bottom, #f8fafc 0%, #f1f5f9 100%);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.tableRow {
+    transition: all 0.2s ease;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.tableRow:hover {
+    background: linear-gradient(to right, #f8fafc, #ffffff);
+    box-shadow: inset 4px 0 0 var(--dashboard-primary);
+}
+
+/* ==================== Progress Bar Enhanced with Original Colors ==================== */
+.progressBarContainer {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.progressBarFill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.progressBarFill.animated {
+    animation: progressFill 1s ease-out forwards;
+}
+
+.progressBarFill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.3) 50%,
+            transparent 100%);
+    animation: shimmer 2s infinite;
+    background-size: 200% 100%;
+}
+
+/* Original Color Coding: Green=100%, Blue=75-99%, Yellow=50-74%, Orange=25-49%, Red=0-24% */
+.progressCompleted {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.progressHigh {
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+}
+
+.progressMedium {
+    background: linear-gradient(90deg, #eab308, #ca8a04);
+}
+
+.progressLow {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.progressVeryLow {
+    background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+/* ==================== Mobile Responsive ==================== */
+@media (max-width: 640px) {
+    .cardContent {
+        padding: 0.875rem;
+    }
+
+    .cardNumber {
+        font-size: 2rem;
+    }
+
+    .cardIcon {
+        width: 1.75rem;
+        height: 1.75rem;
+        padding: 0.375rem;
+    }
+
+    .progressBarContainer {
+        height: 6px;
+    }
+}

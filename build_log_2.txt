@@ -1,0 +1,151 @@
+
+> pragati-platform@0.1.0 build
+> next build
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\Dell\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\Dell\uppcl-progress-app\package-lock.json
+
+   ▲ Next.js 16.0.3 (Turbopack)
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ✓ Compiled successfully in 16.3s
+   Running TypeScript ...
+   Collecting page data using 11 workers ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   Generating static pages using 11 workers (0/23) ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+Layout error: Error: Dynamic server usage: Route /admin/settings couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:1:36931)
+    at n (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:4:6770)
+    at cl (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:41:5287)
+    at g (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\[root-of-the-server]__f457a11f._.js:1:11975)
+    at stringify (<anonymous>) {
+  description: "Route /admin/settings couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Layout error: Error: Dynamic server usage: Route /admin couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:1:36931)
+    at n (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:4:6770)
+    at cl (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:41:5287)
+    at g (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\[root-of-the-server]__f457a11f._.js:1:11975)
+    at stringify (<anonymous>) {
+  description: "Route /admin couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Layout error: Error: Dynamic server usage: Route /admin/users couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:1:36931)
+    at n (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:4:6770)
+    at cl (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:41:5287)
+    at g (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\[root-of-the-server]__f457a11f._.js:1:11975)
+    at stringify (<anonymous>) {
+  description: "Route /admin/users couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Layout error: Error: Dynamic server usage: Route /dashboard couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:1:36931)
+    at n (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:4:6770)
+    at cl (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:41:5287)
+    at g (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\[root-of-the-server]__f457a11f._.js:1:11975)
+    at stringify (<anonymous>) {
+  description: "Route /dashboard couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Layout error: Error: Dynamic server usage: Route /analytics couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:1:36931)
+    at n (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:4:6770)
+    at cl (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:41:5287)
+    at g (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\[root-of-the-server]__f457a11f._.js:1:11975)
+    at stringify (<anonymous>) {
+  description: "Route /analytics couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Layout error: Error: Dynamic server usage: Route /notifications couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:1:36931)
+    at n (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:4:6770)
+    at cl (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:41:5287)
+    at g (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\[root-of-the-server]__f457a11f._.js:1:11975)
+    at stringify (<anonymous>) {
+  description: "Route /notifications couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+   Generating static pages using 11 workers (5/23) 
+   Generating static pages using 11 workers (11/23) 
+Layout error: Error: Dynamic server usage: Route /reports couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:1:36931)
+    at n (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:4:6770)
+    at cl (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:41:5287)
+    at g (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\[root-of-the-server]__f457a11f._.js:1:11975)
+    at stringify (<anonymous>) {
+  description: "Route /reports couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Layout error: Error: Dynamic server usage: Route /profile couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:1:36931)
+    at n (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:4:6770)
+    at cl (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:41:5287)
+    at g (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\[root-of-the-server]__f457a11f._.js:1:11975)
+    at stringify (<anonymous>) {
+  description: "Route /profile couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Layout error: Error: Dynamic server usage: Route /settings couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:1:36931)
+    at n (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:4:6770)
+    at cl (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\uppcl-progress-app_3885b785._.js:41:5287)
+    at g (C:\Users\Dell\uppcl-progress-app\.next\server\chunks\ssr\[root-of-the-server]__f457a11f._.js:1:11975)
+    at stringify (<anonymous>) {
+  description: "Route /settings couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+   Generating static pages using 11 workers (17/23) 
+ ✓ Generating static pages using 11 workers (23/23) in 2.3s
+   Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/settings
+├ ƒ /admin/users
+├ ƒ /analytics
+├ ƒ /api/debug-notification
+├ ƒ /api/debug-user-notifications
+├ ƒ /api/download-photo
+├ ƒ /api/notifications
+├ ƒ /api/progress-logs
+├ ƒ /api/push-token
+├ ƒ /api/r2-signed-url
+├ ƒ /api/schemes
+├ ƒ /api/upload
+├ ƒ /dashboard
+├ ƒ /dashboard/work/[id]
+├ ○ /login
+├ ƒ /notifications
+├ ƒ /profile
+├ ƒ /reports
+├ ƒ /schemes/[scheme]
+└ ƒ /settings
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

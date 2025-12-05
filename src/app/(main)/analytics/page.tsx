@@ -37,11 +37,11 @@ export default async function AnalyticsPage() {
   if (!user) {
     return redirect("/login");
   }
-  
+
   // Check cache for user profile
   const profileCacheKey = CACHE_KEYS.userProfile(user.id);
   let profile = cache.get(profileCacheKey);
-  
+
   if (!profile) {
     const { data: profileData } = await supabase.from("profiles").select("role, full_name, region, division, subdivision, circle, zone").eq("id", user.id).single();
     if (!profileData) {
@@ -55,11 +55,11 @@ export default async function AnalyticsPage() {
   // Get the filtering value from profile based on role
   const profileField = roleToProfileFieldMap[(profile as any).role];
   const filterValue = profileField ? (profile as any)[profileField] : null;
-  
+
   // Check cache for works data
   const worksCacheKey = CACHE_KEYS.userWorks(user.id, (profile as any).role, filterValue);
   let works = cache.get(worksCacheKey);
-  
+
   if (!works) {
     let worksQuery = supabase.from("works").select(`
       id, scheme_sr_no, scheme_name, work_name, work_category, wbs_code, district_name,
@@ -73,7 +73,7 @@ export default async function AnalyticsPage() {
       start_date, scheduled_completion_date, weightage, progress_percentage, remark,
       wbs_code, mb_status, teco_status, fico_status, is_blocked
     `);
-    
+
     const filterColumn = roleToColumnMap[(profile as any).role];
     if ((profile as any).role !== 'superadmin' && filterColumn && filterValue) {
       worksQuery = worksQuery.eq(filterColumn, filterValue);
@@ -91,31 +91,31 @@ export default async function AnalyticsPage() {
   }
 
   if (!works || (works as any).length === 0) {
-     return (
-        <div className="p-4 sm:p-6 lg:p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900">Analytics Dashboard</h1>
-                <p className="text-slate-600">Visual insights into your project data</p>
-              </div>
-            </div>
-            <Card className="border-slate-200">
-              <CardContent className="p-12 text-center">
-                <PieChart className="h-16 w-16 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">No Data Available</h3>
-                <p className="text-slate-600">No data is available for analysis at this time.</p>
-              </CardContent>
-            </Card>
+    return (
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <BarChart3 className="h-6 w-6 text-blue-600" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Analytics Dashboard</h1>
+            <p className="text-slate-600">Visual insights into your project data</p>
+          </div>
         </div>
-     );
+        <Card className="border-slate-200">
+          <CardContent className="p-12 text-center">
+            <PieChart className="h-16 w-16 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">No Data Available</h3>
+            <p className="text-slate-600">No data is available for analysis at this time.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
-  
+
   // Enhanced data aggregation for charts
   const worksData = (works as Work[]) || [];
-  
+
   // Status data
   const statusData = worksData.reduce(
     (acc, work) => {
@@ -137,7 +137,7 @@ export default async function AnalyticsPage() {
   const financialData = worksData.reduce((acc, work) => {
     const progress = work.progress_percentage || 0;
     const agreementAmount = work.agreement_amount || 0;
-    
+
     if (progress === 100) {
       // For completed works, add full amount to completed
       acc[0].value += agreementAmount;
@@ -151,7 +151,7 @@ export default async function AnalyticsPage() {
       // For not started works, add full amount to not-started
       acc[2].value += agreementAmount;
     }
-    
+
     return acc;
   }, [
     { name: 'Completed', value: 0 },
@@ -214,32 +214,32 @@ export default async function AnalyticsPage() {
     return sum + ((work.agreement_amount || 0) * progress) / 100;
   }, 0);
   const averageProgress = worksData.length > 0 ? worksData.reduce((sum, work) => sum + (work.progress_percentage || 0), 0) / worksData.length : 0;
-  
+
   // Generate chart title based on user role
   const getChartTitle = (role: string) => {
     // Always return 'Works by District' regardless of role
     return 'Works by District';
   };
-  
+
   const chartTitle = getChartTitle((profile as any).role);
   // --- END OF DATA LOGIC ---
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-       <div className="flex items-center gap-3">
-          <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <BarChart3 className="h-6 w-6 text-blue-600" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Analytics Dashboard</h1>
-            <p className="text-slate-600">
-              Visual overview of the works within your jurisdiction
-            </p>
-          </div>
-       </div>
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-full overflow-x-hidden">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+          <BarChart3 className="h-6 w-6 text-blue-600" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Analytics Dashboard</h1>
+          <p className="text-slate-600">
+            Visual overview of the works within your jurisdiction
+          </p>
+        </div>
+      </div>
 
       {/* The AnalyticsClient component handles both charts and filtering functionality */}
-      <AnalyticsClient 
+      <AnalyticsClient
         works={worksData}
         statusData={statusData}
         financialData={financialData}

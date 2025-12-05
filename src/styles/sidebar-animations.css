@@ -1,0 +1,138 @@
+/* Sidebar Animation Styles */
+
+/* Slide-in animation for active items */
+@keyframes slideIn {
+    from {
+        transform: translateX(-4px);
+        opacity: 0.8;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Pulse animation for notification badge */
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+/* Bounce animation for notification updates */
+@keyframes bounceIn {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Icon fill animation on hover */
+@keyframes iconFill {
+    from {
+        opacity: 0.7;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Chevron rotation for accordion */
+@keyframes rotateChevron {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(180deg);
+    }
+}
+
+/* Utility classes */
+.sidebar-slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+.badge-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.badge-bounce {
+    animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.icon-hover {
+    transition: all 0.3s ease-in-out;
+}
+
+.icon-hover:hover {
+    animation: iconFill 0.3s ease-in-out forwards;
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+.chevron-rotate {
+    transition: transform 0.3s ease-in-out;
+}
+
+.chevron-rotated {
+    transform: rotate(180deg);
+}
+
+/* Smooth transitions */
+.transition-all-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-colors-smooth {
+    transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+}
+
+/* Elevation effects */
+.elevation-hover {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.elevation-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Dark mode specific animations */
+@media (prefers-color-scheme: dark) {
+    .elevation-hover:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    }
+}

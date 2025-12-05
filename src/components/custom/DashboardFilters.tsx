@@ -753,11 +753,11 @@ export function DashboardFilters({ works, userRole, onFilterChange, onFilterStat
           ))}
           {filters.status.map(v => (
             <Badge key={`status-${v}`} variant="secondary" className="bg-orange-100 text-orange-700 pr-1 flex items-center gap-1">
-              Status: {v.replace('_',' ')}
+              Status: {v === 'blocked' ? 'High Priority or Blocked' : v.replace('_', ' ')}
               <button
                 onClick={() => removeFilterValue('status', v)}
                 className="hover:bg-orange-200 rounded-full p-0.5 transition-colors"
-                title={`Remove filter: Status - ${v.replace('_',' ')}`}
+                title={`Remove filter: Status - ${v === 'blocked' ? 'High Priority or Blocked' : v.replace('_', ' ')}`}
               >
                 <CloseX className="h-3 w-3 text-orange-700" />
               </button>
