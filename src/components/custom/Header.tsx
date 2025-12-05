@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart, LayoutDashboard, LogOut, Menu, Settings, User, Users, FolderOpen, FileText, Bell } from "lucide-react";
+import { BarChart, LayoutDashboard, LogOut, Menu, Settings, User, Users, FolderOpen, FileText, Bell, X } from "lucide-react";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { LogoutButton } from "./LogoutButton";
+import "@/styles/mobile-header.css";
 
 type UserDetails = {
   email: string | undefined;
@@ -49,6 +50,7 @@ export function Header({ userDetails }: { userDetails: UserDetails }) {
   const [isOpen, setIsOpen] = useState(false);
   const [schemes, setSchemes] = useState<string[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isScrolled, setIsScrolled] = useState(false);
   const navItems = allNavItems.filter(item => item.roles.includes(userDetails.role));
 
   useEffect(() => {
@@ -82,43 +84,50 @@ export function Header({ userDetails }: { userDetails: UserDetails }) {
     return () => clearInterval(intervalId);
   }, []);
 
+  // Scroll detection for header shadow
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
 
   return (
-    <header className="sticky top-0 z-50 flex h-20 items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur-sm px-4 shadow-sm" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)' }}>
-      {/* Logo - only visible on mobile */}
-      <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent md:hidden tracking-wide">Pragati</Link>
-
-      {/* Mobile hamburger menu - only visible on mobile */}
-      <div className="flex md:hidden mobile-menu-trigger items-center gap-3">
-        {/* Notification Badge Indicator */}
-        <Link href="/notifications" className="relative flex items-center justify-center p-2 -mr-2">
-          <Bell className="h-6 w-6 text-slate-700" />
-          {unreadCount > 0 && (
-            <span
-              className="absolute top-0 right-0 flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-bold text-white bg-red-600 rounded-full shadow-lg"
-              style={{
-                border: '2px solid white',
-                zIndex: 9999,
-                transform: 'translate(25%, -25%)'
-              }}
-            >
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </Link>
-
+    <header
+      className={cn(
+        "sticky top-0 z-50 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur-sm px-6 transition-shadow duration-300",
+        isScrolled ? "mobile-header-scrolled" : "shadow-sm"
+      )}
+      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)' }}
+    >
+      {/* Mobile Layout - only visible on mobile */}
+      <div className="flex md:hidden items-center gap-4 flex-1">
+        {/* Hamburger Menu - Left Side */}
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
             <EnhancedButton
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="border-slate-200 hover:bg-slate-50 h-12 w-12"
-              aria-label="Toggle navigation menu"
+              className="hover:bg-slate-100 h-10 w-10 transition-all duration-200"
+              aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
             >
-              <Menu className="h-6 w-6 text-slate-700" />
+              {isOpen ? (
+                <X className="h-6 w-6 text-slate-700 mobile-header-icon-close" />
+              ) : (
+                <Menu className="h-6 w-6 text-slate-700 mobile-header-icon-menu" />
+              )}
             </EnhancedButton>
           </SheetTrigger>
-          <SheetContent side="right" className="flex flex-col w-80 bg-white border-l border-slate-200 z-[60]">
+
+          {/* Pragati Logo - Center-Left */}
+          <Link href="/" className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-wide ml-1">
+            Pragati
+          </Link>
+
+          <SheetContent side="left" className="flex flex-col w-80 bg-white border-r border-slate-200 z-[60]">
             <SheetHeader className="border-b border-slate-200 px-6 py-4 bg-slate-50" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}>
               <SheetTitle className="text-left">
                 <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-wide" onClick={() => setIsOpen(false)}>Pragati Menu</Link>
@@ -175,6 +184,23 @@ export function Header({ userDetails }: { userDetails: UserDetails }) {
           </SheetContent>
         </Sheet>
       </div>
+
+      {/* Notification Bell - Right Side (Mobile) */}
+      <Link href="/notifications" className="md:hidden relative flex items-center justify-center p-2 hover:bg-slate-100 rounded-lg transition-colors duration-200">
+        <Bell className="h-6 w-6 text-slate-700" />
+        {unreadCount > 0 && (
+          <span
+            className="absolute top-0 right-0 flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-bold text-white bg-red-600 rounded-full shadow-lg mobile-header-badge"
+            style={{
+              border: '2px solid white',
+              zIndex: 9999,
+              transform: 'translate(25%, -25%)'
+            }}
+          >
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </Link>
 
       {/* Desktop - no content needed */}
       <div className="hidden md:block"></div>

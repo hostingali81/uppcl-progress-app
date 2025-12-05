@@ -1,0 +1,127 @@
+/* Mobile Header Styles - Premium animations and effects */
+
+/* Scroll Shadow Effect */
+.mobile-header-scrolled {
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Icon Animation - Menu to X transition */
+.mobile-header-icon-menu {
+  animation: iconFadeIn 0.2s ease-in-out;
+}
+
+.mobile-header-icon-close {
+  animation: iconRotateIn 0.3s ease-in-out;
+}
+
+@keyframes iconFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes iconRotateIn {
+  from {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+/* Badge Pulse Animation */
+.mobile-header-badge {
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0);
+  }
+}
+
+/* Touch-friendly hover states for mobile */
+@media (hover: none) {
+  /* Active states for touch devices */
+  .mobile-header-icon-menu:active,
+  .mobile-header-icon-close:active {
+    opacity: 0.7;
+  }
+}
+
+/* Smooth transitions for all interactive elements */
+header a,
+header button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Ensure smooth drawer animation */
+[data-radix-sheet-content] {
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Premium glassmorphism effect on header */
+header {
+  background: rgba(255, 255, 255, 0.95);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+/* Subtle gradient overlay for depth */
+header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Mobile-specific enhancements */
+@media (max-width: 768px) {
+  /* Ensure proper spacing on mobile */
+  header {
+    min-height: 64px;
+  }
+
+  /* Improve touch targets */
+  header button,
+  header a {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Optimize for notched devices */
+  @supports (padding: max(0px)) {
+    header {
+      padding-left: max(1.5rem, env(safe-area-inset-left));
+      padding-right: max(1.5rem, env(safe-area-inset-right));
+    }
+  }
+}
+
+/* Dark mode support (if needed in future) */
+@media (prefers-color-scheme: dark) {
+  header {
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(148, 163, 184, 0.2);
+  }
+
+  .mobile-header-scrolled {
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+  }
+}
