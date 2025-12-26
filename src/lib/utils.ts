@@ -14,7 +14,7 @@ type DateFormatOptions = {
 export function formatDate(dateString: string, options: DateFormatOptions = {}): string {
   const { includeTime = true, locale = 'en-IN' } = options;
   const date = new Date(dateString);
-  
+
   const formatOptions: Intl.DateTimeFormatOptions = {
     day: 'numeric',
     month: 'short',
@@ -26,14 +26,6 @@ export function formatDate(dateString: string, options: DateFormatOptions = {}):
   };
 
   return date.toLocaleDateString(locale, formatOptions);
-}
-
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 2
-  }).format(amount);
 }
 
 /**
@@ -78,7 +70,7 @@ export function debounce<T extends (...args: any[]) => any>(
   wait: number
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout;
-  
+
   return function (...args: Parameters<T>): void {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
