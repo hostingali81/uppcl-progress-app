@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Download, Save, RefreshCw, Calendar, TrendingUp, Clock } from 'lucide-react';
+import { Download, Save, RefreshCw, Calendar } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 

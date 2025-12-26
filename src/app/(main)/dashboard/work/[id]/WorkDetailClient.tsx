@@ -3,14 +3,14 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { ArrowLeft, FileText, MapPin, DollarSign, Calendar, Users, AlertTriangle, CheckCircle, Clock, TrendingUp, Building2, MapPin as LocationIcon, FileText as DocumentIcon, DollarSign as MoneyIcon, Calendar as CalendarIcon, Users as TeamIcon, Settings, BarChart as BarChartIcon } from "lucide-react";
+import { ArrowLeft, FileText, AlertTriangle, CheckCircle, MapPin as LocationIcon, FileText as DocumentIcon, DollarSign as MoneyIcon, Calendar as CalendarIcon, BarChartIcon } from "lucide-react";
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ClickableDetailRow } from './ClickableDetailRow';
 import EditableStatusRow, { EditableDetailRow } from './EditableStatusRow';
 import { EnhancedButton } from "@/components/ui/enhanced-button";
-import { formatAmountFromLacs, formatDateDDMMYYYY, formatCurrency } from '@/lib/utils';
-import { formatIndianCurrency, formatIndianLakhs } from '@/lib/formatters';
+import { formatCurrency } from '@/lib/utils';
+import { formatIndianCurrency } from '@/lib/formatters';
 import { UpdateProgressForm } from "./UpdateProgressForm";
 import { UpdateBillingForm } from "./UpdateBillingForm";
 import { FileUploadManager } from "@/components/custom/FileUploadManager";
@@ -18,7 +18,6 @@ import { CommentsSection } from "@/components/custom/CommentsSection";
 import { BlockerStatusManager } from "@/components/custom/BlockerStatusManager";
 import { ProgressLogsSection } from "@/components/custom/ProgressLogsSection";
 
-import { PaymentStatusTab } from "@/components/custom/PaymentStatusTab";
 import { TimelineChart } from "@/components/custom/TimelineChart";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
