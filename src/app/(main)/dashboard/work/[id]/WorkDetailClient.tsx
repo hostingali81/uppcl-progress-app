@@ -20,8 +20,9 @@ import { ProgressLogsSection } from "@/components/custom/ProgressLogsSection";
 
 import { PaymentStatusTab } from "@/components/custom/PaymentStatusTab";
 import { TimelineChart } from "@/components/custom/TimelineChart";
-import { ProjectGanttChart } from "@/components/custom/ProjectGanttChart";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
+
 
 interface WorkData {
     id: number;
@@ -307,22 +308,12 @@ export default function WorkDetailClient({
                                     />
                                 </DialogContent>
                             </Dialog>
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <EnhancedButton variant="default" size="sm" className="h-8 gap-2 bg-teal-600 hover:bg-teal-700 text-white ml-2">
-                                        <FileText className="h-4 w-4" />
-                                        Detailed Schedule
-                                    </EnhancedButton>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-[95vw] h-[90vh] p-0 overflow-hidden flex flex-col">
-                                    <div className="p-6 pb-2">
-                                        <DialogTitle>Construction Schedule - Gantt Chart</DialogTitle>
-                                    </div>
-                                    <div className="flex-1 p-4 overflow-hidden">
-                                        <ProjectGanttChart />
-                                    </div>
-                                </DialogContent>
-                            </Dialog>
+                            <Link href={`/dashboard/work/${work.id}/schedule`}>
+                                <EnhancedButton variant="default" size="sm" className="h-8 gap-2 bg-teal-600 hover:bg-teal-700 text-white">
+                                    <FileText className="h-4 w-4" />
+                                    Detailed Schedule
+                                </EnhancedButton>
+                            </Link>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
