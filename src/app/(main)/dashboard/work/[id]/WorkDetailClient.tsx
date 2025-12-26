@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { ArrowLeft, FileText, MapPin, DollarSign, Calendar, Users, AlertTriangle, CheckCircle, Clock, TrendingUp, Building2, MapPin as LocationIcon, FileText as DocumentIcon, DollarSign as MoneyIcon, Calendar as CalendarIcon, Users as TeamIcon, Settings } from "lucide-react";
+import { ArrowLeft, FileText, MapPin, DollarSign, Calendar, Users, AlertTriangle, CheckCircle, Clock, TrendingUp, Building2, MapPin as LocationIcon, FileText as DocumentIcon, DollarSign as MoneyIcon, Calendar as CalendarIcon, Users as TeamIcon, Settings, BarChart as BarChartIcon } from "lucide-react";
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ClickableDetailRow } from './ClickableDetailRow';
@@ -19,6 +19,9 @@ import { BlockerStatusManager } from "@/components/custom/BlockerStatusManager";
 import { ProgressLogsSection } from "@/components/custom/ProgressLogsSection";
 
 import { PaymentStatusTab } from "@/components/custom/PaymentStatusTab";
+import { TimelineChart } from "@/components/custom/TimelineChart";
+import { ProjectGanttChart } from "@/components/custom/ProjectGanttChart";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface WorkData {
     id: number;
@@ -281,10 +284,45 @@ export default function WorkDetailClient({
                             <div className="h-10 w-10 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
                                 <CalendarIcon className="h-5 w-5 text-white" />
                             </div>
-                            <div>
+                            <div className="flex-1">
                                 <CardTitle className="text-xl font-bold text-slate-900">Timeline Information</CardTitle>
                                 <CardDescription className="text-slate-600">Project schedule and milestones</CardDescription>
                             </div>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <EnhancedButton variant="outline" size="sm" className="h-8 gap-2 border-teal-200 text-teal-700 hover:bg-teal-50 hover:text-teal-800">
+                                        <BarChartIcon className="h-4 w-4" />
+                                        View Chart
+                                    </EnhancedButton>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-md md:max-w-2xl">
+                                    <DialogHeader>
+                                        <DialogTitle>Project Timeline Analysis</DialogTitle>
+                                    </DialogHeader>
+                                    <TimelineChart
+                                        startDate={work.start_date}
+                                        scheduledDate={work.scheduled_completion_date}
+                                        expectedDate={work.expected_completion_date}
+                                        actualDate={work.actual_completion_date}
+                                    />
+                                </DialogContent>
+                            </Dialog>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <EnhancedButton variant="default" size="sm" className="h-8 gap-2 bg-teal-600 hover:bg-teal-700 text-white ml-2">
+                                        <FileText className="h-4 w-4" />
+                                        Detailed Schedule
+                                    </EnhancedButton>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-[95vw] h-[90vh] p-0 overflow-hidden flex flex-col">
+                                    <div className="p-6 pb-2">
+                                        <DialogTitle>Construction Schedule - Gantt Chart</DialogTitle>
+                                    </div>
+                                    <div className="flex-1 p-4 overflow-hidden">
+                                        <ProjectGanttChart />
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
