@@ -9,7 +9,6 @@ import { useSearchParams } from 'next/navigation';
 import { ClickableDetailRow } from './ClickableDetailRow';
 import EditableStatusRow, { EditableDetailRow } from './EditableStatusRow';
 import { EnhancedButton } from "@/components/ui/enhanced-button";
-import { formatCurrency } from '@/lib/utils';
 import { formatIndianCurrency } from '@/lib/formatters';
 import { UpdateProgressForm } from "./UpdateProgressForm";
 import { UpdateBillingForm } from "./UpdateBillingForm";
