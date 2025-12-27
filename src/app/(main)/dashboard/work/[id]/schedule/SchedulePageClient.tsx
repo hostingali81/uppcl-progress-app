@@ -15,9 +15,12 @@ import {
     Trash2
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 import { workToGanttTasks, type GanttTask, type GanttChangeEvent } from "@/types/gantt";
 
 interface SchedulePageClientProps {
@@ -27,6 +30,9 @@ interface SchedulePageClientProps {
 type ZoomLevel = 'day' | 'week' | 'month' | 'year';
 
 export function SchedulePageClient({ work }: SchedulePageClientProps) {
+    // Ref for Gantt chart container to capture for export
+    const ganttContainerRef = useRef<HTMLDivElement>(null);
+
     // State
     const [zoom, setZoom] = useState<ZoomLevel>('month');
     const [pendingChanges, setPendingChanges] = useState<GanttChangeEvent[]>([]);
@@ -154,23 +160,194 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
     }, [pendingChanges]);
 
     // Export to Excel
-    const handleExport = useCallback(() => {
-        const exportData = allTasks.map(task => ({
-            'Activity': task.text,
-            'Type': task.isMainActivity ? 'Main Activity' : 'Sub-Activity',
-            'Start Date': task.start_date,
-            'End Date': task.end_date || '',
-            'Duration': task.duration || '',
-            'Progress (%)': Math.round((task.progress || 0) * 100),
-            'Parent': task.parent || ''
-        }));
+    const handleExportExcel = useCallback(async () => {
+        try {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Schedule');
 
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Schedule");
-        XLSX.writeFile(wb, `${work.work_name || 'Project'}_Schedule.xlsx`);
+            // Set headers
+            worksheet.columns = [
+                { header: 'Activity', key: 'activity', width: 40 },
+                { header: 'Type', key: 'type', width: 15 },
+                { header: 'Start Date', key: 'startDate', width: 15 },
+                { header: 'End Date', key: 'endDate', width: 15 },
+                { header: 'Progress (%)', key: 'progress', width: 12 }
+            ];
 
-        toast.success('Exported schedule to Excel');
+            // Style header row
+            const headerRow = worksheet.getRow(1);
+            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            headerRow.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF4472C4' }
+            };
+            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            // Add data
+            allTasks.forEach(task => {
+                worksheet.addRow({
+                    activity: task.text,
+                    type: task.isMainActivity ? 'Main Activity' : 'Sub-Activity',
+                    startDate: task.start_date,
+                    endDate: task.end_date || '-',
+                    progress: Math.round((task.progress || 0) * 100)
+                });
+            });
+
+            // Generate buffer and download using Blob
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Schedule_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Cleanup
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+
+            toast.success('Exported schedule to Excel');
+        } catch (error) {
+            console.error('Excel export error:', error);
+            toast.error('Failed to export Excel');
+        }
+    }, [allTasks]);
+
+    // Export to PDF with Gantt chart visual
+    // Export to PDF with Gantt chart visual and table fallback
+    const handleExportPDF = useCallback(async () => {
+        try {
+            toast.info('Generating PDF...');
+
+            const ganttElement = ganttContainerRef.current;
+            let visualCaptured = false;
+            let imgData = '';
+            let imgWidth = 0;
+            let imgHeight = 0;
+
+            if (ganttElement) {
+                try {
+                    // Capture the Gantt chart as image
+                    const canvas = await html2canvas(ganttElement, {
+                        scale: 1.5, // Lower scale for better compatibility
+                        useCORS: true,
+                        logging: false,
+                        backgroundColor: '#ffffff',
+                        onclone: (clonedDoc) => {
+                            // 1. Aggressively sanitize all <style> tags
+                            const styleTags = clonedDoc.querySelectorAll('style');
+                            styleTags.forEach(tag => {
+                                const css = tag.textContent || '';
+                                if (css.includes('oklab') || css.includes('oklch')) {
+                                    tag.textContent = css.replace(/(oklab|oklch)\([^)]+\)/g, 'rgb(71, 85, 105)');
+                                }
+                            });
+
+                            // 2. Remove problematic link tags (safer for capture)
+                            const linkTags = clonedDoc.querySelectorAll('link[rel="stylesheet"]');
+                            linkTags.forEach(tag => {
+                                tag.remove();
+                            });
+
+                            // 3. Force standard colors on elements
+                            const elements = clonedDoc.querySelectorAll('*');
+                            elements.forEach(el => {
+                                const htmlEl = el as HTMLElement;
+                                ['backgroundColor', 'color', 'borderColor', 'fill', 'stroke'].forEach(prop => {
+                                    try {
+                                        const style = window.getComputedStyle(htmlEl);
+                                        const val = (htmlEl.style as any)[prop] || style.getPropertyValue(prop);
+                                        if (val && (val.includes('oklab') || val.includes('oklch'))) {
+                                            (htmlEl.style as any)[prop] = prop === 'backgroundColor' ? '#ffffff' : '#475569';
+                                        }
+                                    } catch (e) { }
+                                });
+                            });
+                        }
+                    });
+
+                    imgData = canvas.toDataURL('image/png');
+                    imgWidth = canvas.width;
+                    imgHeight = canvas.height;
+                    visualCaptured = true;
+                } catch (captureError) {
+                    console.warn('Visual capture failed, falling back to table:', captureError);
+                    toast.info('Visual capture skipped, generating table report...');
+                }
+            }
+
+            // Create PDF in landscape
+            const doc = new jsPDF('l', 'mm', 'a4');
+            const pdfWidth = doc.internal.pageSize.getWidth();
+            const pdfHeight = doc.internal.pageSize.getHeight();
+
+            // Header
+            doc.setFontSize(14);
+            doc.text(`Project Schedule - ${work.work_name || 'Project'}`, pdfWidth / 2, 12, { align: 'center' });
+
+            doc.setFontSize(9);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Generated: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`, 14, 18);
+            doc.setTextColor(0, 0, 0);
+
+            if (visualCaptured && imgData) {
+                // Add Chart image
+                const margin = 10;
+                const maxWidth = pdfWidth - (margin * 2);
+                const maxHeight = pdfHeight - 40;
+                const scale = Math.min(maxWidth / (imgWidth / 3.78), maxHeight / (imgHeight / 3.78));
+                const scaledWidth = (imgWidth / 3.78) * scale;
+                const scaledHeight = (imgHeight / 3.78) * scale * 0.9;
+                doc.addImage(imgData, 'PNG', margin, 22, scaledWidth, scaledHeight);
+
+                // Add table on a new page
+                doc.addPage();
+                doc.setFontSize(14);
+                doc.text(`Activity Details`, pdfWidth / 2, 12, { align: 'center' });
+            }
+
+            // Add Table data
+            const tableData = allTasks.map(task => [
+                task.text,
+                task.isMainActivity ? 'Main Activity' : 'Sub-Activity',
+                task.start_date,
+                task.end_date || '-',
+                `${Math.round((task.progress || 0) * 100)}%`
+            ]);
+
+            autoTable(doc, {
+                startY: visualCaptured ? 22 : 25,
+                head: [['Activity', 'Type', 'Start Date', 'End Date', 'Progress']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 9, halign: 'center' },
+                styles: { fontSize: 8, cellPadding: 3 },
+                columnStyles: { 0: { cellWidth: 80 }, 1: { cellWidth: 35 }, 2: { cellWidth: 35 }, 3: { cellWidth: 35 }, 4: { cellWidth: 25 } }
+            });
+
+            // Save the PDF using Blob for better reliability
+            const pdfBlob = doc.output('blob');
+            const url = URL.createObjectURL(pdfBlob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Schedule_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Cleanup
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+
+            toast.success(visualCaptured ? 'Exported Gantt chart and table to PDF!' : 'Exported schedule table to PDF!');
+        } catch (error) {
+            console.error('PDF export error:', error);
+            toast.error('Failed to export PDF');
+        }
     }, [allTasks, work.work_name]);
 
     // Zoom controls
@@ -296,11 +473,20 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleExport}
+                        onClick={handleExportExcel}
                         className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                     >
                         <Download className="h-4 w-4 mr-1" />
-                        Export
+                        Excel
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportPDF}
+                        className="border-rose-200 text-rose-700 hover:bg-rose-50"
+                    >
+                        <Download className="h-4 w-4 mr-1" />
+                        PDF
                     </Button>
                     <Button
                         size="sm"
@@ -316,7 +502,7 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
 
             {/* Gantt Chart */}
             <div className="h-[calc(100vh-200px)] p-4 sm:p-6">
-                <div className="h-full bg-white rounded-xl shadow-lg border border-slate-200/60 overflow-hidden">
+                <div ref={ganttContainerRef} className="h-full bg-white rounded-xl shadow-lg border border-slate-200/60 overflow-hidden">
                     <GanttChartWrapper
                         tasks={allTasks}
                         onTaskChange={handleTaskChange}

@@ -42,6 +42,7 @@
     "dhtmlx-gantt": "^9.1.1",
     "exceljs": "^4.4.0",
     "googleapis": "^164.1.0",
+    "html2canvas": "^1.4.1",
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
