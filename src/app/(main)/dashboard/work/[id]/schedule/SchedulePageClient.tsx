@@ -95,8 +95,27 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
     // Combine base tasks with any custom tasks, filtering out deleted ones
     const allTasks = useMemo(() => {
         if (isLoading) return [];
-        const activeBaseTasks = baseTasks.filter(t => !deletedTaskIds.has(String(t.id)));
-        return [...activeBaseTasks, ...customTasks];
+        
+        // Create a map of custom tasks for quick lookup
+        const customTasksMap = new Map(customTasks.map(t => [String(t.id), t]));
+        
+        // Merge base tasks with custom updates
+        const mergedBaseTasks = baseTasks
+            .filter(t => !deletedTaskIds.has(String(t.id)))
+            .map(baseTask => {
+                const customUpdate = customTasksMap.get(String(baseTask.id));
+                if (customUpdate) {
+                    // Remove from map as we've used it
+                    customTasksMap.delete(String(baseTask.id));
+                    return customUpdate;
+                }
+                return baseTask;
+            });
+        
+        // Add remaining custom tasks (new ones not in base)
+        const remainingCustomTasks = Array.from(customTasksMap.values());
+        
+        return [...mergedBaseTasks, ...remainingCustomTasks];
     }, [baseTasks, customTasks, deletedTaskIds, isLoading]);
 
     // Handle task changes
@@ -106,14 +125,29 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
         if (event.type === 'add' && event.task) {
             setCustomTasks(prev => [...prev, event.task!]);
         } else if (event.type === 'update' && event.task) {
+            // Update both customTasks and baseTasks
             setCustomTasks(prev =>
                 prev.map(t => t.id === event.task!.id ? event.task! : t)
             );
+            // Force re-render by updating the task in allTasks
+            const taskId = event.task.id;
+            const isBaseTask = baseTasks.some(t => t.id === taskId);
+            if (isBaseTask) {
+                // Store the update for base tasks too
+                setCustomTasks(prev => {
+                    const existing = prev.find(t => t.id === taskId);
+                    if (existing) {
+                        return prev.map(t => t.id === taskId ? event.task! : t);
+                    } else {
+                        return [...prev, event.task!];
+                    }
+                });
+            }
         } else if (event.type === 'delete' && event.taskId) {
             setCustomTasks(prev => prev.filter(t => t.id !== event.taskId));
             setDeletedTaskIds(prev => new Set(prev).add(String(event.taskId)));
         }
-    }, []);
+    }, [baseTasks]);
 
     const handleLinkChange = useCallback((event: GanttChangeEvent) => {
         setPendingChanges(prev => [...prev, event]);
