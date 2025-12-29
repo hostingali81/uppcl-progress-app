@@ -420,17 +420,17 @@ export function DhtmlxGanttChart({
         gantt.locale.labels.section_time = 'Duration';
         gantt.locale.labels.section_progress = 'Progress (%)';
 
-        // Attach event to convert progress input
+        // Attach event to convert progress for display
         gantt.attachEvent('onBeforeLightbox', (id: string | number) => {
           const task = gantt.getTask(id);
-          // Convert 0-1 to 0-100 for display
-          (task as any)._progress_display = Math.round((task.progress || 0) * 100);
+          // Convert 0-1 to 0-100 for display (round to whole number)
+          task.progress = Math.round((task.progress || 0) * 100);
           return true;
         });
 
         gantt.attachEvent('onLightboxSave', (id: string | number, task: any) => {
           // Convert input (0-100) back to 0-1
-          const progressValue = parseFloat(task.progress);
+          const progressValue = parseInt(task.progress);
           if (!isNaN(progressValue)) {
             task.progress = Math.max(0, Math.min(100, progressValue)) / 100;
           } else {
