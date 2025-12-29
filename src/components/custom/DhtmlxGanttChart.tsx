@@ -412,28 +412,32 @@ export function DhtmlxGanttChart({
         gantt.config.lightbox.sections = [
           { name: 'description', height: 38, map_to: 'text', type: 'textarea', focus: true },
           { name: 'time', type: 'duration', map_to: 'auto' },
-          {
-            name: 'progress', height: 38, map_to: 'progress', type: 'select', options: [
-              { key: 0, label: '0%' },
-              { key: 0.1, label: '10%' },
-              { key: 0.2, label: '20%' },
-              { key: 0.3, label: '30%' },
-              { key: 0.4, label: '40%' },
-              { key: 0.5, label: '50%' },
-              { key: 0.6, label: '60%' },
-              { key: 0.7, label: '70%' },
-              { key: 0.8, label: '80%' },
-              { key: 0.9, label: '90%' },
-              { key: 1, label: '100%' }
-            ]
-          }
+          { name: 'progress', height: 38, map_to: 'progress', type: 'textarea' }
         ];
 
-        // CRITICAL FIX: Enable delete button in lightbox
-        // This adds Save, Delete, and Cancel buttons to the edit popup
+        // Custom template for progress input to show percentage
         gantt.locale.labels.section_description = 'Activity Name';
         gantt.locale.labels.section_time = 'Duration';
-        gantt.locale.labels.section_progress = 'Progress';
+        gantt.locale.labels.section_progress = 'Progress (%)';
+
+        // Attach event to convert progress input
+        gantt.attachEvent('onBeforeLightbox', (id: string | number) => {
+          const task = gantt.getTask(id);
+          // Convert 0-1 to 0-100 for display
+          (task as any)._progress_display = Math.round((task.progress || 0) * 100);
+          return true;
+        });
+
+        gantt.attachEvent('onLightboxSave', (id: string | number, task: any) => {
+          // Convert input (0-100) back to 0-1
+          const progressValue = parseFloat(task.progress);
+          if (!isNaN(progressValue)) {
+            task.progress = Math.max(0, Math.min(100, progressValue)) / 100;
+          } else {
+            task.progress = 0;
+          }
+          return true;
+        });
 
         // Enable keyboard delete support
         gantt.keys.edit_save = 13; // Enter to save
