@@ -63,12 +63,12 @@ const GANTT_STYLES = `
   }
   
   .gantt_task_line.gantt_project {
-    background: linear-gradient(to right, #8b5cf6, #d946ef, #f43f5e);
-    border-color: #a78bfa;
+    background: linear-gradient(to right, #f59e0b, #f97316);
+    border-color: #fb923c;
   }
   
   .gantt_task_line.gantt_task {
-    background: linear-gradient(to right, #3b82f6, #6366f1, #8b5cf6);
+    background: linear-gradient(to right, #3b82f6, #2563eb);
     border-color: #60a5fa;
   }
   
@@ -79,8 +79,9 @@ const GANTT_STYLES = `
   
   /* Progress bar */
   .gantt_task_progress {
-    background: rgba(255, 255, 255, 0.3);
+    background: linear-gradient(to right, #10b981, #059669);
     border-radius: 4px;
+    opacity: 0.9;
   }
   
   .gantt_task_progress_wrapper {
