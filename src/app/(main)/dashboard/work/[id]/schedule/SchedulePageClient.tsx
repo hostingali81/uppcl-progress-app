@@ -24,6 +24,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
 import { workToGanttTasks, type GanttTask, type GanttChangeEvent } from "@/types/gantt";
+import { saveScheduleData, loadScheduleData } from './actions';
 
 interface SchedulePageClientProps {
     work: any;
@@ -42,7 +43,7 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
     const [deletedTaskIds, setDeletedTaskIds] = useState<Set<string | number>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
 
-    // Load saved schedule data
+    // Load saved schedule data from Supabase
     useEffect(() => {
         const loadSavedData = async () => {
             if (!work?.id) {
@@ -50,16 +51,28 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                 return;
             }
             try {
-                let localWork = await db.works.get(Number(work.id));
-
-                if (localWork?.schedule_data) {
-                    const data = JSON.parse(localWork.schedule_data);
+                // Try loading from Supabase first
+                const result = await loadScheduleData(Number(work.id));
+                
+                if (result.success && result.data) {
+                    const data = JSON.parse(result.data);
                     if (data.customTasks) setCustomTasks(data.customTasks);
                     if (data.deletedTaskIds) {
                         const idsAsStrings = data.deletedTaskIds.map((id: any) => String(id));
                         setDeletedTaskIds(new Set(idsAsStrings));
                     }
                     toast.success('Restored saved schedule');
+                } else {
+                    // Fallback to IndexedDB
+                    let localWork = await db.works.get(Number(work.id));
+                    if (localWork?.schedule_data) {
+                        const data = JSON.parse(localWork.schedule_data);
+                        if (data.customTasks) setCustomTasks(data.customTasks);
+                        if (data.deletedTaskIds) {
+                            const idsAsStrings = data.deletedTaskIds.map((id: any) => String(id));
+                            setDeletedTaskIds(new Set(idsAsStrings));
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load schedule data:', error);
@@ -167,14 +180,12 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
         toast.info('Reset to original schedule');
     }, []);
 
-    // Save changes (prepared for future API integration)
+    // Save changes to Supabase
     const handleSave = useCallback(async () => {
         if (pendingChanges.length === 0 && deletedTaskIds.size === 0) {
             toast.info('No changes to save');
             return;
         }
-
-
 
         try {
             const scheduleData = JSON.stringify({
@@ -183,41 +194,48 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
             });
 
             const workId = Number(work.id);
-            const existing = await db.works.get(workId);
-
-            if (existing) {
-                await db.works.update(workId, { schedule_data: scheduleData });
+            
+            // Save to Supabase
+            const result = await saveScheduleData(workId, scheduleData);
+            
+            if (result.success) {
+                // Also save to IndexedDB for offline access
+                const existing = await db.works.get(workId);
+                if (existing) {
+                    await db.works.update(workId, { schedule_data: scheduleData });
+                } else {
+                    await db.works.add({
+                        id: workId,
+                        region: work.region || '',
+                        division: work.division || '',
+                        subdivision: work.subdivision || '',
+                        description: work.work_name || work.description || '',
+                        wbs: work.wbs || '',
+                        tender_amount: work.tender_amount || null,
+                        tender_date: work.tender_date || null,
+                        vendor: work.vendor || null,
+                        time_period_in_days: work.time_period_in_days || null,
+                        status: work.status || null,
+                        reason: work.reason || null,
+                        user_id: work.user_id || '',
+                        created_at: work.created_at || new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        wom_date: work.wom_date || null,
+                        completion_date: work.completion_date || null,
+                        bill_no: work.bill_no || null,
+                        bill_amount_with_tax: work.bill_amount_with_tax || null,
+                        syncStatus: 'synced',
+                        lastSyncAttempt: null,
+                        syncError: null,
+                        schedule_data: scheduleData
+                    });
+                }
+                
+                setPendingChanges([]);
+                toast.success('Schedule saved successfully!');
             } else {
-                // Create minimal work record if not exists
-                await db.works.add({
-                    id: workId,
-                    region: work.region || '',
-                    division: work.division || '',
-                    subdivision: work.subdivision || '',
-                    description: work.work_name || work.description || '',
-                    wbs: work.wbs || '',
-                    tender_amount: work.tender_amount || null,
-                    tender_date: work.tender_date || null,
-                    vendor: work.vendor || null,
-                    time_period_in_days: work.time_period_in_days || null,
-                    status: work.status || null,
-                    reason: work.reason || null,
-                    user_id: work.user_id || '',
-                    created_at: work.created_at || new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                    wom_date: work.wom_date || null,
-                    completion_date: work.completion_date || null,
-                    bill_no: work.bill_no || null,
-                    bill_amount_with_tax: work.bill_amount_with_tax || null,
-                    syncStatus: 'synced',
-                    lastSyncAttempt: null,
-                    syncError: null,
-                    schedule_data: scheduleData
-                });
+                throw new Error(result.error || 'Failed to save');
             }
-
-            setPendingChanges([]);
-            toast.success('Schedule saved successfully!');
         } catch (err) {
             console.error('Save failed:', err);
             toast.error('Failed to save changes.');
