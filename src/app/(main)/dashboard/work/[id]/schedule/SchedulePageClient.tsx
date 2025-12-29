@@ -63,7 +63,7 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                     }
                     toast.success('Restored saved schedule');
                 } else {
-                    // Fallback to IndexedDB
+                    // Fallback to IndexedDB and auto-sync to Supabase
                     let localWork = await db.works.get(Number(work.id));
                     if (localWork?.schedule_data) {
                         const data = JSON.parse(localWork.schedule_data);
@@ -71,6 +71,12 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                         if (data.deletedTaskIds) {
                             const idsAsStrings = data.deletedTaskIds.map((id: any) => String(id));
                             setDeletedTaskIds(new Set(idsAsStrings));
+                        }
+                        
+                        // Auto-sync to Supabase
+                        const syncResult = await saveScheduleData(Number(work.id), localWork.schedule_data);
+                        if (syncResult.success) {
+                            toast.success('Schedule synced to cloud');
                         }
                     }
                 }
