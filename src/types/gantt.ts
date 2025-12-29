@@ -64,7 +64,7 @@ export interface GanttChartProps {
     onLinkChange?: (event: GanttChangeEvent) => void;
     readOnly?: boolean;
     height?: string;
-    zoom?: 'day' | 'week' | 'month' | 'year';
+    zoom?: 'day' | 'week' | 'month' | 'year' | 'quarter_day' | 'alternate_day';
 }
 
 /**
@@ -140,7 +140,7 @@ export function workToGanttTasks(work: any): GanttTask[] {
             start_date: taskStartDate,
             end_date: taskEndDate,
             progress: calculateProgress(taskStartDate, taskEndDate),
-            open: true,
+            open: false,
             type: template.isMain ? 'project' : 'task',
             parent: template.parent,
             isMainActivity: template.isMain

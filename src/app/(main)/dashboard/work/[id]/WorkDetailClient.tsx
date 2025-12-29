@@ -287,25 +287,6 @@ export default function WorkDetailClient({
                                 <CardTitle className="text-xl font-bold text-slate-900">Timeline Information</CardTitle>
                                 <CardDescription className="text-slate-600">Project schedule and milestones</CardDescription>
                             </div>
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <EnhancedButton variant="outline" size="sm" className="h-8 gap-2 border-teal-200 text-teal-700 hover:bg-teal-50 hover:text-teal-800">
-                                        <BarChartIcon className="h-4 w-4" />
-                                        View Chart
-                                    </EnhancedButton>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-md md:max-w-2xl">
-                                    <DialogHeader>
-                                        <DialogTitle>Project Timeline Analysis</DialogTitle>
-                                    </DialogHeader>
-                                    <TimelineChart
-                                        startDate={work.start_date}
-                                        scheduledDate={work.scheduled_completion_date}
-                                        expectedDate={work.expected_completion_date}
-                                        actualDate={work.actual_completion_date}
-                                    />
-                                </DialogContent>
-                            </Dialog>
                             <Link href={`/dashboard/work/${work.id}/schedule`}>
                                 <EnhancedButton variant="default" size="sm" className="h-8 gap-2 bg-teal-600 hover:bg-teal-700 text-white">
                                     <FileText className="h-4 w-4" />
@@ -321,7 +302,10 @@ export default function WorkDetailClient({
                             <DetailRow label="Expected Date of Completion" value={work.expected_completion_date} fieldName="expected_completion_date" workId={work.id} type="date" />
                             <DetailRow label="Actual Date of Completion" value={work.actual_completion_date} fieldName="actual_completion_date" workId={work.id} type="date" />
                             <DetailRow label="Current Progress" value={work.progress_percentage ? `${work.progress_percentage}%` : '0%'} />
-                            <DetailRow label="Remark" value={work.remark} fieldName="remark" workId={work.id} />
+                            <div className="group flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 px-4 rounded-lg hover:bg-slate-50 transition-colors duration-200 border-b border-slate-100 last:border-b-0 gap-2">
+                                <dt className="text-sm font-medium text-slate-600 flex-shrink-0">Remark</dt>
+                                <dd className="text-sm text-slate-900 font-medium sm:text-right break-words max-w-full">{work.remark || '-'}</dd>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

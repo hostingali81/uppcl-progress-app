@@ -26,6 +26,8 @@ export interface LocalWork {
   syncStatus: 'pending' | 'syncing' | 'synced' | 'error';
   lastSyncAttempt: string | null;
   syncError: string | null;
+  // Local schedule state
+  schedule_data?: string; // JSON string of customTasks and deletedTaskIds
 }
 
 export interface LocalProgressLog {

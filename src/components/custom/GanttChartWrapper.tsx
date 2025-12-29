@@ -56,8 +56,12 @@ const DhtmlxGanttChart = dynamic(
 );
 
 // Wrapper component with error boundary behavior
-export function GanttChartWrapper(props: GanttChartProps) {
-    return <DhtmlxGanttChart {...props} />;
+/**
+ * GanttChartWrapper now supports an optional `exportMode` prop for PDF/static export.
+ * It ensures the chart fills the available height, supports sticky task names, and smooth horizontal scroll.
+ */
+export function GanttChartWrapper(props: GanttChartProps & { exportMode?: boolean }) {
+    return <DhtmlxGanttChart {...props} exportMode={props.exportMode} />;
 }
 
 export default GanttChartWrapper;
