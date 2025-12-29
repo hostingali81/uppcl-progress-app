@@ -13,13 +13,17 @@ export async function saveScheduleData(workId: number, scheduleData: string) {
             .update({ schedule_data: scheduleData })
             .eq('id', workId);
         
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase error:', error);
+            return { success: false, error: error.message || 'Database update failed' };
+        }
         
         revalidatePath(`/dashboard/work/${workId}/schedule`);
         return { success: true };
     } catch (error) {
-        console.error('Failed to save schedule:', error);
-        return { success: false, error: String(error) };
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
+        console.error('Failed to save schedule:', errorMsg);
+        return { success: false, error: errorMsg };
     }
 }
 
@@ -33,11 +37,15 @@ export async function loadScheduleData(workId: number) {
             .eq('id', workId)
             .single();
         
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase error:', error);
+            return { success: false, error: error.message || 'Failed to load data' };
+        }
         
         return { success: true, data: data?.schedule_data };
     } catch (error) {
-        console.error('Failed to load schedule:', error);
-        return { success: false, error: String(error) };
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
+        console.error('Failed to load schedule:', errorMsg);
+        return { success: false, error: errorMsg };
     }
 }

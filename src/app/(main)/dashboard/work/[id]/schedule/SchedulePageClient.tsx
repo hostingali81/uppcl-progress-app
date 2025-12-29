@@ -240,11 +240,14 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                 setPendingChanges([]);
                 toast.success('Schedule saved successfully!');
             } else {
-                throw new Error(result.error || 'Failed to save');
+                const errorMsg = result.error || 'Failed to save';
+                console.error('Save failed:', errorMsg);
+                toast.error(`Save failed: ${errorMsg}`);
             }
         } catch (err) {
-            console.error('Save failed:', err);
-            toast.error('Failed to save changes.');
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            console.error('Save failed:', errorMsg);
+            toast.error(`Save failed: ${errorMsg}`);
         }
     }, [pendingChanges, customTasks, deletedTaskIds, work]);
 
