@@ -197,19 +197,31 @@ const GANTT_STYLES = `
     }
     
     .gantt_cell {
-      font-size: 13px !important;
+      font-size: 11px !important;
+      padding: 0 4px !important;
     }
     
     .gantt_grid_head_cell {
-      font-size: 13px !important;
+      font-size: 11px !important;
+      padding: 0 4px !important;
     }
     
     .gantt_scale_cell {
-      font-size: 12px !important;
+      font-size: 10px !important;
+      padding: 2px !important;
     }
     
     .gantt_task_content {
-      font-size: 12px !important;
+      font-size: 11px !important;
+    }
+    
+    /* Reduce grid column widths for mobile */
+    .gantt_grid {
+      min-width: 280px !important;
+    }
+    
+    .gantt_grid_data .gantt_cell {
+      padding: 0 4px !important;
     }
   }
   
@@ -360,6 +372,29 @@ export function DhtmlxGanttChart({
         gantt.config.details_on_dblclick = !readOnly;
         gantt.config.details_on_create = !readOnly;
         gantt.config.grid_resize = true; // Enable column resizing
+        
+        // Mobile layout: stack grid above timeline
+        const isMobileView = typeof window !== 'undefined' && window.innerWidth < 768;
+        if (isMobileView) {
+          gantt.config.layout = {
+            css: "gantt_container",
+            rows: [
+              {
+                cols: [
+                  { view: "grid", scrollX: "scrollHor", scrollY: "scrollVer" },
+                ]
+              },
+              { resizer: true, width: 1 },
+              {
+                cols: [
+                  { view: "timeline", scrollX: "scrollHor", scrollY: "scrollVer" },
+                  { view: "scrollbar", id: "scrollVer" }
+                ]
+              },
+              { view: "scrollbar", id: "scrollHor" }
+            ]
+          };
+        }
 
         // Auto-calculate parent progress
         gantt.config.auto_types = true;
@@ -386,7 +421,20 @@ export function DhtmlxGanttChart({
         configureZoom(gantt, zoom, tasks);
 
         // Grid columns configuration with resizable columns
-        gantt.config.columns = [
+        gantt.config.columns = isMobileView ? [
+          { name: 'text', label: 'Activity', tree: true, width: 140, resize: true, min_width: 100, template: (task: any) => `<div class='gantt-sticky-task'>${task.text}</div>` },
+          { name: 'start_date', label: 'Start', align: 'center', width: 70, resize: true, min_width: 60 },
+          { name: 'duration', label: 'Days', align: 'center', width: 45, resize: true, min_width: 40 },
+          {
+            name: 'progress',
+            label: '%',
+            align: 'center',
+            width: 45,
+            resize: true,
+            min_width: 40,
+            template: (task: any) => `${Math.round((task.progress || 0) * 100)}%`
+          }
+        ] : [
           { name: 'text', label: 'Activity', tree: true, width: 220, resize: true, min_width: 100, template: (task: any) => `<div class='gantt-sticky-task'>${task.text}</div>` },
           { name: 'start_date', label: 'Start', align: 'center', width: 95, resize: true, min_width: 70 },
           { name: 'duration', label: 'Days', align: 'center', width: 60, resize: true, min_width: 40 },

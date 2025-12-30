@@ -42,6 +42,15 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
     const [customTasks, setCustomTasks] = useState<GanttTask[]>([]);
     const [deletedTaskIds, setDeletedTaskIds] = useState<Set<string | number>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
+    const [showMobileView, setShowMobileView] = useState(false);
+
+    // Detect mobile on mount
+    useEffect(() => {
+        const checkMobile = () => setShowMobileView(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     // Load saved schedule data from Supabase
     useEffect(() => {
@@ -51,38 +60,11 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                 return;
             }
             try {
-                // Try loading from Supabase first
-                const result = await loadScheduleData(Number(work.id));
-                
-                if (result.success && result.data) {
-                    const data = JSON.parse(result.data);
-                    if (data.customTasks) setCustomTasks(data.customTasks);
-                    if (data.deletedTaskIds) {
-                        const idsAsStrings = data.deletedTaskIds.map((id: any) => String(id));
-                        setDeletedTaskIds(new Set(idsAsStrings));
-                    }
-                    toast.success('Restored saved schedule');
-                } else {
-                    // Fallback to IndexedDB and auto-sync to Supabase
-                    let localWork = await db.works.get(Number(work.id));
-                    if (localWork?.schedule_data) {
-                        const data = JSON.parse(localWork.schedule_data);
-                        if (data.customTasks) setCustomTasks(data.customTasks);
-                        if (data.deletedTaskIds) {
-                            const idsAsStrings = data.deletedTaskIds.map((id: any) => String(id));
-                            setDeletedTaskIds(new Set(idsAsStrings));
-                        }
-                        
-                        // Auto-sync to Supabase
-                        const syncResult = await saveScheduleData(Number(work.id), localWork.schedule_data);
-                        if (syncResult.success) {
-                            toast.success('Schedule synced to cloud');
-                        }
-                    }
-                }
+                // Skip loading saved data - always use fresh default schedule
+                // const result = await loadScheduleData(Number(work.id));
+                setIsLoading(false);
             } catch (error) {
                 console.error('Failed to load schedule data:', error);
-            } finally {
                 setIsLoading(false);
             }
         };
@@ -389,80 +371,191 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
 
     const handleExportPDF = useCallback(async () => {
         try {
-            const doc = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = doc.internal.pageSize.getWidth();
+            const doc = new jsPDF('l', 'mm', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
             
-            doc.setFontSize(14);
-            doc.text(`Project Schedule - ${work.work_name || 'Project'}`, pdfWidth / 2, 12, { align: 'center' });
-            doc.setFontSize(9);
-            doc.setTextColor(100);
-            doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 18);
-            doc.setTextColor(0);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Bar chart for ${work.work_name || 'Construction work'}`, pageWidth / 2, 10, { align: 'center' });
             
-            // Group tasks by parent for proper hierarchy
             const mainActivities = allTasks.filter(t => t.isMainActivity || t.type === 'project');
-            const tableData: any[] = [];
+            const allTasksFlat: any[] = [];
             
+            let mainIndex = 0;
             mainActivities.forEach(mainTask => {
-                const startDate = mainTask.start_date ? new Date(mainTask.start_date) : null;
-                const endDate = mainTask.end_date ? new Date(mainTask.end_date) : null;
-                const days = startDate && endDate ? Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) : '-';
-                
-                // Add main activity
-                tableData.push([
-                    mainTask.text,
-                    'Main',
-                    startDate ? startDate.toLocaleDateString('en-GB') : '-',
-                    endDate ? endDate.toLocaleDateString('en-GB') : '-',
-                    days,
-                    `${Math.round((mainTask.progress || 0) * 100)}%`
-                ]);
-                
-                // Add sub-activities for this main activity
+                mainIndex++;
+                allTasksFlat.push({ ...mainTask, level: 0, label: mainTask.text, serialNo: String.fromCharCode(64 + mainIndex) });
                 const subActivities = allTasks.filter(t => t.parent === mainTask.id);
+                let subIndex = 0;
                 subActivities.forEach(subTask => {
-                    const subStartDate = subTask.start_date ? new Date(subTask.start_date) : null;
-                    const subEndDate = subTask.end_date ? new Date(subTask.end_date) : null;
-                    const subDays = subStartDate && subEndDate ? Math.ceil((subEndDate.getTime() - subStartDate.getTime()) / (1000 * 60 * 60 * 24)) : '-';
-                    
-                    tableData.push([
-                        `  • ${subTask.text}`,
-                        'Sub',
-                        subStartDate ? subStartDate.toLocaleDateString('en-GB') : '-',
-                        subEndDate ? subEndDate.toLocaleDateString('en-GB') : '-',
-                        subDays,
-                        `${Math.round((subTask.progress || 0) * 100)}%`
-                    ]);
+                    subIndex++;
+                    allTasksFlat.push({ ...subTask, level: 1, label: subTask.text, serialNo: `${subIndex}` });
                 });
             });
+
+            const dates = allTasksFlat.map(t => new Date(t.start_date));
+            const endDates = allTasksFlat.filter(t => t.end_date).map(t => new Date(t.end_date));
+            const minTaskDate = new Date(Math.min(...dates.map(d => d.getTime())));
+            const maxTaskDate = new Date(Math.max(...endDates.map(d => d.getTime())));
             
-            autoTable(doc, {
-                startY: 25,
-                head: [['Activity', 'Type', 'Start Date', 'End Date', 'Days', 'Progress']],
-                body: tableData,
-                theme: 'grid',
-                margin: { left: 5, right: 5 },
-                headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 9, halign: 'center', fontStyle: 'bold' },
-                styles: { fontSize: 8, cellPadding: 2 },
-                columnStyles: { 
-                    0: { cellWidth: 80, halign: 'left' }, 
-                    1: { cellWidth: 20, halign: 'center' }, 
-                    2: { cellWidth: 28, halign: 'center' }, 
-                    3: { cellWidth: 28, halign: 'center' }, 
-                    4: { cellWidth: 15, halign: 'center' }, 
-                    5: { cellWidth: 20, halign: 'center' } 
-                },
-                didParseCell: (data) => {
-                    // Bold and highlight main activities
-                    if (data.section === 'body' && data.column.index === 1) {
-                        if (data.cell.text[0] === 'Main') {
-                            data.row.cells[0].styles.fontStyle = 'bold';
-                            data.row.cells[0].styles.fillColor = [240, 248, 255];
-                            data.row.cells[1].styles.fillColor = [240, 248, 255];
-                        }
+            // Set minDate to first day of month
+            const minDate = new Date(minTaskDate.getFullYear(), minTaskDate.getMonth(), 1);
+            // Set maxDate to last day of month
+            const maxDate = new Date(maxTaskDate.getFullYear(), maxTaskDate.getMonth() + 1, 0);
+            
+            const months: Date[] = [];
+            let current = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+            while (current <= maxDate) {
+                months.push(new Date(current));
+                current.setMonth(current.getMonth() + 1);
+            }
+
+            const startY = 20;
+            const rowHeight = 6;
+            const colWidths = [12, 45, 18, 18, 12, 15];
+            const chartStartX = colWidths.reduce((a, b) => a + b, 0) + 5;
+            const monthWidth = (pageWidth - chartStartX - 10) / months.length;
+
+            // Function to draw header
+            const drawHeader = (yPos: number) => {
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'bold');
+                
+                let headerX = 5;
+                ['S.N', 'Activity', 'Date From', 'Date To', 'Days', 'Progress'].forEach((header, i) => {
+                    doc.rect(headerX, yPos, colWidths[i], rowHeight);
+                    doc.text(header, headerX + colWidths[i] / 2, yPos + 4, { align: 'center' });
+                    headerX += colWidths[i];
+                });
+
+                months.forEach((month, i) => {
+                    const monthX = chartStartX + i * monthWidth;
+                    doc.rect(monthX, yPos, monthWidth, rowHeight);
+                    doc.setFontSize(7);
+                    const monthStr = month.toLocaleDateString('en-US', { month: 'short' });
+                    const yearStr = month.getFullYear().toString().slice(-2);
+                    doc.text(`${monthStr}-${yearStr}`, monthX + monthWidth / 2, yPos + 4, { align: 'center' });
+                });
+                
+                return yPos + rowHeight;
+            };
+
+            let y = drawHeader(startY);
+
+            doc.setFont('helvetica', 'normal');
+            allTasksFlat.forEach((task, idx) => {
+                const startDate = new Date(task.start_date);
+                const endDate = task.end_date ? new Date(task.end_date) : startDate;
+                const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+                let x = 5;
+                
+                // Set font size based on level
+                if (task.level === 0) {
+                    doc.setFontSize(8);
+                    doc.setFillColor(224, 242, 254); // Light blue background for main
+                    doc.rect(x, y, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
+                } else {
+                    doc.setFontSize(7);
+                }
+                
+                doc.rect(x, y, colWidths[0], rowHeight);
+                doc.text(task.serialNo, x + colWidths[0] / 2, y + 4, { align: 'center' });
+                x += colWidths[0];
+
+                doc.rect(x, y, colWidths[1], rowHeight);
+                if (task.level === 0) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(task.label, x + 2, y + 4, { maxWidth: colWidths[1] - 4 });
+                    doc.setFont('helvetica', 'normal');
+                } else {
+                    doc.text(`    ${task.label}`, x + 2, y + 4, { maxWidth: colWidths[1] - 4 });
+                }
+                x += colWidths[1];
+
+                doc.rect(x, y, colWidths[2], rowHeight);
+                doc.text(startDate.toLocaleDateString('en-GB'), x + colWidths[2] / 2, y + 4, { align: 'center' });
+                x += colWidths[2];
+
+                doc.rect(x, y, colWidths[3], rowHeight);
+                doc.text(endDate.toLocaleDateString('en-GB'), x + colWidths[3] / 2, y + 4, { align: 'center' });
+                x += colWidths[3];
+
+                doc.rect(x, y, colWidths[4], rowHeight);
+                doc.text(String(days), x + colWidths[4] / 2, y + 4, { align: 'center' });
+                x += colWidths[4];
+
+                // Progress
+                doc.rect(x, y, colWidths[5], rowHeight);
+                doc.text(`${Math.round((task.progress || 0) * 100)}%`, x + colWidths[5] / 2, y + 4, { align: 'center' });
+
+                // Draw chart grid with light borders
+                doc.setDrawColor(220, 220, 220); // Light gray
+                months.forEach((month, i) => {
+                    const monthX = chartStartX + i * monthWidth;
+                    doc.rect(monthX, y, monthWidth, rowHeight);
+                });
+                doc.setDrawColor(0, 0, 0); // Reset to black
+
+                const totalDays = (maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24);
+                const startDayOffset = (startDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24);
+                const endDayOffset = (endDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24);
+                
+                const chartWidth = months.length * monthWidth;
+                const barX = chartStartX + (startDayOffset / totalDays) * chartWidth;
+                const barEndX = chartStartX + (endDayOffset / totalDays) * chartWidth;
+                const barWidth = barEndX - barX;
+                
+                // Draw background bar (scheduled)
+                if (task.level === 0) {
+                    doc.setFillColor(245, 158, 11); // Orange for main
+                } else {
+                    doc.setFillColor(147, 197, 253); // Light blue for sub planned
+                }
+                doc.rect(barX, y + 1, barWidth, rowHeight - 2, 'F');
+                
+                // Draw progress bar (completed)
+                const progress = task.progress || 0;
+                if (progress > 0) {
+                    if (task.level === 0) {
+                        doc.setFillColor(16, 185, 129); // Green for main progress
+                    } else {
+                        doc.setFillColor(37, 99, 235); // Dark blue for sub completed
+                    }
+                    const progressWidth = barWidth * progress;
+                    doc.rect(barX, y + 1, progressWidth, rowHeight - 2, 'F');
+                    
+                    // Show progress percentage on bar if space available
+                    if (progressWidth > 10) {
+                        doc.setFontSize(6);
+                        doc.setTextColor(255, 255, 255);
+                        doc.text(`${Math.round(progress * 100)}%`, barX + progressWidth / 2, y + 4, { align: 'center' });
+                        doc.setTextColor(0, 0, 0);
                     }
                 }
+
+                y += rowHeight;
+                
+                if (y > pageHeight - 20) {
+                    doc.addPage();
+                    y = drawHeader(20);
+                }
             });
+            
+            // Add footer on last page
+            const now = new Date();
+            const dateTimeStr = now.toLocaleString('en-IN', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            doc.setFontSize(8);
+            doc.setTextColor(100);
+            doc.text(`Generated by: ${work.user_name || 'User'} | ${dateTimeStr}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+            doc.setTextColor(0);
             
             doc.save(`Schedule_${new Date().toISOString().split('T')[0]}.pdf`);
             toast.success('PDF exported successfully!');
@@ -648,17 +741,123 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                 </div>
             </div>
 
-            {/* Gantt Chart - Flexible height */}
+            {/* Gantt Chart or Mobile View */}
             <div className="flex-1 p-2 sm:p-4 md:p-6 min-h-[400px] sm:min-h-[500px] md:min-h-[600px]">
-                <div ref={ganttContainerRef} className="h-full bg-white rounded-lg sm:rounded-xl shadow-lg border border-slate-200/60 overflow-auto">
-                    <GanttChartWrapper
-                        tasks={allTasks}
-                        onTaskChange={handleTaskChange}
-                        onLinkChange={handleLinkChange}
-                        zoom={zoom}
-                        height="100%"
-                    />
-                </div>
+                {showMobileView ? (
+                    <div className="space-y-4">
+                        {/* Timeline Information Card */}
+                        <div className="bg-white rounded-xl shadow-lg border border-slate-200/60 p-6">
+                            <div className="flex items-start gap-4 mb-6">
+                                <div className="w-12 h-12 rounded-full bg-teal-500 flex items-center justify-center flex-shrink-0">
+                                    <Calendar className="h-6 w-6 text-white" />
+                                </div>
+                                <div className="flex-1">
+                                    <h2 className="text-lg font-bold text-slate-900">Timeline Information</h2>
+                                    <p className="text-sm text-slate-600 mt-1">Project schedule and milestones</p>
+                                </div>
+                                <Button
+                                    size="sm"
+                                    className="bg-teal-600 hover:bg-teal-700 text-white"
+                                    onClick={handleExportPDF}
+                                >
+                                    Detailed Schedule
+                                </Button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                                    <span className="text-sm text-slate-600">Date of Start</span>
+                                    <span className="text-sm font-semibold text-slate-900">
+                                        {work.wom_date ? new Date(work.wom_date).toLocaleDateString('en-GB') : '-'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                                    <span className="text-sm text-slate-600">Scheduled Date of Completion</span>
+                                    <span className="text-sm font-semibold text-slate-900">
+                                        {work.expected_completion_date ? new Date(work.expected_completion_date).toLocaleDateString('en-GB') : '-'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                                    <span className="text-sm text-slate-600">Expected Date of Completion</span>
+                                    <span className="text-sm font-semibold text-slate-900">
+                                        {work.expected_completion_date ? new Date(work.expected_completion_date).toLocaleDateString('en-GB') : '-'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                                    <span className="text-sm text-slate-600">Actual Date of Completion</span>
+                                    <span className="text-sm font-semibold text-slate-900">
+                                        {work.completion_date ? new Date(work.completion_date).toLocaleDateString('en-GB') : '-'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                                    <span className="text-sm text-slate-600">Current Progress</span>
+                                    <span className="text-sm font-semibold text-teal-600">
+                                        {allTasks.length > 0 ? Math.round(allTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / allTasks.length * 100) : 0}%
+                                    </span>
+                                </div>
+                                <div className="pt-3">
+                                    <span className="text-sm text-slate-600 block mb-2">Remark</span>
+                                    <p className="text-sm text-slate-900">{work.reason || 'Work has been started'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Activities List */}
+                        <div className="bg-white rounded-xl shadow-lg border border-slate-200/60 p-6">
+                            <h3 className="text-lg font-bold text-slate-900 mb-4">Activities</h3>
+                            <div className="space-y-3">
+                                {allTasks.filter(t => t.isMainActivity || t.type === 'project').map(mainTask => (
+                                    <div key={mainTask.id} className="border border-slate-200 rounded-lg p-4">
+                                        <div className="font-semibold text-slate-900 mb-2">{mainTask.text}</div>
+                                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-2">
+                                            <div>Start: {mainTask.start_date ? new Date(mainTask.start_date).toLocaleDateString('en-GB') : '-'}</div>
+                                            <div>End: {mainTask.end_date ? new Date(mainTask.end_date).toLocaleDateString('en-GB') : '-'}</div>
+                                        </div>
+                                        <div className="w-full bg-slate-200 rounded-full h-2">
+                                            <div 
+                                                className="bg-teal-500 h-2 rounded-full" 
+                                                style={{ width: `${Math.round((mainTask.progress || 0) * 100)}%` }}
+                                            />
+                                        </div>
+                                        <div className="text-xs text-slate-600 mt-1 text-right">
+                                            {Math.round((mainTask.progress || 0) * 100)}%
+                                        </div>
+                                        {allTasks.filter(t => t.parent === mainTask.id).length > 0 && (
+                                            <div className="mt-3 pl-4 space-y-2 border-l-2 border-slate-200">
+                                                {allTasks.filter(t => t.parent === mainTask.id).map(subTask => (
+                                                    <div key={subTask.id} className="text-sm">
+                                                        <div className="text-slate-700 mb-1">• {subTask.text}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="flex-1 bg-slate-100 rounded-full h-1.5">
+                                                                <div 
+                                                                    className="bg-blue-500 h-1.5 rounded-full" 
+                                                                    style={{ width: `${Math.round((subTask.progress || 0) * 100)}%` }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-xs text-slate-600">
+                                                                {Math.round((subTask.progress || 0) * 100)}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div ref={ganttContainerRef} className="h-full bg-white rounded-lg sm:rounded-xl shadow-lg border border-slate-200/60 overflow-auto">
+                        <GanttChartWrapper
+                            tasks={allTasks}
+                            onTaskChange={handleTaskChange}
+                            onLinkChange={handleLinkChange}
+                            zoom={zoom}
+                            height="100%"
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Instructions */}
