@@ -25,6 +25,7 @@ interface ExportToExcelButtonProps {
   schemeName?: string;
   officeName?: string;
   userId: string;
+  isDynamicPivot?: boolean;
 }
 
 // All available columns (authoritative list)
@@ -66,7 +67,7 @@ const DEFAULT_SELECTED = [
   'updated_at'
 ];
 
-export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, groupingField = 'civil_zone', groupingLabel = 'Zone Name', schemeName = 'All Schemes', officeName = 'UPPCL', userId }: ExportToExcelButtonProps) {
+export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, groupingField = 'civil_zone', groupingLabel = 'Zone Name', schemeName = 'All Schemes', officeName = 'UPPCL', userId, isDynamicPivot }: ExportToExcelButtonProps) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
@@ -107,6 +108,167 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
 
   const handleExport = async (cols?: string[]) => {
     setMessage(null);
+
+    // Define interface for dynamic export data
+    interface DynamicExportData {
+      primaryGroupLabel: string;
+      secondaryGroupLabel: string;
+      enableSecondaryGroup: boolean;
+      selectedMetrics: string[];
+      summaryData: {
+        groups: Record<string, any>;
+        grandTotal: any;
+      };
+      sortedPrimaryGroups: string[];
+    }
+
+    // Handle Dynamic Pivot Export
+    if (isDynamicPivot) {
+      const dynamicExportData = (window as any).__dynamicReportExportData as DynamicExportData;
+      if (!dynamicExportData) {
+        setMessage("Export data not ready");
+        return;
+      }
+
+      try {
+        const { primaryGroupLabel, secondaryGroupLabel, enableSecondaryGroup, selectedMetrics, summaryData, sortedPrimaryGroups } = dynamicExportData;
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Dynamic Pivot Report');
+
+        worksheet.pageSetup = {
+          paperSize: 9,
+          orientation: 'landscape',
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+        };
+
+        // Title
+        const titleColSpan = 2 + selectedMetrics.length;
+        worksheet.mergeCells(1, 1, 1, titleColSpan);
+        const titleCell = worksheet.getCell(1, 1);
+        titleCell.value = `Dynamic Pivot Report - ${schemeName}`;
+        titleCell.font = { bold: true, size: 14 };
+        titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Subtitle
+        worksheet.mergeCells(2, 1, 2, titleColSpan);
+        const subtitleCell = worksheet.getCell(2, 1);
+        subtitleCell.value = `${officeName} - Generated on ${new Date().toLocaleDateString('en-IN')}`;
+        subtitleCell.font = { size: 11 };
+        subtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Headers
+        const headerRow = worksheet.getRow(4);
+        headerRow.getCell(1).value = 'S.No.';
+        headerRow.getCell(2).value = enableSecondaryGroup ? `${primaryGroupLabel} / ${secondaryGroupLabel}` : primaryGroupLabel;
+
+        selectedMetrics.forEach((metric, idx) => {
+          const metricLabel = dynamicExportData.selectedMetrics.includes(metric)
+            ? (metric === 'count' ? 'Total Works Count' :
+              metric === 'nitPublished' ? 'NIT Published' :
+                metric === 'tender' ? 'Tender Count' :
+                  metric === 'part1' ? 'Part-1 Opening' :
+                    metric === 'part2' ? 'Part-2 Opening' :
+                      metric === 'loi' ? 'LOI Issued' :
+                        metric === 'agreementSigned' ? 'Agreement Signed' :
+                          metric === 'workStarted' ? 'Work Started' :
+                            metric === 'completed' ? 'Completed (100%)' :
+                              metric === 'inProgress' ? 'In Progress' :
+                                metric === 'notStarted' ? 'Not Started' :
+                                  metric === 'blocked' ? 'Blocked/High Priority' :
+                                    metric === 'avgProgress' ? 'Avg Progress %' :
+                                      metric === 'totalSanction' ? 'Total Sanction (Lacs)' :
+                                        metric === 'totalAgreement' ? 'Total Agreement Amount' :
+                                          metric === 'totalBOQ' ? 'Total BOQ Amount' : metric)
+            : metric;
+          headerRow.getCell(3 + idx).value = metricLabel;
+        });
+
+        headerRow.eachCell((cell) => {
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        });
+
+        let currentRow = 5;
+        let srNo = 1;
+
+        sortedPrimaryGroups.forEach((primaryKey) => {
+          const groupData = summaryData.groups[primaryKey];
+
+          // Primary row
+          const primaryRow = worksheet.getRow(currentRow);
+          primaryRow.getCell(1).value = srNo++;
+          primaryRow.getCell(2).value = primaryKey;
+          selectedMetrics.forEach((metric, idx) => {
+            primaryRow.getCell(3 + idx).value = groupData.metrics[metric];
+          });
+          primaryRow.eachCell((cell) => {
+            cell.font = { bold: true };
+            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+          });
+          currentRow++;
+
+          // Secondary rows
+          if (enableSecondaryGroup) {
+            const secondaryKeys = Object.keys(groupData.secondary).sort();
+            secondaryKeys.forEach((secondaryKey, secIdx) => {
+              const secRow = worksheet.getRow(currentRow);
+              secRow.getCell(1).value = `${srNo - 1}.${secIdx + 1}`;
+              secRow.getCell(2).value = `  ${secondaryKey}`;
+              selectedMetrics.forEach((metric, idx) => {
+                secRow.getCell(3 + idx).value = groupData.secondary[secondaryKey].metrics[metric];
+              });
+              secRow.eachCell((cell) => {
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+              });
+              currentRow++;
+            });
+          }
+        });
+
+        // Grand Total
+        const grandRow = worksheet.getRow(currentRow);
+        grandRow.getCell(1).value = '';
+        grandRow.getCell(2).value = 'Grand Total';
+        selectedMetrics.forEach((metric, idx) => {
+          grandRow.getCell(3 + idx).value = summaryData.grandTotal.metrics[metric];
+        });
+        grandRow.eachCell((cell) => {
+          cell.font = { bold: true };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+          cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        });
+
+        // Column widths
+        worksheet.getColumn(1).width = 8;
+        worksheet.getColumn(2).width = 30;
+        for (let i = 0; i < selectedMetrics.length; i++) {
+          worksheet.getColumn(3 + i).width = 15;
+        }
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Dynamic-Pivot-${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        setMessage("Export successful!");
+        setOpen(false);
+      } catch (error) {
+        console.error("Export failed:", error);
+        setMessage("Export failed");
+      }
+      return;
+    }
 
     if (isSummary) {
       try {

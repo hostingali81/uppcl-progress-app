@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { updateWorkStatuses } from './actions';
 import { Check, Edit3 } from 'lucide-react';
+import { WORK_STATUS_OPTIONS } from '@/lib/constants';
 
 interface EditableStatusRowProps {
   label: string;
@@ -31,8 +32,10 @@ export function EditableStatusRow({ label, fieldName, currentValue, workId }: Ed
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const options = fieldName === 'mb_status'
-    ? ['Running', 'Final']
-    : ['Done', 'Not Done'];
+    ? WORK_STATUS_OPTIONS.MB_STATUS
+    : fieldName === 'teco_status'
+    ? WORK_STATUS_OPTIONS.TECO_STATUS
+    : WORK_STATUS_OPTIONS.FICO_STATUS;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

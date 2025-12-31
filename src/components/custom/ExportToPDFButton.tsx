@@ -19,6 +19,7 @@ interface ExportToPDFButtonProps {
   schemeName?: string;
   officeName?: string;
   userId: string;
+  isDynamicPivot?: boolean;
 }
 
 // All available columns (authoritative list)
@@ -60,7 +61,7 @@ const DEFAULT_SELECTED = [
   'updated_at'
 ];
 
-export function ExportToPDFButton({ selectedScheme, filteredWorks, isSummary, groupingField = 'civil_zone', groupingLabel = 'Zone Name', schemeName = 'All Schemes', officeName = 'UPPCL', userId }: ExportToPDFButtonProps) {
+export function ExportToPDFButton({ selectedScheme, filteredWorks, isSummary, groupingField = 'civil_zone', groupingLabel = 'Zone Name', schemeName = 'All Schemes', officeName = 'UPPCL', userId, isDynamicPivot }: ExportToPDFButtonProps) {
   const [isPending, startTransition] = useTransition();
 
   // Column selector state
@@ -123,6 +124,123 @@ export function ExportToPDFButton({ selectedScheme, filteredWorks, isSummary, gr
       doc.setTextColor(100, 100, 100);
       doc.text(`Generated on: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`, 14, 32);
       doc.setTextColor(0, 0, 0);
+
+      // Handle Dynamic Pivot Export
+      if (isDynamicPivot) {
+        const dynamicExportData = (window as any).__dynamicReportExportData;
+        if (!dynamicExportData) {
+          console.error('Export data not ready');
+          return;
+        }
+        
+        const { primaryGroupLabel, secondaryGroupLabel, enableSecondaryGroup, selectedMetrics, summaryData, sortedPrimaryGroups } = dynamicExportData;
+        const tableBody: any[] = [];
+
+        let srNo = 1;
+        sortedPrimaryGroups.forEach((primaryKey: string) => {
+          const groupData = summaryData.groups[primaryKey];
+          
+          // Primary row
+          const primaryRowData = [srNo++, primaryKey];
+          selectedMetrics.forEach((metric: string) => {
+            primaryRowData.push(groupData.metrics[metric]);
+          });
+          tableBody.push(primaryRowData.map((val, idx) => 
+            idx < 2 ? { content: val, styles: { fontStyle: 'bold' } } : { content: val, styles: { fontStyle: 'bold', halign: 'center' } }
+          ));
+
+          // Secondary rows
+          if (enableSecondaryGroup) {
+            const secondaryKeys = Object.keys(groupData.secondary).sort();
+            secondaryKeys.forEach((secondaryKey: string, secIdx: number) => {
+              const secRowData = [`${srNo - 1}.${secIdx + 1}`, `  ${secondaryKey}`];
+              selectedMetrics.forEach((metric: string) => {
+                secRowData.push(groupData.secondary[secondaryKey].metrics[metric]);
+              });
+              tableBody.push(secRowData.map((val, idx) => 
+                idx < 2 ? val : { content: val, styles: { halign: 'center' } }
+              ));
+            });
+          }
+        });
+
+        // Grand Total
+        const grandRowData = ['', 'Grand Total'];
+        selectedMetrics.forEach((metric: string) => {
+          grandRowData.push(summaryData.grandTotal.metrics[metric]);
+        });
+        tableBody.push(grandRowData.map((val, idx) => ({
+          content: val,
+          styles: { fontStyle: 'bold', fillColor: [40, 40, 40], textColor: [255, 255, 255], halign: idx < 2 ? 'left' : 'center' }
+        })));
+
+        // Build headers
+        const headers = ['S.No.', enableSecondaryGroup ? `${primaryGroupLabel} / ${secondaryGroupLabel}` : primaryGroupLabel];
+        selectedMetrics.forEach((metric: string) => {
+          const metricLabel = metric === 'count' ? 'Total Works' :
+            metric === 'nitPublished' ? 'NIT Published' :
+            metric === 'tender' ? 'Tender' :
+            metric === 'part1' ? 'Part-1' :
+            metric === 'part2' ? 'Part-2' :
+            metric === 'loi' ? 'LOI' :
+            metric === 'agreementSigned' ? 'Agreement' :
+            metric === 'workStarted' ? 'Started' :
+            metric === 'completed' ? 'Completed' :
+            metric === 'inProgress' ? 'In Progress' :
+            metric === 'notStarted' ? 'Not Started' :
+            metric === 'blocked' ? 'Blocked' :
+            metric === 'avgProgress' ? 'Avg %' :
+            metric === 'totalSanction' ? 'Sanction (L)' :
+            metric === 'totalAgreement' ? 'Agreement' :
+            metric === 'totalBOQ' ? 'BOQ' : metric;
+          headers.push(metricLabel);
+        });
+
+        autoTable(doc, {
+          startY: 37,
+          margin: { top: 5, right: 5, bottom: 15, left: 5 },
+          head: [headers],
+          body: tableBody,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [41, 128, 185],
+            textColor: 255,
+            fontSize: 8,
+            halign: 'center',
+            valign: 'middle',
+            minCellHeight: 10,
+            lineWidth: 0.2,
+            lineColor: [200, 200, 200],
+            font: headerFont,
+            fontStyle: 'normal'
+          },
+          styles: {
+            fontSize: 7,
+            cellPadding: 2,
+            halign: 'center',
+            valign: 'middle',
+            lineWidth: 0.2,
+            lineColor: [200, 200, 200],
+            overflow: 'linebreak',
+            font: 'helvetica',
+            fontStyle: 'normal'
+          },
+          columnStyles: {
+            0: { cellWidth: 15, halign: 'center' },
+            1: { cellWidth: 50, halign: 'left' },
+          },
+          didDrawPage: (data) => {
+            const pageCount = (doc as any).internal.getNumberOfPages();
+            doc.setFontSize(8);
+            doc.setFont(headerFont);
+            doc.text(`Page ${pageCount}`, data.settings.margin.left, doc.internal.pageSize.height - 10);
+          }
+        });
+
+        doc.save(`Dynamic-Pivot-${new Date().toISOString().split('T')[0]}.pdf`);
+        setOpen(false);
+        return;
+      }
 
       if (isSummary) {
         const summaryData = generateSummaryData(filteredWorks, groupingField);

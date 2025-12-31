@@ -28,16 +28,17 @@ import { saveScheduleData, loadScheduleData } from './actions';
 
 interface SchedulePageClientProps {
     work: any;
+    userName?: string;
 }
 
 type ZoomLevel = 'day' | 'week' | 'month' | 'year' | 'quarter_day' | 'alternate_day';
 
-export function SchedulePageClient({ work }: SchedulePageClientProps) {
+export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClientProps) {
     // Ref for Gantt chart container to capture for export
     const ganttContainerRef = useRef<HTMLDivElement>(null);
 
     // State
-    const [zoom, setZoom] = useState<ZoomLevel>('month');
+    const [zoom, setZoom] = useState<ZoomLevel>('day');
     const [pendingChanges, setPendingChanges] = useState<GanttChangeEvent[]>([]);
     const [customTasks, setCustomTasks] = useState<GanttTask[]>([]);
     const [deletedTaskIds, setDeletedTaskIds] = useState<Set<string | number>>(new Set());
@@ -84,11 +85,9 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
 
     // Combine base tasks with any custom tasks, filtering out deleted ones
     const allTasks = useMemo(() => {
-        if (isLoading) return [];
-        
         // Create a map of custom tasks for quick lookup
         const customTasksMap = new Map(customTasks.map(t => [String(t.id), t]));
-        
+
         // Merge base tasks with custom updates
         const mergedBaseTasks = baseTasks
             .filter(t => !deletedTaskIds.has(String(t.id)))
@@ -101,12 +100,12 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                 }
                 return baseTask;
             });
-        
+
         // Add remaining custom tasks (new ones not in base)
         const remainingCustomTasks = Array.from(customTasksMap.values());
-        
+
         return [...mergedBaseTasks, ...remainingCustomTasks];
-    }, [baseTasks, customTasks, deletedTaskIds, isLoading]);
+    }, [baseTasks, customTasks, deletedTaskIds]);
 
     // Handle task changes
     const handleTaskChange = useCallback((event: GanttChangeEvent) => {
@@ -220,19 +219,19 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
         try {
             console.log('[SchedulePageClient] Saving schedule');
             console.log('[SchedulePageClient] allTasks:', allTasks.length);
-            
+
             const scheduleData = JSON.stringify({
                 customTasks: allTasks,
                 deletedTaskIds: Array.from(deletedTaskIds)
             });
 
             const workId = Number(work.id);
-            
+
             // Save to Supabase
             console.log('[SchedulePageClient] Calling saveScheduleData');
             const result = await saveScheduleData(workId, scheduleData);
             console.log('[SchedulePageClient] Save result:', result);
-            
+
             if (result.success) {
                 // Also save to IndexedDB for offline access
                 const existing = await db.works.get(workId);
@@ -265,7 +264,7 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                         schedule_data: scheduleData
                     });
                 }
-                
+
                 setPendingChanges([]);
                 toast.success('Schedule saved successfully!');
             } else {
@@ -319,12 +318,12 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
 
             // Add data with proper hierarchy
             const mainActivities = allTasks.filter(t => t.isMainActivity || t.type === 'project');
-            
+
             mainActivities.forEach(mainTask => {
                 const startDate = mainTask.start_date ? new Date(mainTask.start_date) : null;
                 const endDate = mainTask.end_date ? new Date(mainTask.end_date) : null;
                 const days = startDate && endDate ? Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) : '-';
-                
+
                 // Add main activity
                 const mainRow = worksheet.addRow({
                     activity: mainTask.text,
@@ -336,14 +335,14 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                 });
                 mainRow.font = { bold: true };
                 mainRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F8FF' } };
-                
+
                 // Add sub-activities
                 const subActivities = allTasks.filter(t => t.parent === mainTask.id);
                 subActivities.forEach(subTask => {
                     const subStartDate = subTask.start_date ? new Date(subTask.start_date) : null;
                     const subEndDate = subTask.end_date ? new Date(subTask.end_date) : null;
                     const subDays = subStartDate && subEndDate ? Math.ceil((subEndDate.getTime() - subStartDate.getTime()) / (1000 * 60 * 60 * 24)) : '-';
-                    
+
                     worksheet.addRow({
                         activity: `  • ${subTask.text}`,
                         type: 'Sub',
@@ -387,14 +386,14 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
             const doc = new jsPDF('l', 'mm', 'a4');
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
-            
+
             doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
             doc.text(`Bar chart for ${work.work_name || 'Construction work'}`, pageWidth / 2, 10, { align: 'center' });
-            
+
             const mainActivities = allTasks.filter(t => t.isMainActivity || t.type === 'project');
             const allTasksFlat: any[] = [];
-            
+
             let mainIndex = 0;
             mainActivities.forEach(mainTask => {
                 mainIndex++;
@@ -411,12 +410,12 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
             const endDates = allTasksFlat.filter(t => t.end_date).map(t => new Date(t.end_date));
             const minTaskDate = new Date(Math.min(...dates.map(d => d.getTime())));
             const maxTaskDate = new Date(Math.max(...endDates.map(d => d.getTime())));
-            
+
             // Set minDate to first day of month
             const minDate = new Date(minTaskDate.getFullYear(), minTaskDate.getMonth(), 1);
             // Set maxDate to last day of month
             const maxDate = new Date(maxTaskDate.getFullYear(), maxTaskDate.getMonth() + 1, 0);
-            
+
             const months: Date[] = [];
             let current = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
             while (current <= maxDate) {
@@ -434,7 +433,7 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
             const drawHeader = (yPos: number) => {
                 doc.setFontSize(8);
                 doc.setFont('helvetica', 'bold');
-                
+
                 let headerX = 5;
                 ['S.N', 'Activity', 'Date From', 'Date To', 'Days', 'Progress'].forEach((header, i) => {
                     doc.rect(headerX, yPos, colWidths[i], rowHeight);
@@ -450,7 +449,7 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                     const yearStr = month.getFullYear().toString().slice(-2);
                     doc.text(`${monthStr}-${yearStr}`, monthX + monthWidth / 2, yPos + 4, { align: 'center' });
                 });
-                
+
                 return yPos + rowHeight;
             };
 
@@ -463,7 +462,7 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                 const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
                 let x = 5;
-                
+
                 // Set font size based on level
                 if (task.level === 0) {
                     doc.setFontSize(8);
@@ -472,7 +471,7 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                 } else {
                     doc.setFontSize(7);
                 }
-                
+
                 doc.rect(x, y, colWidths[0], rowHeight);
                 doc.text(task.serialNo, x + colWidths[0] / 2, y + 4, { align: 'center' });
                 x += colWidths[0];
@@ -514,12 +513,12 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                 const totalDays = (maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24);
                 const startDayOffset = (startDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24);
                 const endDayOffset = (endDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24);
-                
+
                 const chartWidth = months.length * monthWidth;
                 const barX = chartStartX + (startDayOffset / totalDays) * chartWidth;
                 const barEndX = chartStartX + (endDayOffset / totalDays) * chartWidth;
                 const barWidth = barEndX - barX;
-                
+
                 // Draw background bar (scheduled)
                 if (task.level === 0) {
                     doc.setFillColor(245, 158, 11); // Orange for main
@@ -527,7 +526,7 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                     doc.setFillColor(147, 197, 253); // Light blue for sub planned
                 }
                 doc.rect(barX, y + 1, barWidth, rowHeight - 2, 'F');
-                
+
                 // Draw progress bar (completed)
                 const progress = task.progress || 0;
                 if (progress > 0) {
@@ -538,7 +537,7 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                     }
                     const progressWidth = barWidth * progress;
                     doc.rect(barX, y + 1, progressWidth, rowHeight - 2, 'F');
-                    
+
                     // Show progress percentage on bar if space available
                     if (progressWidth > 10) {
                         doc.setFontSize(6);
@@ -549,30 +548,30 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                 }
 
                 y += rowHeight;
-                
+
                 if (y > pageHeight - 20) {
                     doc.addPage();
                     y = drawHeader(20);
                 }
             });
-            
+
             // Add footer on last page
             const now = new Date();
-            const dateTimeStr = now.toLocaleString('en-IN', { 
-                day: '2-digit', 
-                month: '2-digit', 
-                year: 'numeric', 
-                hour: '2-digit', 
-                minute: '2-digit' 
+            const dateTimeStr = now.toLocaleString('en-IN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
             });
             doc.setFontSize(8);
             doc.setTextColor(100);
             doc.text(`Generated by: ${work.user_name || 'User'} | ${dateTimeStr}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
             doc.setTextColor(0);
-            
+
             doc.save(`Schedule_${new Date().toISOString().split('T')[0]}.pdf`);
             toast.success('PDF exported successfully!');
-            
+
         } catch (error) {
             console.error('PDF export error:', error);
             toast.error('Failed to export PDF');
@@ -771,8 +770,8 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                                             <div>End: {mainTask.end_date ? new Date(mainTask.end_date).toLocaleDateString('en-GB') : '-'}</div>
                                         </div>
                                         <div className="w-full bg-slate-200 rounded-full h-2">
-                                            <div 
-                                                className="bg-teal-500 h-2 rounded-full" 
+                                            <div
+                                                className="bg-teal-500 h-2 rounded-full"
                                                 style={{ width: `${Math.round((mainTask.progress || 0) * 100)}%` }}
                                             />
                                         </div>
@@ -786,8 +785,8 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                                                         <div className="text-slate-700 mb-1">• {subTask.text}</div>
                                                         <div className="flex items-center gap-2">
                                                             <div className="flex-1 bg-slate-100 rounded-full h-1.5">
-                                                                <div 
-                                                                    className="bg-blue-500 h-1.5 rounded-full" 
+                                                                <div
+                                                                    className="bg-blue-500 h-1.5 rounded-full"
                                                                     style={{ width: `${Math.round((subTask.progress || 0) * 100)}%` }}
                                                                 />
                                                             </div>
@@ -803,7 +802,7 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                                 ))}
                             </div>
                         </div>
-                        
+
                         {/* Timeline Information Card */}
                         <div className="bg-white rounded-xl shadow-lg border border-slate-200/60 p-6">
                             <div className="flex items-start gap-4 mb-6">

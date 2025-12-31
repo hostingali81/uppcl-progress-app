@@ -33,6 +33,24 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     column: '',
     direction: 'asc'
   });
+
+  // Pre-compute progress logs map for O(1) lookup
+  // Map<work_id, ProgressLog[]>
+  const progressLogsMap = useMemo(() => {
+    const map = new Map<number, ProgressLog[]>();
+    for (const log of progressLogs) {
+      const workId = log.work_id;
+      if (!map.has(workId)) {
+        map.set(workId, []);
+      }
+      map.get(workId)!.push(log);
+    }
+    // Sort logs in each entry by date descending once
+    for (const [_, logs] of map) {
+      logs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+    return map;
+  }, [progressLogs]);
   const [currentPage, setCurrentPage] = useState(1);
   const [activeKPI, setActiveKPI] = useState<string>('all');
   const [selectedSchemes, setSelectedSchemes] = useState<string[]>([]);
@@ -267,14 +285,12 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
 
   // Helper function to get the last progress remark for a work
   const getLastProgressRemark = useCallback((workId: string | number) => {
-    const workLogs = progressLogs.filter(log => log.work_id === Number(workId));
-    if (workLogs.length === 0) return 'No remarks';
-    // Get the most recent log by created_at
-    const latestLog = workLogs.sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )[0];
-    return latestLog.remark || 'No remarks';
-  }, [progressLogs]);
+    const id = typeof workId === 'string' ? parseInt(workId, 10) : workId;
+    const logs = progressLogsMap.get(id);
+    if (!logs || logs.length === 0) return 'No remarks';
+    // Logs are already sorted in the map
+    return logs[0].remark || 'No remarks';
+  }, [progressLogsMap]);
 
   // Calculate historical progress based on selected date
   const getHistoricalProgress = useMemo(() => {
@@ -284,29 +300,22 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     const selectedDateStr = selectedDate; // Already in YYYY-MM-DD format
 
     const historicalWorks = works.map(work => {
-      // Find all progress logs for this work
-      const workLogs = progressLogs.filter(log => log.work_id === work.id);
+      const workId = typeof work.id === 'string' ? parseInt(work.id, 10) : work.id;
+      const workLogs = progressLogsMap.get(workId);
 
-      if (workLogs.length === 0) {
+      if (!workLogs || workLogs.length === 0) {
         // No progress logs for this work, return original
         return work;
       }
 
       // Find logs on or before the selected date using string comparison
-      const relevantLogs = workLogs.filter(log => {
-        // Extract date part from log timestamp (YYYY-MM-DD)
+      // Logs are already sorted descending, so find the first one that matches <= date
+      const latestLog = workLogs.find(log => {
         const logDateStr = log.created_at.split('T')[0];
-
-        // Compare dates as strings (YYYY-MM-DD format)
         return logDateStr <= selectedDateStr;
       });
 
-      if (relevantLogs.length > 0) {
-        // Get the most recent log for this work on or before the selected date
-        const latestLog = relevantLogs.sort((a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )[0];
-
+      if (latestLog) {
         return {
           ...work,
           progress_percentage: latestLog.new_progress
@@ -318,7 +327,7 @@ export function DashboardClient({ works, profile, progressLogs }: DashboardClien
     });
 
     return historicalWorks;
-  }, [works, progressLogs, selectedDate]);
+  }, [works, progressLogsMap, selectedDate]);
 
   const handleFilterChange = useCallback((filtered: Work[]) => {
     setFilteredWorks(filtered);

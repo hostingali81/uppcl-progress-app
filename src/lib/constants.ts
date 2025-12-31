@@ -92,6 +92,12 @@ export const PROGRESS_STATUS = {
   DELAYED: 'delayed',
 } as const;
 
+export const WORK_STATUS_OPTIONS = {
+  MB_STATUS: ['Running', 'Final'],
+  TECO_STATUS: ['Done', 'Not Done'],
+  FICO_STATUS: ['Done', 'Not Done'],
+} as const;
+
 export const ROLES = {
   ADMIN: 'admin',
   MANAGER: 'manager',

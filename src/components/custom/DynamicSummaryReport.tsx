@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, Fragment, useState } from "react";
+import { useMemo, Fragment, useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,8 @@ import {
 
 interface DynamicSummaryReportProps {
   works: Work[];
+  onGetExportData?: () => any;
+  userId?: string;
 }
 
 // Available grouping fields
@@ -61,16 +63,23 @@ const METRIC_OPTIONS = [
   { value: 'totalBOQ', label: 'Total BOQ Amount', type: 'sum' },
 ];
 
-export function DynamicSummaryReport({ works }: DynamicSummaryReportProps) {
+export function DynamicSummaryReport({ works, onGetExportData, userId }: DynamicSummaryReportProps) {
+  // Load saved selections from localStorage
+  const getSavedSelection = (key: string, defaultValue: any) => {
+    if (typeof window === 'undefined' || !userId) return defaultValue;
+    const saved = localStorage.getItem(`dynamic_report_${userId}_${key}`);
+    return saved ? JSON.parse(saved) : defaultValue;
+  };
+
   // Primary grouping (Rows)
-  const [primaryGroup, setPrimaryGroup] = useState<string>('civil_zone');
+  const [primaryGroup, setPrimaryGroup] = useState<string>(() => getSavedSelection('primaryGroup', 'civil_zone'));
   
   // Secondary grouping (Sub-rows) - optional
-  const [secondaryGroup, setSecondaryGroup] = useState<string>('work_category');
-  const [enableSecondaryGroup, setEnableSecondaryGroup] = useState(true);
+  const [secondaryGroup, setSecondaryGroup] = useState<string>(() => getSavedSelection('secondaryGroup', 'work_category'));
+  const [enableSecondaryGroup, setEnableSecondaryGroup] = useState(getSavedSelection('enableSecondaryGroup', true));
   
   // Selected metrics to display
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(() => getSavedSelection('selectedMetrics', [
     'count',
     'nitPublished',
     'tender',
@@ -79,7 +88,32 @@ export function DynamicSummaryReport({ works }: DynamicSummaryReportProps) {
     'loi',
     'agreementSigned',
     'workStarted',
-  ]);
+  ]));
+
+  // Save selections to localStorage
+  useEffect(() => {
+    if (userId) {
+      localStorage.setItem(`dynamic_report_${userId}_primaryGroup`, JSON.stringify(primaryGroup));
+    }
+  }, [primaryGroup, userId]);
+
+  useEffect(() => {
+    if (userId) {
+      localStorage.setItem(`dynamic_report_${userId}_secondaryGroup`, JSON.stringify(secondaryGroup));
+    }
+  }, [secondaryGroup, userId]);
+
+  useEffect(() => {
+    if (userId) {
+      localStorage.setItem(`dynamic_report_${userId}_enableSecondaryGroup`, JSON.stringify(enableSecondaryGroup));
+    }
+  }, [enableSecondaryGroup, userId]);
+
+  useEffect(() => {
+    if (userId) {
+      localStorage.setItem(`dynamic_report_${userId}_selectedMetrics`, JSON.stringify(selectedMetrics));
+    }
+  }, [selectedMetrics, userId]);
 
   // Collapsed groups state
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -135,8 +169,29 @@ export function DynamicSummaryReport({ works }: DynamicSummaryReportProps) {
     const data: any = {};
     const grandTotal: any = {};
 
+    // Normalize status values for consistent grouping
+    const normalizeValue = (value: string | null | undefined, field: string): string => {
+      if (!value) return "Unknown";
+      const val = value.trim();
+      
+      // Normalize status fields
+      if (field === 'mb_status') {
+        const lower = val.toLowerCase();
+        if (lower === 'running') return 'Running';
+        if (lower === 'final') return 'Final';
+      }
+      if (field === 'teco_status' || field === 'fico_status') {
+        const lower = val.toLowerCase();
+        if (lower === 'done') return 'Done';
+        if (lower === 'not done' || lower === 'notdone' || lower === 'pending') return 'Not Done';
+      }
+      
+      return val;
+    };
+
     works.forEach((work) => {
-      const primaryValue = (work[primaryGroup as keyof Work] as string) || "Unknown";
+      const rawPrimaryValue = (work[primaryGroup as keyof Work] as string);
+      const primaryValue = normalizeValue(rawPrimaryValue, primaryGroup);
       
       if (!data[primaryValue]) {
         data[primaryValue] = {
@@ -148,7 +203,8 @@ export function DynamicSummaryReport({ works }: DynamicSummaryReportProps) {
       data[primaryValue].works.push(work);
 
       if (enableSecondaryGroup) {
-        const secondaryValue = (work[secondaryGroup as keyof Work] as string) || "Uncategorized";
+        const rawSecondaryValue = (work[secondaryGroup as keyof Work] as string);
+        const secondaryValue = normalizeValue(rawSecondaryValue, secondaryGroup);
         
         if (!data[primaryValue].secondary[secondaryValue]) {
           data[primaryValue].secondary[secondaryValue] = [];
@@ -183,6 +239,20 @@ export function DynamicSummaryReport({ works }: DynamicSummaryReportProps) {
   const getMetricLabel = (metricValue: string) => {
     return METRIC_OPTIONS.find(m => m.value === metricValue)?.label || metricValue;
   };
+
+  // Expose export data getter
+  useEffect(() => {
+    (window as any).__dynamicReportExportData = {
+      primaryGroup,
+      secondaryGroup,
+      enableSecondaryGroup,
+      selectedMetrics,
+      summaryData,
+      sortedPrimaryGroups,
+      primaryGroupLabel: GROUPING_OPTIONS.find(g => g.value === primaryGroup)?.label,
+      secondaryGroupLabel: GROUPING_OPTIONS.find(g => g.value === secondaryGroup)?.label,
+    };
+  }, [primaryGroup, secondaryGroup, enableSecondaryGroup, selectedMetrics.join(',')]);
 
   return (
     <Card className="border-slate-200 shadow-sm mt-6">
@@ -266,6 +336,7 @@ export function DynamicSummaryReport({ works }: DynamicSummaryReportProps) {
                     key={metric.value}
                     checked={selectedMetrics.includes(metric.value)}
                     onCheckedChange={() => toggleMetric(metric.value)}
+                    onSelect={(e) => e.preventDefault()}
                   >
                     {metric.label}
                     <Badge variant="secondary" className="ml-2 text-xs">

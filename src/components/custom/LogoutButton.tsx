@@ -28,20 +28,15 @@ export function LogoutButton({
   const handleLogout = async () => {
     try {
       setIsLoading(true);
-      // Call the onClick prop if provided and it's a function
       if (typeof onClick === 'function') {
         onClick();
       }
       const supabase = createSupabaseClient();
       await supabase.auth.signOut();
-      router.push("/login");
-      router.refresh(); // Refresh to clear any cached data
+      window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);
-      // Even if there's an error, redirect to login
-      router.push("/login");
-    } finally {
-      setIsLoading(false);
+      window.location.href = "/";
     }
   };
 

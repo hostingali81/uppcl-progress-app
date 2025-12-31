@@ -256,6 +256,7 @@ export function DhtmlxGanttChart({
   const styleElementRef = useRef<HTMLStyleElement | null>(null);
   const openTasksRef = useRef<Set<string | number>>(new Set());
   const isZoomChangeRef = useRef(false);
+  const prevDataRef = useRef<string>('');
 
   // Keep track of readOnly state for event handlers
   const readOnlyRef = useRef(readOnly);
@@ -411,9 +412,7 @@ export function DhtmlxGanttChart({
         });
 
         gantt.attachEvent('onTaskClosed', (id: string | number) => {
-          if (!isZoomChangeRef.current) {
-            openTasksRef.current.delete(id);
-          }
+          openTasksRef.current.delete(id);
           return true;
         });
 
@@ -663,6 +662,9 @@ export function DhtmlxGanttChart({
             progress: task.progress > 1 ? task.progress / 100 : task.progress
           }));
           gantt.parse({ data: normalizedTasks, links });
+          
+          // Force render to ensure fresh data
+          gantt.render();
 
           // Restore open state for previously opened tasks
           openTasksRef.current.forEach((taskId) => {
@@ -671,12 +673,7 @@ export function DhtmlxGanttChart({
             }
           });
 
-          // Sync Ref with current state to catch tasks open by default (from data)
-          gantt.eachTask((task: any) => {
-            if (task.$open) {
-              openTasksRef.current.add(task.id);
-            }
-          });
+
         }
 
         setIsLoading(false);
@@ -713,14 +710,28 @@ export function DhtmlxGanttChart({
   useEffect(() => {
     const gantt = ganttRef.current;
     if (gantt && !isLoading && tasks.length > 0) {
+      // Simple deep comparison to avoid unnecessary re-renders
+      const currentDataString = JSON.stringify({ tasks, links });
+      if (prevDataRef.current === currentDataString) {
+        return;
+      }
+      prevDataRef.current = currentDataString;
+
       try {
+        // Clear all data and cache
         gantt.clearAll();
+        gantt.resetLayout();
+        
         // Normalize progress values before loading
         const normalizedTasks = tasks.map(task => ({
           ...task,
           progress: task.progress > 1 ? task.progress / 100 : task.progress
         }));
         gantt.parse({ data: normalizedTasks, links });
+        
+        // Force render to ensure fresh data
+        gantt.render();
+        
         // Only restore open state if not a zoom change
         if (!isZoomChangeRef.current) {
           openTasksRef.current.forEach((taskId) => {
@@ -730,12 +741,6 @@ export function DhtmlxGanttChart({
           });
         }
 
-        // Sync Ref with current state to catch new open tasks
-        gantt.eachTask((task: any) => {
-          if (task.$open) {
-            openTasksRef.current.add(task.id);
-          }
-        });
         isZoomChangeRef.current = false;
       } catch (e) {
         console.error('Error updating gantt data:', e);
@@ -752,13 +757,7 @@ export function DhtmlxGanttChart({
         configureZoom(gantt, zoom, tasks);
         gantt.render();
 
-        // Restore open state for previously opened tasks
-        // This prevents main activities from collapsing when zooming
-        openTasksRef.current.forEach((taskId) => {
-          if (gantt.isTaskExists(taskId)) {
-            gantt.open(taskId);
-          }
-        });
+
 
         // Reset flag after a short delay
         setTimeout(() => {
