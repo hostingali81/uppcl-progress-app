@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -24,8 +25,10 @@ import {
   MessageSquare,
   Edit3,
   X,
+  ListChecks,
 } from "lucide-react";
 import { compressImage } from "@/lib/imageCompression";
+import { ActivityProgressForm } from "@/components/custom/ActivityProgressForm";
 
 interface UpdateProgressFormProps {
   workId: number;
@@ -43,6 +46,14 @@ export function UpdateProgressForm({
   currentActualCompletionDate,
 }: UpdateProgressFormProps) {
   const router = useRouter();
+
+  console.log("[UpdateProgressForm] Component mounted with props:", {
+    workId,
+    currentProgress,
+    currentRemark,
+    currentExpectedCompletionDate,
+    currentActualCompletionDate
+  });
 
   // Dialog control
   const [isOpen, setIsOpen] = useState(false);
@@ -72,32 +83,41 @@ export function UpdateProgressForm({
     setLoading(true);
     setMessage(null);
 
+    console.log("[UpdateProgressForm] Submitting for workId:", workId);
+
     const submitData = new FormData();
-    submitData.append("workId", workId.toString());
-    submitData.append("progress", formData.progress.toString());
-    submitData.append("remark", formData.remark);
-    submitData.append("expectedCompletionDate", formData.expectedCompletionDate);
-    submitData.append("actualCompletionDate", formData.actualCompletionDate);
+    submitData.append("workId", String(workId));
+    submitData.append("progress", String(formData.progress));
+    submitData.append("remark", formData.remark || "");
+    submitData.append("expectedCompletionDate", formData.expectedCompletionDate || "");
+    submitData.append("actualCompletionDate", formData.actualCompletionDate || "");
 
     try {
+      console.log("[UpdateProgressForm] Sending request to /api/progress-logs");
       const response = await fetch("/api/progress-logs", {
         method: "POST",
         body: submitData,
       });
 
+      console.log("[UpdateProgressForm] Response status:", response.status);
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("API error:", errorText);
-        throw new Error("Failed to create progress log");
+        console.error("[UpdateProgressForm] API error:", errorText);
+        throw new Error(`Failed to create progress log: ${errorText}`);
       }
 
       const data = await response.json();
+      console.log("[UpdateProgressForm] Response data:", data);
       setProgressLogId(data.progressLogId);
       setStep(2);
       setMessage({ text: "Progress log created successfully! Now upload photos.", type: "success" });
     } catch (error) {
-      console.error("Submit error:", error);
-      setMessage({ text: "Failed to create progress log", type: "error" });
+      console.error("[UpdateProgressForm] Submit error:", error);
+      setMessage({ 
+        text: error instanceof Error ? error.message : "Failed to create progress log", 
+        type: "error" 
+      });
     } finally {
       setLoading(false);
     }
@@ -176,7 +196,7 @@ export function UpdateProgressForm({
           Update Progress
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md w-full mx-auto top-4 translate-y-0 sm:top-[50%] sm:translate-y-[-50%]">
+      <DialogContent className="max-w-2xl w-full mx-auto top-4 translate-y-0 sm:top-[50%] sm:translate-y-[-50%] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{step === 1 ? "Update Progress" : "Upload Photos"}</DialogTitle>
           <DialogDescription className="sr-only">
@@ -184,87 +204,110 @@ export function UpdateProgressForm({
           </DialogDescription>
         </DialogHeader>
         {step === 1 && (
-          <div>
-            <div className="space-y-2 mb-4">
-              <Label>Current Progress</Label>
-              <div className="p-3 bg-gray-50 rounded">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">Progress</span>
-                  <span className="font-bold">{progress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input type="hidden" name="workId" value={workId} />
+          <Tabs defaultValue="overall" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 gap-2 bg-transparent p-1">
+              <TabsTrigger 
+                value="overall" 
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg bg-slate-100 text-slate-600 font-semibold rounded-lg transition-all cursor-pointer"
+                style={{ pointerEvents: 'auto' }}
+              >
+                📊 Overall Progress
+              </TabsTrigger>
+              <TabsTrigger 
+                value="activities"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg bg-slate-100 text-slate-600 font-semibold rounded-lg transition-all cursor-pointer"
+                style={{ pointerEvents: 'auto' }}
+              >
+                📋 Activity-wise
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="overall" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label>New Progress Percentage</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={formData.progress}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    setProgress(value);
-                    handleInputChange("progress", value.toString());
-                  }}
-                  className="w-full"
-                />
+                <Label>Current Progress</Label>
+                <div className="p-3 bg-gray-50 rounded">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-gray-600">Progress</span>
+                    <span className="font-bold">{progress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <input type="hidden" name="workId" value={workId} />
                 <div className="space-y-2">
-                  <Label>Expected Date</Label>
+                  <Label>New Progress Percentage</Label>
                   <Input
-                    type="date"
-                    value={formData.expectedCompletionDate}
-                    onChange={(e) => handleInputChange("expectedCompletionDate", e.target.value)}
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.progress}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      setProgress(value);
+                      handleInputChange("progress", value.toString());
+                    }}
+                    className="w-full"
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Expected Date</Label>
+                    <Input
+                      type="date"
+                      value={formData.expectedCompletionDate}
+                      onChange={(e) => handleInputChange("expectedCompletionDate", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Actual Date</Label>
+                    <Input
+                      type="date"
+                      value={formData.actualCompletionDate}
+                      onChange={(e) => handleInputChange("actualCompletionDate", e.target.value)}
+                    />
+                  </div>
+                </div>
                 <div className="space-y-2">
-                  <Label>Actual Date</Label>
-                  <Input
-                    type="date"
-                    value={formData.actualCompletionDate}
-                    onChange={(e) => handleInputChange("actualCompletionDate", e.target.value)}
+                  <Label>Remarks</Label>
+                  <Textarea
+                    value={formData.remark}
+                    onChange={(e) => handleInputChange("remark", e.target.value)}
+                    placeholder="Add your remarks..."
+                    rows={3}
                   />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Remarks</Label>
-                <Textarea
-                  value={formData.remark}
-                  onChange={(e) => handleInputChange("remark", e.target.value)}
-                  placeholder="Add your remarks..."
-                  rows={3}
-                />
-              </div>
-              {message && (
-                <div className={`p-3 rounded ${message.type === "error" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
-                  {message.text}
+                {message && (
+                  <div className={`p-3 rounded ${message.type === "error" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+                    {message.text}
+                  </div>
+                )}
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
+                  <Button type="submit" disabled={loading} style={{ pointerEvents: "auto" }}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" /> Update Progress
+                      </>
+                    )}
+                  </Button>
                 </div>
-              )}
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
-                <Button type="submit" disabled={loading} style={{ pointerEvents: "auto" }}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Updating...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" /> Update Progress
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </div>
+              </form>
+            </TabsContent>
+            
+            <TabsContent value="activities" className="mt-4">
+              <ActivityProgressForm workId={workId} onProgressUpdate={() => router.refresh()} />
+            </TabsContent>
+          </Tabs>
         )}
         {step === 2 && (
           <div className="space-y-4">

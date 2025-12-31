@@ -91,3 +91,19 @@ export interface ProgressLog {
     full_name: string | null;
   } | null;
 }
+
+export interface WorkActivity {
+  id: number;
+  work_id: number;
+  activity_code: string;
+  activity_name: string;
+  parent_activity_id: number | null;
+  is_main_activity: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  duration: number | null;
+  progress_percentage: number;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}

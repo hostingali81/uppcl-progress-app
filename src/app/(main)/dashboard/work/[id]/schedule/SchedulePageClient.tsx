@@ -60,8 +60,16 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                 return;
             }
             try {
-                // Skip loading saved data - always use fresh default schedule
-                // const result = await loadScheduleData(Number(work.id));
+                const result = await loadScheduleData(Number(work.id));
+                if (result.success && result.data) {
+                    const parsed = JSON.parse(result.data);
+                    if (parsed.customTasks) {
+                        setCustomTasks(parsed.customTasks);
+                    }
+                    if (parsed.deletedTaskIds) {
+                        setDeletedTaskIds(new Set(parsed.deletedTaskIds));
+                    }
+                }
                 setIsLoading(false);
             } catch (error) {
                 console.error('Failed to load schedule data:', error);
@@ -210,15 +218,20 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
         }
 
         try {
+            console.log('[SchedulePageClient] Saving schedule');
+            console.log('[SchedulePageClient] allTasks:', allTasks.length);
+            
             const scheduleData = JSON.stringify({
-                customTasks,
+                customTasks: allTasks,
                 deletedTaskIds: Array.from(deletedTaskIds)
             });
 
             const workId = Number(work.id);
             
             // Save to Supabase
+            console.log('[SchedulePageClient] Calling saveScheduleData');
             const result = await saveScheduleData(workId, scheduleData);
+            console.log('[SchedulePageClient] Save result:', result);
             
             if (result.success) {
                 // Also save to IndexedDB for offline access
@@ -651,7 +664,7 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
 
                     {/* Zoom and action buttons row */}
                     <div className="flex flex-wrap items-center gap-2">
-                        {/* Zoom controls */}
+                        {/* Zoom controls - Fixed position */}
                         <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
                             <Button
                                 variant="ghost"
@@ -663,8 +676,8 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                             >
                                 <ZoomOut className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
-                            <span className="px-1 sm:px-2 text-[10px] sm:text-xs font-medium text-slate-600 capitalize min-w-[40px] sm:min-w-[50px] text-center">
-                                {zoom}
+                            <span className="px-1 sm:px-2 text-[10px] sm:text-xs font-medium text-slate-600 capitalize w-[70px] sm:w-[80px] text-center">
+                                {zoom === 'alternate_day' ? 'Alt Day' : zoom}
                             </span>
                             <Button
                                 variant="ghost"
@@ -678,38 +691,9 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                             </Button>
                         </div>
 
-                        {/* Quick Intervals */}
-                        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-                            <Button
-                                variant={zoom === 'day' ? "secondary" : "ghost"}
-                                size="sm"
-                                onClick={() => setZoom('day')}
-                                className="text-[10px] sm:text-xs h-7 px-1.5 sm:px-2"
-                            >
-                                Daily
-                            </Button>
-                            <Button
-                                variant={zoom === 'month' ? "secondary" : "ghost"}
-                                size="sm"
-                                onClick={() => setZoom('month')}
-                                className="text-[10px] sm:text-xs h-7 px-1.5 sm:px-2"
-                            >
-                                Monthly
-                            </Button>
-                        </div>
-
                         <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block" />
 
                         {/* Action buttons */}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleReset}
-                            className="border-slate-200 text-slate-600 hover:bg-slate-50 text-xs sm:text-sm h-7 px-2 sm:px-3"
-                        >
-                            <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
-                            <span className="hidden sm:inline">Reset</span>
-                        </Button>
                         <Button
                             variant="outline"
                             size="sm"
@@ -745,6 +729,81 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
             <div className="flex-1 p-2 sm:p-4 md:p-6 min-h-[400px] sm:min-h-[500px] md:min-h-[600px]">
                 {showMobileView ? (
                     <div className="space-y-4">
+                        {/* Add Activity Buttons */}
+                        <div className="bg-white rounded-xl shadow-lg border border-slate-200/60 p-4">
+                            <h3 className="text-lg font-bold text-slate-900 mb-3">Manage Activities</h3>
+                            <div className="flex gap-2">
+                                <Button
+                                    onClick={handleAddMainActivity}
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                                >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Main Activity
+                                </Button>
+                                <Button
+                                    onClick={handleAddSubActivity}
+                                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                                >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Sub-Activity
+                                </Button>
+                            </div>
+                            {pendingChanges.length > 0 && (
+                                <Button
+                                    onClick={handleSave}
+                                    className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                    <Save className="h-4 w-4 mr-2" />
+                                    Save Changes ({pendingChanges.length})
+                                </Button>
+                            )}
+                        </div>
+
+                        {/* Activities List */}
+                        <div className="bg-white rounded-xl shadow-lg border border-slate-200/60 p-4">
+                            <h3 className="text-lg font-bold text-slate-900 mb-4">Activities</h3>
+                            <div className="space-y-3">
+                                {allTasks.filter(t => t.isMainActivity || t.type === 'project').map(mainTask => (
+                                    <div key={mainTask.id} className="border border-slate-200 rounded-lg p-4">
+                                        <div className="font-semibold text-slate-900 mb-2">{mainTask.text}</div>
+                                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-2">
+                                            <div>Start: {mainTask.start_date ? new Date(mainTask.start_date).toLocaleDateString('en-GB') : '-'}</div>
+                                            <div>End: {mainTask.end_date ? new Date(mainTask.end_date).toLocaleDateString('en-GB') : '-'}</div>
+                                        </div>
+                                        <div className="w-full bg-slate-200 rounded-full h-2">
+                                            <div 
+                                                className="bg-teal-500 h-2 rounded-full" 
+                                                style={{ width: `${Math.round((mainTask.progress || 0) * 100)}%` }}
+                                            />
+                                        </div>
+                                        <div className="text-xs text-slate-600 mt-1 text-right">
+                                            {Math.round((mainTask.progress || 0) * 100)}%
+                                        </div>
+                                        {allTasks.filter(t => t.parent === mainTask.id).length > 0 && (
+                                            <div className="mt-3 pl-4 space-y-2 border-l-2 border-slate-200">
+                                                {allTasks.filter(t => t.parent === mainTask.id).map(subTask => (
+                                                    <div key={subTask.id} className="text-sm">
+                                                        <div className="text-slate-700 mb-1">• {subTask.text}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="flex-1 bg-slate-100 rounded-full h-1.5">
+                                                                <div 
+                                                                    className="bg-blue-500 h-1.5 rounded-full" 
+                                                                    style={{ width: `${Math.round((subTask.progress || 0) * 100)}%` }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-xs text-slate-600">
+                                                                {Math.round((subTask.progress || 0) * 100)}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        
                         {/* Timeline Information Card */}
                         <div className="bg-white rounded-xl shadow-lg border border-slate-200/60 p-6">
                             <div className="flex items-start gap-4 mb-6">
@@ -799,51 +858,6 @@ export function SchedulePageClient({ work }: SchedulePageClientProps) {
                                     <span className="text-sm text-slate-600 block mb-2">Remark</span>
                                     <p className="text-sm text-slate-900">{work.reason || 'Work has been started'}</p>
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Activities List */}
-                        <div className="bg-white rounded-xl shadow-lg border border-slate-200/60 p-6">
-                            <h3 className="text-lg font-bold text-slate-900 mb-4">Activities</h3>
-                            <div className="space-y-3">
-                                {allTasks.filter(t => t.isMainActivity || t.type === 'project').map(mainTask => (
-                                    <div key={mainTask.id} className="border border-slate-200 rounded-lg p-4">
-                                        <div className="font-semibold text-slate-900 mb-2">{mainTask.text}</div>
-                                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-2">
-                                            <div>Start: {mainTask.start_date ? new Date(mainTask.start_date).toLocaleDateString('en-GB') : '-'}</div>
-                                            <div>End: {mainTask.end_date ? new Date(mainTask.end_date).toLocaleDateString('en-GB') : '-'}</div>
-                                        </div>
-                                        <div className="w-full bg-slate-200 rounded-full h-2">
-                                            <div 
-                                                className="bg-teal-500 h-2 rounded-full" 
-                                                style={{ width: `${Math.round((mainTask.progress || 0) * 100)}%` }}
-                                            />
-                                        </div>
-                                        <div className="text-xs text-slate-600 mt-1 text-right">
-                                            {Math.round((mainTask.progress || 0) * 100)}%
-                                        </div>
-                                        {allTasks.filter(t => t.parent === mainTask.id).length > 0 && (
-                                            <div className="mt-3 pl-4 space-y-2 border-l-2 border-slate-200">
-                                                {allTasks.filter(t => t.parent === mainTask.id).map(subTask => (
-                                                    <div key={subTask.id} className="text-sm">
-                                                        <div className="text-slate-700 mb-1">• {subTask.text}</div>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="flex-1 bg-slate-100 rounded-full h-1.5">
-                                                                <div 
-                                                                    className="bg-blue-500 h-1.5 rounded-full" 
-                                                                    style={{ width: `${Math.round((subTask.progress || 0) * 100)}%` }}
-                                                                />
-                                                            </div>
-                                                            <span className="text-xs text-slate-600">
-                                                                {Math.round((subTask.progress || 0) * 100)}%
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
                             </div>
                         </div>
                     </div>

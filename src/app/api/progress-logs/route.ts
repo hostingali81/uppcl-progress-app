@@ -39,13 +39,33 @@ export async function POST(request: Request) {
     const billNo = formData.get("billNo") as string | null;
     const billAmount = formData.get("billAmount") ? Number(formData.get("billAmount")) : null;
 
+    console.log("[API /progress-logs POST] Received request:", {
+      workId,
+      progress,
+      remark,
+      expectedCompletionDate,
+      actualCompletionDate,
+      billNo,
+      billAmount
+    });
+
+    if (isNaN(workId) || isNaN(progress)) {
+      console.error("[API /progress-logs POST] Invalid workId or progress:", { workId, progress });
+      return NextResponse.json({ error: "Invalid workId or progress value" }, { status: 400 });
+    }
+
     const { client: supabase, admin: supabaseAdmin } = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
+    
+    console.log("[API /progress-logs POST] User authenticated:", { userId: user?.id, email: user?.email });
+    
     if (!user) {
+      console.error("[API /progress-logs POST] No authenticated user");
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
     // Get current work details to find previous progress
+    console.log("[API /progress-logs POST] Fetching work details for workId:", workId);
     const { data: currentWork, error: workError } = await (supabaseAdmin as any)
       .from("works")
       .select("*")
@@ -53,9 +73,15 @@ export async function POST(request: Request) {
       .single();
 
     if (workError || !currentWork) {
-      console.error("Could not fetch current work details:", workError);
+      console.error("[API /progress-logs POST] Could not fetch current work details:", workError);
       return NextResponse.json({ error: "Could not fetch current work details" }, { status: 500 });
     }
+    
+    console.log("[API /progress-logs POST] Current work fetched:", {
+      id: currentWork.id,
+      work_name: currentWork.work_name,
+      current_progress: currentWork.progress_percentage
+    });
 
     // Get user's profile
     const { data: userProfile } = await (supabaseAdmin as any)
@@ -66,6 +92,7 @@ export async function POST(request: Request) {
     const userDisplayName = userProfile?.full_name || user.email;
 
     // Insert progress log with previous progress
+    console.log("[API /progress-logs POST] Inserting progress log");
     const { data: progressLogData, error: progressLogError } = await (supabaseAdmin as any)
       .from("progress_logs")
       .insert({
@@ -81,11 +108,14 @@ export async function POST(request: Request) {
       .single();
 
     if (progressLogError || !progressLogData) {
-      console.error("Progress log insert error:", progressLogError);
+      console.error("[API /progress-logs POST] Progress log insert error:", progressLogError);
       return NextResponse.json({ error: "Failed to create progress log" }, { status: 500 });
     }
+    
+    console.log("[API /progress-logs POST] Progress log created:", { id: progressLogData.id });
 
     // Update the work with new progress and other details
+    console.log("[API /progress-logs POST] Updating work with new progress");
     const updateData: any = {
       progress_percentage: progress,
       remark: remark,
@@ -104,9 +134,11 @@ export async function POST(request: Request) {
       .eq("id", workId);
 
     if (updateError) {
-      console.error("Error updating work:", updateError);
+      console.error("[API /progress-logs POST] Error updating work:", updateError);
       return NextResponse.json({ error: "Failed to update work progress" }, { status: 500 });
     }
+    
+    console.log("[API /progress-logs POST] Work updated successfully");
 
     // CREATE PROGRESS UPDATE NOTIFICATIONS
     console.log(`📊 Progress updated from ${currentWork.progress_percentage}% to ${progress}% - Creating notifications...`);
@@ -233,6 +265,7 @@ export async function POST(request: Request) {
     revalidatePath(`/dashboard/work/${workId}`);
     revalidatePath('/dashboard');
 
+    console.log("[API /progress-logs POST] Success! Returning progressLogId:", progressLogData.id);
     return NextResponse.json({ progressLogId: progressLogData.id });
   } catch (error) {
     console.error("API Error:", error);

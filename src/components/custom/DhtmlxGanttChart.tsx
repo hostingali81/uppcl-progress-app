@@ -400,7 +400,7 @@ export function DhtmlxGanttChart({
         gantt.config.auto_types = true;
 
         // Open all tasks by default
-        gantt.config.open_tree_initially = true;
+        gantt.config.open_tree_initially = false;
 
 
         // CRITICAL: Auto-size to fill vertical space
@@ -615,6 +615,10 @@ export function DhtmlxGanttChart({
         // Load data
         if (tasks.length > 0) {
           gantt.parse({ data: tasks, links });
+          // Explicitly close all tasks after loading
+          gantt.eachTask((task: any) => {
+            gantt.close(task.id);
+          });
         }
 
         setIsLoading(false);
@@ -654,6 +658,10 @@ export function DhtmlxGanttChart({
       try {
         gantt.clearAll();
         gantt.parse({ data: tasks, links });
+        // Explicitly close all tasks after loading
+        gantt.eachTask((task: any) => {
+          gantt.close(task.id);
+        });
       } catch (e) {
         console.error('Error updating gantt data:', e);
       }
