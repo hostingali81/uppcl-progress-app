@@ -45,18 +45,26 @@ export async function saveScheduleData(workId: number, scheduleData: string) {
                     .eq('work_id', workId);
                 
                 // Insert new activities
-                const activities = tasksToSync.map((task: any, index: number) => ({
-                    work_id: workId,
-                    activity_code: String(task.id),
-                    activity_name: task.text,
-                    parent_activity_id: null,
-                    is_main_activity: task.type === 'project' || task.isMainActivity || false,
-                    start_date: task.start_date || null,
-                    end_date: task.end_date || null,
-                    duration: task.duration || null,
-                    progress_percentage: (task.progress || 0) * 100,
-                    display_order: index
-                }));
+                const activities = tasksToSync.map((task: any, index: number) => {
+                    // Normalize progress: if > 1, it's already percentage
+                    let progressPercentage = (task.progress || 0);
+                    if (progressPercentage <= 1) {
+                        progressPercentage = progressPercentage * 100;
+                    }
+                    
+                    return {
+                        work_id: workId,
+                        activity_code: String(task.id),
+                        activity_name: task.text,
+                        parent_activity_id: null,
+                        is_main_activity: task.type === 'project' || task.isMainActivity || false,
+                        start_date: task.start_date || null,
+                        end_date: task.end_date || null,
+                        duration: task.duration || null,
+                        progress_percentage: progressPercentage,
+                        display_order: index
+                    };
+                });
                 
                 console.log('[saveScheduleData] Inserting activities:', activities.length);
                 
@@ -128,9 +136,17 @@ export async function loadScheduleData(workId: number) {
         if (data?.schedule_data && activities && activities.length > 0) {
             const scheduleData = JSON.parse(data.schedule_data);
             
+            // Handle both old and new format
+            let tasksToUpdate = [];
+            if (scheduleData.customTasks && Array.isArray(scheduleData.customTasks)) {
+                tasksToUpdate = scheduleData.customTasks;
+            } else if (scheduleData.data && Array.isArray(scheduleData.data)) {
+                tasksToUpdate = scheduleData.data;
+            }
+            
             // Update progress from activities
-            const updatedData = scheduleData.data.map((task: any) => {
-                const activity = activities.find(a => a.activity_code === task.id);
+            const updatedTasks = tasksToUpdate.map((task: any) => {
+                const activity = activities.find(a => a.activity_code === String(task.id));
                 if (activity) {
                     return {
                         ...task,
@@ -140,9 +156,13 @@ export async function loadScheduleData(workId: number) {
                 return task;
             });
             
+            // Return in new format
             return { 
                 success: true, 
-                data: JSON.stringify({ ...scheduleData, data: updatedData })
+                data: JSON.stringify({ 
+                    customTasks: updatedTasks,
+                    deletedTaskIds: scheduleData.deletedTaskIds || []
+                })
             };
         }
         

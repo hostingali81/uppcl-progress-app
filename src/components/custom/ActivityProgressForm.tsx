@@ -32,14 +32,44 @@ export function ActivityProgressForm({ workId, onProgressUpdate }: ActivityProgr
     setLoading(true);
     const result = await getWorkActivities(workId);
     console.log('[ActivityProgressForm] Result:', result);
+    console.log('[ActivityProgressForm] Result data:', JSON.stringify(result.data, null, 2));
+    
+    // If no activities found, try to initialize from schedule
+    if (result.success && (!result.data || result.data.length === 0)) {
+      console.log('[ActivityProgressForm] No activities found, initializing from schedule...');
+      const { initializeActivitiesFromSchedule } = await import('@/app/(main)/dashboard/work/[id]/activities-actions');
+      const initResult = await initializeActivitiesFromSchedule(workId);
+      console.log('[ActivityProgressForm] Initialize result:', initResult);
+      
+      if (initResult.success) {
+        // Reload activities after initialization
+        const reloadResult = await getWorkActivities(workId);
+        if (reloadResult.success && reloadResult.data) {
+          console.log('[ActivityProgressForm] Activities loaded after init:', reloadResult.data.length);
+          setActivities(reloadResult.data);
+          const initialUpdates: Record<string, number> = {};
+          reloadResult.data.forEach((activity: WorkActivity) => {
+            console.log('[ActivityProgressForm] Activity:', activity.activity_code, 'Progress:', activity.progress_percentage);
+            initialUpdates[activity.activity_code] = Math.round(activity.progress_percentage);
+          });
+          console.log('[ActivityProgressForm] Initial updates:', initialUpdates);
+          setUpdates(initialUpdates);
+          setLoading(false);
+          return;
+        }
+      }
+    }
+    
     if (result.success && result.data) {
       console.log('[ActivityProgressForm] Activities loaded:', result.data.length);
       setActivities(result.data);
       // Initialize updates with current progress
       const initialUpdates: Record<string, number> = {};
       result.data.forEach((activity: WorkActivity) => {
+        console.log('[ActivityProgressForm] Activity:', activity.activity_code, 'Progress:', activity.progress_percentage);
         initialUpdates[activity.activity_code] = Math.round(activity.progress_percentage);
       });
+      console.log('[ActivityProgressForm] Initial updates:', initialUpdates);
       setUpdates(initialUpdates);
     } else {
       console.error('[ActivityProgressForm] Failed to load activities:', result.error);

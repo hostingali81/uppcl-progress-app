@@ -16,7 +16,6 @@ import { FileUploadManager } from "@/components/custom/FileUploadManager";
 import { CommentsSection } from "@/components/custom/CommentsSection";
 import { BlockerStatusManager } from "@/components/custom/BlockerStatusManager";
 import { ProgressLogsSection } from "@/components/custom/ProgressLogsSection";
-import { ActivityProgressForm } from "@/components/custom/ActivityProgressForm";
 
 import { TimelineChart } from "@/components/custom/TimelineChart";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -391,8 +390,6 @@ export default function WorkDetailClient({
 
                 {/* Progress Logs & Comments Section */}
                 <div className="space-y-6">
-                    <ActivityProgressForm workId={work.id} />
-                    
                     <ProgressLogsSection
                         progressLogs={progressLogs}
                         allAttachments={allAttachments}

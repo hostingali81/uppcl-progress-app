@@ -254,6 +254,8 @@ export function DhtmlxGanttChart({
   const [error, setError] = useState<string | null>(null);
   const ganttRef = useRef<any>(null);
   const styleElementRef = useRef<HTMLStyleElement | null>(null);
+  const openTasksRef = useRef<Set<string | number>>(new Set());
+  const isZoomChangeRef = useRef(false);
 
   // Keep track of readOnly state for event handlers
   const readOnlyRef = useRef(readOnly);
@@ -273,7 +275,7 @@ export function DhtmlxGanttChart({
     // Calculate date range from tasks
     let minDate = new Date();
     let maxDate = new Date();
-    
+
     if (tasks.length > 0) {
       const dates = tasks.map(t => new Date(t.start_date));
       const endDates = tasks.filter(t => t.end_date).map(t => new Date(t.end_date!));
@@ -347,7 +349,7 @@ export function DhtmlxGanttChart({
 
         const gantt = ganttModule.gantt;
         ganttRef.current = gantt;
-        
+
         // Expose gantt instance globally for PDF export
         if (typeof window !== 'undefined') {
           (window as any).gantt = gantt;
@@ -372,7 +374,7 @@ export function DhtmlxGanttChart({
         gantt.config.details_on_dblclick = !readOnly;
         gantt.config.details_on_create = !readOnly;
         gantt.config.grid_resize = true; // Enable column resizing
-        
+
         // Mobile layout: stack grid above timeline
         const isMobileView = typeof window !== 'undefined' && window.innerWidth < 768;
         if (isMobileView) {
@@ -401,6 +403,19 @@ export function DhtmlxGanttChart({
 
         // Open all tasks by default
         gantt.config.open_tree_initially = false;
+
+        // Track task open/close state
+        gantt.attachEvent('onTaskOpened', (id: string | number) => {
+          openTasksRef.current.add(id);
+          return true;
+        });
+
+        gantt.attachEvent('onTaskClosed', (id: string | number) => {
+          if (!isZoomChangeRef.current) {
+            openTasksRef.current.delete(id);
+          }
+          return true;
+        });
 
 
         // CRITICAL: Auto-size to fill vertical space
@@ -432,7 +447,14 @@ export function DhtmlxGanttChart({
             width: 45,
             resize: true,
             min_width: 40,
-            template: (task: any) => `${Math.round((task.progress || 0) * 100)}%`
+            template: (task: any) => {
+              let progress = task.progress || 0;
+              // Normalize: if > 1, it's already percentage
+              if (progress > 1) {
+                progress = progress / 100;
+              }
+              return `${Math.round(progress * 100)}%`;
+            }
           }
         ] : [
           { name: 'text', label: 'Activity', tree: true, width: 220, resize: true, min_width: 100, template: (task: any) => `<div class='gantt-sticky-task'>${task.text}</div>` },
@@ -445,7 +467,14 @@ export function DhtmlxGanttChart({
             width: 75,
             resize: true,
             min_width: 50,
-            template: (task: any) => `${Math.round((task.progress || 0) * 100)}%`
+            template: (task: any) => {
+              let progress = task.progress || 0;
+              // Normalize: if > 1, it's already percentage
+              if (progress > 1) {
+                progress = progress / 100;
+              }
+              return `${Math.round(progress * 100)}%`;
+            }
           },
           {
             name: 'add',
@@ -471,16 +500,26 @@ export function DhtmlxGanttChart({
         // Attach event to convert progress for display
         gantt.attachEvent('onBeforeLightbox', (id: string | number) => {
           const task = gantt.getTask(id);
-          // Convert 0-1 to 0-100 for display (round to whole number)
-          task.progress = Math.round((task.progress || 0) * 100);
+          // Ensure progress is in 0-1 range, then convert to 0-100 for display
+          let progress = task.progress || 0;
+          // If progress is already > 1, it's likely in percentage format, normalize it
+          if (progress > 1) {
+            progress = progress / 100;
+          }
+          task.progress = Math.round(progress * 100);
           return true;
         });
 
         gantt.attachEvent('onLightboxSave', (id: string | number, task: any) => {
           // Convert input (0-100) back to 0-1
-          const progressValue = parseInt(task.progress);
+          const progressValue = parseFloat(task.progress);
           if (!isNaN(progressValue)) {
-            task.progress = Math.max(0, Math.min(100, progressValue)) / 100;
+            // Normalize: if value is > 1, assume it's percentage and divide by 100
+            let normalized = progressValue;
+            if (normalized > 1) {
+              normalized = normalized / 100;
+            }
+            task.progress = Math.max(0, Math.min(1, normalized));
           } else {
             task.progress = 0;
           }
@@ -539,6 +578,10 @@ export function DhtmlxGanttChart({
         });
 
         gantt.attachEvent('onAfterTaskUpdate', (id: string | number, task: any) => {
+          // Normalize progress to 0-1 range
+          if (task.progress > 1) {
+            task.progress = task.progress / 100;
+          }
           if (onTaskChange) {
             onTaskChange({
               type: 'update',
@@ -614,10 +657,25 @@ export function DhtmlxGanttChart({
 
         // Load data
         if (tasks.length > 0) {
-          gantt.parse({ data: tasks, links });
-          // Explicitly close all tasks after loading
+          // Normalize progress values before loading
+          const normalizedTasks = tasks.map(task => ({
+            ...task,
+            progress: task.progress > 1 ? task.progress / 100 : task.progress
+          }));
+          gantt.parse({ data: normalizedTasks, links });
+
+          // Restore open state for previously opened tasks
+          openTasksRef.current.forEach((taskId) => {
+            if (gantt.isTaskExists(taskId)) {
+              gantt.open(taskId);
+            }
+          });
+
+          // Sync Ref with current state to catch tasks open by default (from data)
           gantt.eachTask((task: any) => {
-            gantt.close(task.id);
+            if (task.$open) {
+              openTasksRef.current.add(task.id);
+            }
           });
         }
 
@@ -657,11 +715,28 @@ export function DhtmlxGanttChart({
     if (gantt && !isLoading && tasks.length > 0) {
       try {
         gantt.clearAll();
-        gantt.parse({ data: tasks, links });
-        // Explicitly close all tasks after loading
+        // Normalize progress values before loading
+        const normalizedTasks = tasks.map(task => ({
+          ...task,
+          progress: task.progress > 1 ? task.progress / 100 : task.progress
+        }));
+        gantt.parse({ data: normalizedTasks, links });
+        // Only restore open state if not a zoom change
+        if (!isZoomChangeRef.current) {
+          openTasksRef.current.forEach((taskId) => {
+            if (gantt.isTaskExists(taskId)) {
+              gantt.open(taskId);
+            }
+          });
+        }
+
+        // Sync Ref with current state to catch new open tasks
         gantt.eachTask((task: any) => {
-          gantt.close(task.id);
+          if (task.$open) {
+            openTasksRef.current.add(task.id);
+          }
         });
+        isZoomChangeRef.current = false;
       } catch (e) {
         console.error('Error updating gantt data:', e);
       }
@@ -671,15 +746,29 @@ export function DhtmlxGanttChart({
   // Update zoom level
   useEffect(() => {
     const gantt = ganttRef.current;
-    if (gantt && !isLoading && containerRef.current && tasks.length > 0) {
+    if (gantt && !isLoading && containerRef.current) {
       try {
+        isZoomChangeRef.current = true;
         configureZoom(gantt, zoom, tasks);
         gantt.render();
+
+        // Restore open state for previously opened tasks
+        // This prevents main activities from collapsing when zooming
+        openTasksRef.current.forEach((taskId) => {
+          if (gantt.isTaskExists(taskId)) {
+            gantt.open(taskId);
+          }
+        });
+
+        // Reset flag after a short delay
+        setTimeout(() => {
+          isZoomChangeRef.current = false;
+        }, 100);
       } catch (e) {
         console.error('Error changing zoom:', e);
       }
     }
-  }, [zoom, isLoading, configureZoom, tasks]);
+  }, [zoom, isLoading, configureZoom]);
 
   // Update readonly mode
   useEffect(() => {

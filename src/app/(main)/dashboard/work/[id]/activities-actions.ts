@@ -10,6 +10,7 @@ import type { WorkActivity } from '@/lib/types';
  */
 export async function getWorkActivities(workId: number) {
     try {
+        console.log('[getWorkActivities] Fetching activities for workId:', workId);
         const { admin } = await createSupabaseServerClient();
         
         const { data, error } = await admin
@@ -17,6 +18,8 @@ export async function getWorkActivities(workId: number) {
             .select('*')
             .eq('work_id', workId)
             .order('display_order', { ascending: true });
+        
+        console.log('[getWorkActivities] Query result - data:', data?.length, 'error:', error);
         
         if (error) throw error;
         
@@ -89,9 +92,17 @@ export async function syncScheduleWithActivities(workId: number) {
         // Parse schedule data
         const scheduleData = JSON.parse(work.schedule_data);
         
+        // Handle both old and new format
+        let tasksToUpdate = [];
+        if (scheduleData.customTasks && Array.isArray(scheduleData.customTasks)) {
+            tasksToUpdate = scheduleData.customTasks;
+        } else if (scheduleData.data && Array.isArray(scheduleData.data)) {
+            tasksToUpdate = scheduleData.data;
+        }
+        
         // Update progress in schedule data
-        const updatedData = scheduleData.data.map((task: any) => {
-            const activity = activities.find(a => a.activity_code === task.id);
+        const updatedTasks = tasksToUpdate.map((task: any) => {
+            const activity = activities.find(a => a.activity_code === String(task.id));
             if (activity) {
                 return {
                     ...task,
@@ -101,11 +112,14 @@ export async function syncScheduleWithActivities(workId: number) {
             return task;
         });
         
-        // Save updated schedule
+        // Save updated schedule in new format
         const { error } = await admin
             .from('works')
             .update({ 
-                schedule_data: JSON.stringify({ ...scheduleData, data: updatedData })
+                schedule_data: JSON.stringify({ 
+                    customTasks: updatedTasks,
+                    deletedTaskIds: scheduleData.deletedTaskIds || []
+                })
             })
             .eq('id', workId);
         
@@ -123,6 +137,7 @@ export async function syncScheduleWithActivities(workId: number) {
  */
 export async function initializeActivitiesFromSchedule(workId: number) {
     try {
+        console.log('[initializeActivitiesFromSchedule] Starting for workId:', workId);
         const { admin } = await createSupabaseServerClient();
         
         // Get schedule data
@@ -132,11 +147,28 @@ export async function initializeActivitiesFromSchedule(workId: number) {
             .eq('id', workId)
             .single();
         
+        console.log('[initializeActivitiesFromSchedule] Schedule data exists:', !!work?.schedule_data);
+        
         if (!work?.schedule_data) {
             return { success: false, error: 'No schedule data found' };
         }
         
         const scheduleData = JSON.parse(work.schedule_data);
+        console.log('[initializeActivitiesFromSchedule] Parsed schedule data');
+        
+        // Handle both old and new format
+        let tasksToSync = [];
+        if (scheduleData.customTasks && Array.isArray(scheduleData.customTasks)) {
+            tasksToSync = scheduleData.customTasks;
+        } else if (scheduleData.data && Array.isArray(scheduleData.data)) {
+            tasksToSync = scheduleData.data;
+        }
+        
+        console.log('[initializeActivitiesFromSchedule] Tasks to sync:', tasksToSync.length);
+        
+        if (tasksToSync.length === 0) {
+            return { success: false, error: 'No tasks in schedule data' };
+        }
         
         // Check if activities already exist
         const { data: existing } = await admin
@@ -146,22 +178,33 @@ export async function initializeActivitiesFromSchedule(workId: number) {
             .limit(1);
         
         if (existing && existing.length > 0) {
+            console.log('[initializeActivitiesFromSchedule] Activities already exist');
             return { success: false, error: 'Activities already initialized' };
         }
         
         // Create activities from schedule
-        const activities = scheduleData.data.map((task: any, index: number) => ({
-            work_id: workId,
-            activity_code: task.id,
-            activity_name: task.text,
-            parent_activity_id: null, // Will be set in second pass
-            is_main_activity: task.type === 'project' || task.isMainActivity || false,
-            start_date: task.start_date || null,
-            end_date: task.end_date || null,
-            duration: task.duration || null,
-            progress_percentage: (task.progress || 0) * 100,
-            display_order: index
-        }));
+        const activities = tasksToSync.map((task: any, index: number) => {
+            // Normalize progress: if > 1, it's already percentage
+            let progressPercentage = (task.progress || 0);
+            if (progressPercentage <= 1) {
+                progressPercentage = progressPercentage * 100;
+            }
+            
+            return {
+                work_id: workId,
+                activity_code: String(task.id),
+                activity_name: task.text,
+                parent_activity_id: null,
+                is_main_activity: task.type === 'project' || task.isMainActivity || false,
+                start_date: task.start_date || null,
+                end_date: task.end_date || null,
+                duration: task.duration || null,
+                progress_percentage: progressPercentage,
+                display_order: index
+            };
+        });
+        
+        console.log('[initializeActivitiesFromSchedule] Inserting activities:', activities.length);
         
         // Insert activities
         const { data: inserted, error: insertError } = await admin
@@ -169,14 +212,19 @@ export async function initializeActivitiesFromSchedule(workId: number) {
             .insert(activities)
             .select();
         
-        if (insertError) throw insertError;
+        if (insertError) {
+            console.error('[initializeActivitiesFromSchedule] Insert error:', insertError);
+            throw insertError;
+        }
+        
+        console.log('[initializeActivitiesFromSchedule] Inserted:', inserted?.length);
         
         // Update parent relationships
         if (inserted) {
-            for (const task of scheduleData.data) {
+            for (const task of tasksToSync) {
                 if (task.parent) {
-                    const child = inserted.find(a => a.activity_code === task.id);
-                    const parent = inserted.find(a => a.activity_code === task.parent);
+                    const child = inserted.find(a => a.activity_code === String(task.id));
+                    const parent = inserted.find(a => a.activity_code === String(task.parent));
                     
                     if (child && parent) {
                         await admin

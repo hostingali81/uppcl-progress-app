@@ -9,10 +9,11 @@ import { ExportToPDFButton } from "@/components/custom/ExportToPDFButton";
 import { DashboardFilters } from "@/components/custom/DashboardFilters";
 import { DateFilter } from "@/components/custom/DateFilter";
 import { Tooltip } from "@/components/ui/tooltip";
-import { FileText, Download, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, LayoutList, Table as TableIcon } from "lucide-react";
+import { FileText, Download, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, LayoutList, Table as TableIcon, Settings2 } from "lucide-react";
 import Link from "next/link";
 import type { Work, ProgressLog } from "@/lib/types";
 import { SummaryReportTable } from "@/components/custom/SummaryReportTable";
+import { DynamicSummaryReport } from "@/components/custom/DynamicSummaryReport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import styles from "./reports-premium.module.css";
 
@@ -27,7 +28,7 @@ interface ReportsClientProps {
 export function ReportsClient({ works, profile, userId }: ReportsClientProps) {
   const [filteredWorks, setFilteredWorks] = useState<Work[]>(works);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("detailed");
+  const [activeTab, setActiveTab] = useState<string>("dynamic");
   const [sort, setSort] = useState<{ column: string; direction: 'asc' | 'desc' }>({
     column: '',
     direction: 'asc'
@@ -542,22 +543,30 @@ export function ReportsClient({ works, profile, userId }: ReportsClientProps) {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
           {/* Enhanced Report Type Tabs */}
-          <TabsList className="bg-slate-100 p-1 rounded-xl shadow-sm w-full sm:w-auto grid grid-cols-2 sm:flex h-auto">
+          <TabsList className="bg-slate-100 p-1 rounded-xl shadow-sm w-full sm:w-auto grid grid-cols-3 sm:flex h-auto">
             <TabsTrigger
-              value="detailed"
-              className="flex items-center justify-center sm:justify-start gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-6 py-3 relative overflow-hidden"
+              value="dynamic"
+              className="flex items-center justify-center sm:justify-start gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-4 py-3 relative overflow-hidden"
             >
-              <LayoutList className="h-5 w-5" />
-              <span className="font-semibold">📄 Detailed Report</span>
-              <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 transition-transform duration-200 ${activeTab === 'detailed' ? 'scale-x-100' : 'scale-x-0'}`} />
+              <Settings2 className="h-5 w-5" />
+              <span className="font-semibold text-xs sm:text-sm">🎯 Dynamic Pivot</span>
+              <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 transition-transform duration-200 ${activeTab === 'dynamic' ? 'scale-x-100' : 'scale-x-0'}`} />
             </TabsTrigger>
             <TabsTrigger
               value="summary"
-              className="flex items-center justify-center sm:justify-start gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-6 py-3 relative overflow-hidden"
+              className="flex items-center justify-center sm:justify-start gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-4 py-3 relative overflow-hidden"
             >
               <TableIcon className="h-5 w-5" />
-              <span className="font-semibold">📊 Summary Report</span>
+              <span className="font-semibold text-xs sm:text-sm">📊 Summary</span>
               <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 transition-transform duration-200 ${activeTab === 'summary' ? 'scale-x-100' : 'scale-x-0'}`} />
+            </TabsTrigger>
+            <TabsTrigger
+              value="detailed"
+              className="flex items-center justify-center sm:justify-start gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-4 py-3 relative overflow-hidden"
+            >
+              <LayoutList className="h-5 w-5" />
+              <span className="font-semibold text-xs sm:text-sm">📄 Detailed</span>
+              <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 transition-transform duration-200 ${activeTab === 'detailed' ? 'scale-x-100' : 'scale-x-0'}`} />
             </TabsTrigger>
           </TabsList>
 
@@ -567,7 +576,7 @@ export function ReportsClient({ works, profile, userId }: ReportsClientProps) {
               <ExportToExcelButton
                 selectedScheme="All"
                 filteredWorks={filteredWorks}
-                isSummary={activeTab === 'summary'}
+                isSummary={activeTab === 'summary' || activeTab === 'dynamic'}
                 groupingField={groupingField}
                 groupingLabel={groupingLabel}
                 schemeName={schemeName}
@@ -579,7 +588,7 @@ export function ReportsClient({ works, profile, userId }: ReportsClientProps) {
               <ExportToPDFButton
                 selectedScheme="All"
                 filteredWorks={filteredWorks}
-                isSummary={activeTab === 'summary'}
+                isSummary={activeTab === 'summary' || activeTab === 'dynamic'}
                 groupingField={groupingField}
                 groupingLabel={groupingLabel}
                 schemeName={schemeName}
@@ -589,6 +598,14 @@ export function ReportsClient({ works, profile, userId }: ReportsClientProps) {
             </div>
           </div>
         </div>
+
+        <TabsContent value="dynamic" className="mt-0">
+          <DynamicSummaryReport works={filteredWorks} />
+        </TabsContent>
+
+        <TabsContent value="summary">
+          <SummaryReportTable works={filteredWorks} groupingField={groupingField} groupingLabel={groupingLabel} />
+        </TabsContent>
 
         <TabsContent value="detailed" className="mt-0">
           {/* Data Table */}
