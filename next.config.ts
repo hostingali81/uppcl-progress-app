@@ -1,9 +1,16 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  images: {
-    // Android app mein unoptimized images better kaam karte hain
-    unoptimized: true,
+import withPWAInit from '@ducanh2912/next-pwa';
+import type { NextConfig } from 'next';
 
+const withPWA = withPWAInit({
+  dest: 'public',
+  register: true,
+  disable: process.env.NODE_ENV === 'development',
+});
+
+const nextConfig: NextConfig = {
+  turbopack: {},
+  images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -19,18 +26,8 @@ const nextConfig = {
       },
     ],
   },
-
-  // Better routing ke liye
   trailingSlash: true,
-
-  // Skip API routes during build (Android app will use live API from server)
   skipTrailingSlashRedirect: true,
-
-  // Disable dev indicators (Next.js logo at bottom)
-  devIndicators: {
-    buildActivity: false,
-    appIsrStatus: false,
-  },
 };
 
-module.exports = nextConfig;
+export default withPWA(nextConfig);
