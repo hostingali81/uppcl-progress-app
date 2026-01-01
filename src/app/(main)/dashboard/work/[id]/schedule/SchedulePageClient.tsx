@@ -279,6 +279,30 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
         }
     }, [pendingChanges, customTasks, deletedTaskIds, work]);
 
+    // Helper to safely parse dates
+    const parseDate = (dateStr: string | Date | undefined | null): Date | null => {
+        if (!dateStr) return null;
+        if (dateStr instanceof Date) {
+            return isNaN(dateStr.getTime()) ? null : dateStr;
+        }
+
+        // Try standard Date constructor first
+        let date = new Date(dateStr);
+        if (!isNaN(date.getTime())) return date;
+
+        // Try parsing specific formats
+        if (typeof dateStr === 'string') {
+            // Handle DD-MM-YYYY or DD/MM/YYYY
+            const parts = dateStr.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+            if (parts) {
+                // assume DD-MM-YYYY
+                return new Date(parseInt(parts[3]), parseInt(parts[2]) - 1, parseInt(parts[1]));
+            }
+        }
+
+        return null;
+    };
+
     // Export to Excel
     const handleExportExcel = useCallback(async () => {
         try {
@@ -320,8 +344,8 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
             const mainActivities = allTasks.filter(t => t.isMainActivity || t.type === 'project');
 
             mainActivities.forEach(mainTask => {
-                const startDate = mainTask.start_date ? new Date(mainTask.start_date) : null;
-                const endDate = mainTask.end_date ? new Date(mainTask.end_date) : null;
+                const startDate = parseDate(mainTask.start_date);
+                const endDate = parseDate(mainTask.end_date);
                 const days = startDate && endDate ? Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) : '-';
 
                 // Add main activity
@@ -339,8 +363,8 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
                 // Add sub-activities
                 const subActivities = allTasks.filter(t => t.parent === mainTask.id);
                 subActivities.forEach(subTask => {
-                    const subStartDate = subTask.start_date ? new Date(subTask.start_date) : null;
-                    const subEndDate = subTask.end_date ? new Date(subTask.end_date) : null;
+                    const subStartDate = parseDate(subTask.start_date);
+                    const subEndDate = parseDate(subTask.end_date);
                     const subDays = subStartDate && subEndDate ? Math.ceil((subEndDate.getTime() - subStartDate.getTime()) / (1000 * 60 * 60 * 24)) : '-';
 
                     worksheet.addRow({
@@ -406,18 +430,28 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
                 });
             });
 
-            const dates = allTasksFlat.map(t => new Date(t.start_date));
-            const endDates = allTasksFlat.filter(t => t.end_date).map(t => new Date(t.end_date));
-            const minTaskDate = new Date(Math.min(...dates.map(d => d.getTime())));
-            const maxTaskDate = new Date(Math.max(...endDates.map(d => d.getTime())));
+            // Filter out tasks with invalid dates for min/max calculation, but keep them in list to show as blank/invalid
+            const validDates = allTasksFlat
+                .map(t => parseDate(t.start_date))
+                .filter((d): d is Date => d !== null);
+
+            const validEndDates = allTasksFlat
+                .map(t => parseDate(t.end_date))
+                .filter((d): d is Date => d !== null);
+
+            // Default defaults if no valid dates
+            let minTaskDate = validDates.length > 0 ? new Date(Math.min(...validDates.map(d => d.getTime()))) : new Date();
+            let maxTaskDate = validEndDates.length > 0 ? new Date(Math.max(...validEndDates.map(d => d.getTime()))) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
             // Set minDate to first day of month
             const minDate = new Date(minTaskDate.getFullYear(), minTaskDate.getMonth(), 1);
-            // Set maxDate to last day of month
+            // Set maxDate to last day of month of the max task date
             const maxDate = new Date(maxTaskDate.getFullYear(), maxTaskDate.getMonth() + 1, 0);
 
             const months: Date[] = [];
             let current = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+
+            // Ensure we cover up to maxDate
             while (current <= maxDate) {
                 months.push(new Date(current));
                 current.setMonth(current.getMonth() + 1);
@@ -425,41 +459,66 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
 
             const startY = 20;
             const rowHeight = 6;
-            const colWidths = [12, 45, 18, 18, 12, 15];
-            const chartStartX = colWidths.reduce((a, b) => a + b, 0) + 5;
+            const colWidths = [12, 60, 22, 22, 12, 18];
+            const tableWidth = colWidths.reduce((a, b) => a + b, 0);
+
+            // Minimal gap between table and chart
+            const chartStartX = 5 + tableWidth;
+
+            // Allow 10mm margin on right
             const monthWidth = (pageWidth - chartStartX - 10) / months.length;
+
+            // Determine if we need vertical text and adjust header height
+            const needsVerticalText = monthWidth < 15;
+            const headerHeight = needsVerticalText ? 20 : rowHeight;
 
             // Function to draw header
             const drawHeader = (yPos: number) => {
                 doc.setFontSize(8);
                 doc.setFont('helvetica', 'bold');
+                doc.setDrawColor(0, 0, 0);
+                doc.setLineWidth(0.2);
 
                 let headerX = 5;
                 ['S.N', 'Activity', 'Date From', 'Date To', 'Days', 'Progress'].forEach((header, i) => {
-                    doc.rect(headerX, yPos, colWidths[i], rowHeight);
-                    doc.text(header, headerX + colWidths[i] / 2, yPos + 4, { align: 'center' });
+                    doc.rect(headerX, yPos, colWidths[i], headerHeight, 'S');
+                    doc.text(header, headerX + colWidths[i] / 2, yPos + headerHeight / 2 + 2, { align: 'center' });
                     headerX += colWidths[i];
                 });
 
                 months.forEach((month, i) => {
                     const monthX = chartStartX + i * monthWidth;
-                    doc.rect(monthX, yPos, monthWidth, rowHeight);
+                    doc.rect(monthX, yPos, monthWidth, headerHeight, 'S');
                     doc.setFontSize(7);
                     const monthStr = month.toLocaleDateString('en-US', { month: 'short' });
                     const yearStr = month.getFullYear().toString().slice(-2);
-                    doc.text(`${monthStr}-${yearStr}`, monthX + monthWidth / 2, yPos + 4, { align: 'center' });
+
+                    if (needsVerticalText) {
+                        doc.text(`${monthStr}-${yearStr}`, monthX + monthWidth / 2, yPos + headerHeight - 2, {
+                            align: 'center',
+                            angle: 90
+                        });
+                    } else {
+                        doc.text(`${monthStr}-${yearStr}`, monthX + monthWidth / 2, yPos + 4, { align: 'center' });
+                    }
                 });
 
-                return yPos + rowHeight;
+                return yPos + headerHeight;
             };
 
             let y = drawHeader(startY);
 
             doc.setFont('helvetica', 'normal');
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.2);
+            
             allTasksFlat.forEach((task, idx) => {
-                const startDate = new Date(task.start_date);
-                const endDate = task.end_date ? new Date(task.end_date) : startDate;
-                const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                const startDate = parseDate(task.start_date);
+                const endDate = parseDate(task.end_date) || startDate;
+
+                const days = startDate && endDate
+                    ? Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+                    : 0;
 
                 let x = 5;
 
@@ -472,78 +531,95 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
                     doc.setFontSize(7);
                 }
 
-                doc.rect(x, y, colWidths[0], rowHeight);
+                doc.rect(x, y, colWidths[0], rowHeight, 'S');
                 doc.text(task.serialNo, x + colWidths[0] / 2, y + 4, { align: 'center' });
                 x += colWidths[0];
 
-                doc.rect(x, y, colWidths[1], rowHeight);
+                doc.rect(x, y, colWidths[1], rowHeight, 'S');
                 if (task.level === 0) {
                     doc.setFont('helvetica', 'bold');
                     doc.text(task.label, x + 2, y + 4, { maxWidth: colWidths[1] - 4 });
-                    doc.setFont('helvetica', 'normal');
                 } else {
+                    doc.setFont('helvetica', 'normal');
                     doc.text(`    ${task.label}`, x + 2, y + 4, { maxWidth: colWidths[1] - 4 });
                 }
                 x += colWidths[1];
 
-                doc.rect(x, y, colWidths[2], rowHeight);
-                doc.text(startDate.toLocaleDateString('en-GB'), x + colWidths[2] / 2, y + 4, { align: 'center' });
+                doc.rect(x, y, colWidths[2], rowHeight, 'S');
+                doc.text(startDate ? startDate.toLocaleDateString('en-GB') : '-', x + colWidths[2] / 2, y + 4, { align: 'center' });
                 x += colWidths[2];
 
-                doc.rect(x, y, colWidths[3], rowHeight);
-                doc.text(endDate.toLocaleDateString('en-GB'), x + colWidths[3] / 2, y + 4, { align: 'center' });
+                doc.rect(x, y, colWidths[3], rowHeight, 'S');
+                doc.text(endDate ? endDate.toLocaleDateString('en-GB') : '-', x + colWidths[3] / 2, y + 4, { align: 'center' });
                 x += colWidths[3];
 
-                doc.rect(x, y, colWidths[4], rowHeight);
-                doc.text(String(days), x + colWidths[4] / 2, y + 4, { align: 'center' });
+                doc.rect(x, y, colWidths[4], rowHeight, 'S');
+                doc.text(String(days || '-'), x + colWidths[4] / 2, y + 4, { align: 'center' });
                 x += colWidths[4];
 
                 // Progress
-                doc.rect(x, y, colWidths[5], rowHeight);
+                doc.rect(x, y, colWidths[5], rowHeight, 'S');
                 doc.text(`${Math.round((task.progress || 0) * 100)}%`, x + colWidths[5] / 2, y + 4, { align: 'center' });
 
                 // Draw chart grid with light borders
-                doc.setDrawColor(220, 220, 220); // Light gray
+                doc.setDrawColor(180, 180, 180);
+                doc.setLineWidth(0.1);
                 months.forEach((month, i) => {
                     const monthX = chartStartX + i * monthWidth;
-                    doc.rect(monthX, y, monthWidth, rowHeight);
+                    doc.rect(monthX, y, monthWidth, rowHeight, 'S');
                 });
-                doc.setDrawColor(0, 0, 0); // Reset to black
+                doc.setDrawColor(0, 0, 0);
+                doc.setLineWidth(0.2);
 
-                const totalDays = (maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24);
-                const startDayOffset = (startDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24);
-                const endDayOffset = (endDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24);
+                if (startDate && endDate) {
+                    // Calculate position based on specific month length to insure alignment with grid
+                    const getXPosition = (date: Date, isEndDate: boolean) => {
+                        const monthDiff = (date.getFullYear() - minDate.getFullYear()) * 12 + (date.getMonth() - minDate.getMonth());
+                        // If date is before minDate, clamp to 0 (start of chart)
+                        if (monthDiff < 0) return chartStartX;
 
-                const chartWidth = months.length * monthWidth;
-                const barX = chartStartX + (startDayOffset / totalDays) * chartWidth;
-                const barEndX = chartStartX + (endDayOffset / totalDays) * chartWidth;
-                const barWidth = barEndX - barX;
+                        const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+                        const dayFraction = isEndDate ? date.getDate() / daysInMonth : (date.getDate() - 1) / daysInMonth;
+                        return chartStartX + (monthDiff + dayFraction) * monthWidth;
+                    };
 
-                // Draw background bar (scheduled)
-                if (task.level === 0) {
-                    doc.setFillColor(245, 158, 11); // Orange for main
-                } else {
-                    doc.setFillColor(147, 197, 253); // Light blue for sub planned
-                }
-                doc.rect(barX, y + 1, barWidth, rowHeight - 2, 'F');
+                    const barX = getXPosition(startDate, false);
+                    const barEndX = getXPosition(endDate, true);
+                    const barWidth = Math.max(barEndX - barX, 2);
 
-                // Draw progress bar (completed)
-                const progress = task.progress || 0;
-                if (progress > 0) {
-                    if (task.level === 0) {
-                        doc.setFillColor(16, 185, 129); // Green for main progress
-                    } else {
-                        doc.setFillColor(37, 99, 235); // Dark blue for sub completed
-                    }
-                    const progressWidth = barWidth * progress;
-                    doc.rect(barX, y + 1, progressWidth, rowHeight - 2, 'F');
+                    // Draw background bar (scheduled) - only if valid width and within range
+                    if (barWidth > 0 && barX >= chartStartX && isFinite(barWidth)) {
+                        if (task.level === 0) {
+                            doc.setFillColor(245, 158, 11); // Orange for main
+                        } else {
+                            doc.setFillColor(147, 197, 253); // Light blue for sub planned
+                        }
 
-                    // Show progress percentage on bar if space available
-                    if (progressWidth > 10) {
-                        doc.setFontSize(6);
-                        doc.setTextColor(255, 255, 255);
-                        doc.text(`${Math.round(progress * 100)}%`, barX + progressWidth / 2, y + 4, { align: 'center' });
-                        doc.setTextColor(0, 0, 0);
+                        // Clip rect if it goes beyond page or grid? For now just draw.
+                        // Ideally we check if barX > limit, but simplifed is ok.
+                        doc.rect(barX, y + 1, barWidth, rowHeight - 2, 'F');
+
+                        // Draw progress bar (completed)
+                        const progress = task.progress || 0;
+                        if (progress > 0) {
+                            if (task.level === 0) {
+                                doc.setFillColor(16, 185, 129); // Green for main progress
+                            } else {
+                                doc.setFillColor(37, 99, 235); // Dark blue for sub completed
+                            }
+                            const progressWidth = barWidth * progress;
+                            if (progressWidth > 0) {
+                                doc.rect(barX, y + 1, progressWidth, rowHeight - 2, 'F');
+
+                                // Show progress percentage on bar if space available
+                                if (progressWidth > 10) {
+                                    doc.setFontSize(6);
+                                    doc.setTextColor(255, 255, 255);
+                                    doc.text(`${Math.round(progress * 100)}%`, barX + progressWidth / 2, y + 4, { align: 'center' });
+                                    doc.setTextColor(0, 0, 0);
+                                }
+                            }
+                        }
                     }
                 }
 

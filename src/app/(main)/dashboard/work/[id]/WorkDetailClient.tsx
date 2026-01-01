@@ -266,7 +266,7 @@ export default function WorkDetailClient({
                                 <DetailRow label="Is High Priority or Blocked" value={work.is_blocked ? 'Yes' : 'No'} />
                                 <DetailRow label="Last Bill No." value={latestBillNumber} />
                                 <ClickableDetailRow
-                                    label="Total Billed Amount"
+                                    label="Total Billed Amount including all Tax"
                                     value={totalBillAmount > 0 ? formatIndianCurrency(totalBillAmount) : 'N/A'}
                                     workId={work.id}
                                     paymentLogs={paymentLogs || []}

@@ -375,6 +375,7 @@ export function DhtmlxGanttChart({
         gantt.config.details_on_dblclick = !readOnly;
         gantt.config.details_on_create = !readOnly;
         gantt.config.grid_resize = true; // Enable column resizing
+        gantt.config.order_branch = !readOnly; // Enable row reordering
 
         // Mobile layout: stack grid above timeline
         const isMobileView = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -582,6 +583,19 @@ export function DhtmlxGanttChart({
             task.progress = task.progress / 100;
           }
           if (onTaskChange) {
+            onTaskChange({
+              type: 'update',
+              task: task as GanttTask,
+              timestamp: new Date()
+            });
+          }
+          return true;
+        });
+
+        // Track row reordering
+        gantt.attachEvent('onRowDragEnd', (id: string | number, target: string | number) => {
+          if (onTaskChange) {
+            const task = gantt.getTask(id);
             onTaskChange({
               type: 'update',
               task: task as GanttTask,
