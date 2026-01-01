@@ -100,12 +100,15 @@ export async function syncScheduleWithActivities(workId: number) {
             tasksToUpdate = scheduleData.data;
         }
         
-        // Update progress in schedule data
+        // Update progress AND dates in schedule data from activities table
         const updatedTasks = tasksToUpdate.map((task: any) => {
             const activity = activities.find(a => a.activity_code === String(task.id));
             if (activity) {
                 return {
                     ...task,
+                    start_date: activity.start_date || task.start_date,
+                    end_date: activity.end_date || task.end_date,
+                    duration: activity.duration || task.duration,
                     progress: activity.progress_percentage / 100
                 };
             }

@@ -244,6 +244,7 @@ export function DhtmlxGanttChart({
   links = [],
   onTaskChange,
   onLinkChange,
+  onTaskReorder,
   readOnly = false,
   height = '100%',
   zoom = 'month',
@@ -367,15 +368,16 @@ export function DhtmlxGanttChart({
         gantt.config.xml_date = '%Y-%m-%d';
         gantt.config.readonly = readOnly;
 
-        // Enable features
-        gantt.config.drag_resize = !readOnly;
-        gantt.config.drag_move = !readOnly;
-        gantt.config.drag_progress = !readOnly;
+        // Enable features - allow all drag operations for UI flexibility
+        gantt.config.drag_resize = !readOnly; // Allow date resize
+        gantt.config.drag_move = !readOnly; // Allow date move
+        gantt.config.drag_progress = !readOnly; // Allow progress drag
         gantt.config.drag_links = !readOnly;
         gantt.config.details_on_dblclick = !readOnly;
         gantt.config.details_on_create = !readOnly;
         gantt.config.grid_resize = true; // Enable column resizing
-        gantt.config.order_branch = !readOnly; // Enable row reordering
+        gantt.config.order_branch = true; // Enable vertical reordering
+        gantt.config.order_branch_free = false; // Restrict to same level
 
         // Mobile layout: stack grid above timeline
         const isMobileView = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -511,10 +513,9 @@ export function DhtmlxGanttChart({
         });
 
         gantt.attachEvent('onLightboxSave', (id: string | number, task: any) => {
-          // Convert input (0-100) back to 0-1
+          // Convert progress input (0-100) back to 0-1
           const progressValue = parseFloat(task.progress);
           if (!isNaN(progressValue)) {
-            // Normalize: if value is > 1, assume it's percentage and divide by 100
             let normalized = progressValue;
             if (normalized > 1) {
               normalized = normalized / 100;
@@ -602,6 +603,42 @@ export function DhtmlxGanttChart({
               timestamp: new Date()
             });
           }
+
+          // Handle reordering - get all tasks in new order
+          if (onTaskReorder) {
+            // Use eachTask to iterate in display order (hierarchy-aware)
+            const reorderedTasks: GanttTask[] = [];
+            gantt.eachTask((t: any) => {
+              // Create a clean copy of the task
+              const cleanTask: GanttTask = {
+                id: t.id,
+                text: t.text,
+                start_date: t.start_date,
+                end_date: t.end_date,
+                duration: t.duration,
+                progress: t.progress,
+                parent: t.parent,
+                open: t.open,
+                type: t.type,
+                isMainActivity: t.isMainActivity
+              };
+
+              // Normalize dates to strings if they are Date objects
+              if ((cleanTask.start_date as any) instanceof Date) {
+                const d = cleanTask.start_date as unknown as Date;
+                cleanTask.start_date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              }
+              if ((cleanTask.end_date as any) instanceof Date) {
+                const d = cleanTask.end_date as unknown as Date;
+                cleanTask.end_date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              }
+
+              reorderedTasks.push(cleanTask);
+            });
+
+            console.log('Task Reordered. New count:', reorderedTasks.length);
+            onTaskReorder(reorderedTasks);
+          }
           return true;
         });
 
@@ -676,7 +713,7 @@ export function DhtmlxGanttChart({
             progress: task.progress > 1 ? task.progress / 100 : task.progress
           }));
           gantt.parse({ data: normalizedTasks, links });
-          
+
           // Force render to ensure fresh data
           gantt.render();
 
@@ -735,17 +772,17 @@ export function DhtmlxGanttChart({
         // Clear all data and cache
         gantt.clearAll();
         gantt.resetLayout();
-        
+
         // Normalize progress values before loading
         const normalizedTasks = tasks.map(task => ({
           ...task,
           progress: task.progress > 1 ? task.progress / 100 : task.progress
         }));
         gantt.parse({ data: normalizedTasks, links });
-        
+
         // Force render to ensure fresh data
         gantt.render();
-        
+
         // Only restore open state if not a zoom change
         if (!isZoomChangeRef.current) {
           openTasksRef.current.forEach((taskId) => {

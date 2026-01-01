@@ -61,7 +61,7 @@ const DhtmlxGanttChart = dynamic(
  * It ensures the chart fills the available height, supports sticky task names, and smooth horizontal scroll.
  */
 export function GanttChartWrapper(props: GanttChartProps & { exportMode?: boolean }) {
-    return <DhtmlxGanttChart {...props} exportMode={props.exportMode} />;
+    return <DhtmlxGanttChart {...props} onTaskReorder={props.onTaskReorder} exportMode={props.exportMode} />;
 }
 
 export default GanttChartWrapper;

@@ -53,59 +53,69 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
+    // Transform work data to Gantt tasks - Moved to top for initialization
+    const baseTasks = useMemo(() => workToGanttTasks(work), [work]);
+
     // Load saved schedule data from Supabase
     useEffect(() => {
         const loadSavedData = async () => {
             if (!work?.id) {
+                // Initialize with default template if no ID
+                setCustomTasks(baseTasks);
                 setIsLoading(false);
                 return;
             }
             try {
                 const result = await loadScheduleData(Number(work.id));
+                console.log('[SchedulePageClient] Load result:', result);
+
+                let loadedTasks: GanttTask[] | null = null;
+
                 if (result.success && result.data) {
                     const parsed = JSON.parse(result.data);
-                    if (parsed.customTasks) {
-                        setCustomTasks(parsed.customTasks);
+                    console.log('[SchedulePageClient] Parsed data:', parsed);
+                    if (parsed.customTasks && Array.isArray(parsed.customTasks) && parsed.customTasks.length > 0) {
+                        console.log('[SchedulePageClient] Setting customTasks:', parsed.customTasks.length);
+                        loadedTasks = parsed.customTasks;
                     }
+                    // We do not load deletedTaskIds anymore because customTasks (if loaded) has them removed already.
+                    // Loading them causes the "Unsaved" badge to show persistent deletion counts.
+                    /*
                     if (parsed.deletedTaskIds) {
+                        console.log('[SchedulePageClient] Setting deletedTaskIds:', parsed.deletedTaskIds);
                         setDeletedTaskIds(new Set(parsed.deletedTaskIds));
                     }
+                    */
                 }
+
+                // If we found saved tasks, use them. Otherwise use the default template.
+                if (loadedTasks) {
+                    setCustomTasks(loadedTasks);
+                } else {
+                    console.log('[SchedulePageClient] No saved tasks found, using default template');
+                    setCustomTasks(baseTasks);
+                }
+
                 setIsLoading(false);
             } catch (error) {
                 console.error('Failed to load schedule data:', error);
+                // Fallback to template on error
+                setCustomTasks(baseTasks);
                 setIsLoading(false);
             }
         };
         loadSavedData();
-    }, [work.id]);
+    }, [work.id, baseTasks]);
 
-    // Transform work data to Gantt tasks
-    const baseTasks = useMemo(() => workToGanttTasks(work), [work]);
-
-    // Combine base tasks with any custom tasks, filtering out deleted ones
+    // Combine base tasks with any custom tasks, handling reordering and updates
+    // simplified: customTasks IS the list. Just filter deletions.
     const allTasks = useMemo(() => {
-        // Create a map of custom tasks for quick lookup
-        const customTasksMap = new Map(customTasks.map(t => [String(t.id), t]));
+        // Map for quick lookup of deleted IDs
+        const deleted = new Set(Array.from(deletedTaskIds).map(String));
 
-        // Merge base tasks with custom updates
-        const mergedBaseTasks = baseTasks
-            .filter(t => !deletedTaskIds.has(String(t.id)))
-            .map(baseTask => {
-                const customUpdate = customTasksMap.get(String(baseTask.id));
-                if (customUpdate) {
-                    // Remove from map as we've used it
-                    customTasksMap.delete(String(baseTask.id));
-                    return customUpdate;
-                }
-                return baseTask;
-            });
-
-        // Add remaining custom tasks (new ones not in base)
-        const remainingCustomTasks = Array.from(customTasksMap.values());
-
-        return [...mergedBaseTasks, ...remainingCustomTasks];
-    }, [baseTasks, customTasks, deletedTaskIds]);
+        // Return customTasks, filtering out deleted ones.
+        return customTasks.filter(t => !deleted.has(String(t.id)));
+    }, [customTasks, deletedTaskIds]);
 
     // Handle task changes
     const handleTaskChange = useCallback((event: GanttChangeEvent) => {
@@ -138,8 +148,24 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
         }
     }, [baseTasks]);
 
+    // Handle task Link changes
     const handleLinkChange = useCallback((event: GanttChangeEvent) => {
         setPendingChanges(prev => [...prev, event]);
+    }, []);
+
+    // Handle task reordering
+    const handleTaskReorder = useCallback((reorderedTasks: GanttTask[]) => {
+        console.log('[SchedulePageClient] Tasks reordered:', reorderedTasks.length);
+
+        // Update customTasks with the new order. 
+        // We replace the entire customTasks state with this new authoritative list.
+        setCustomTasks(reorderedTasks);
+
+        // Register a change event so "Save" becomes active
+        setPendingChanges(prev => [...prev, {
+            type: 'update',
+            timestamp: new Date()
+        }]);
     }, []);
 
     // Add new main activity
@@ -204,13 +230,18 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
 
     // Reset to original data
     const handleReset = useCallback(() => {
-        setCustomTasks([]);
-        setPendingChanges([]);
-        toast.info('Reset to original schedule');
-    }, []);
+        setCustomTasks(baseTasks);
+        setDeletedTaskIds(new Set());
+        setPendingChanges(prev => [...prev, {
+            type: 'update', // Just to flag as dirty if needed
+            timestamp: new Date()
+        }]);
+        toast.info('Reset to default schedule template');
+    }, [baseTasks]);
 
     // Save changes to Supabase
     const handleSave = useCallback(async () => {
+        // Allow save if there are pending changes OR deleted tasks
         if (pendingChanges.length === 0 && deletedTaskIds.size === 0) {
             toast.info('No changes to save');
             return;
@@ -219,11 +250,14 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
         try {
             console.log('[SchedulePageClient] Saving schedule');
             console.log('[SchedulePageClient] allTasks:', allTasks.length);
+            console.log('[SchedulePageClient] deletedTaskIds:', Array.from(deletedTaskIds));
 
             const scheduleData = JSON.stringify({
                 customTasks: allTasks,
-                deletedTaskIds: Array.from(deletedTaskIds)
+                deletedTaskIds: [] // We don't need to persist these as they are baked into customTasks
             });
+
+            console.log('[SchedulePageClient] scheduleData:', scheduleData);
 
             const workId = Number(work.id);
 
@@ -266,6 +300,7 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
                 }
 
                 setPendingChanges([]);
+                setDeletedTaskIds(new Set());
                 toast.success('Schedule saved successfully!');
             } else {
                 const errorMsg = result.error || 'Failed to save';
@@ -511,7 +546,7 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
             doc.setFont('helvetica', 'normal');
             doc.setDrawColor(0, 0, 0);
             doc.setLineWidth(0.2);
-            
+
             allTasksFlat.forEach((task, idx) => {
                 const startDate = parseDate(task.start_date);
                 const endDate = parseDate(task.end_date) || startDate;
@@ -702,9 +737,9 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
                             <span className="text-sm text-slate-600 hidden sm:block">
                                 {work.site_name || 'Project Site'}
                             </span>
-                            {pendingChanges.length > 0 && (
+                            {(pendingChanges.length > 0 || deletedTaskIds.size > 0) && (
                                 <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
-                                    {pendingChanges.length} unsaved
+                                    {pendingChanges.length + deletedTaskIds.size} unsaved
                                 </span>
                             )}
                         </div>
@@ -790,7 +825,7 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
                         <Button
                             size="sm"
                             onClick={handleSave}
-                            disabled={pendingChanges.length === 0}
+                            disabled={pendingChanges.length === 0 && deletedTaskIds.size === 0}
                             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg disabled:opacity-50 text-xs sm:text-sm h-7 px-2 sm:px-3"
                         >
                             <Save className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
@@ -937,14 +972,18 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
                         </div>
                     </div>
                 ) : (
-                    <div ref={ganttContainerRef} className="h-full bg-white rounded-lg sm:rounded-xl shadow-lg border border-slate-200/60 overflow-auto">
-                        <GanttChartWrapper
-                            tasks={allTasks}
-                            onTaskChange={handleTaskChange}
-                            onLinkChange={handleLinkChange}
-                            zoom={zoom}
-                            height="100%"
-                        />
+                    <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-h-[500px] flex flex-col relative h-full">
+                        <div className="flex-1 w-full min-h-0 relative" ref={ganttContainerRef}>
+                            {!isLoading && (
+                                <GanttChartWrapper
+                                    tasks={allTasks}
+                                    onTaskChange={handleTaskChange}
+                                    onLinkChange={handleLinkChange}
+                                    onTaskReorder={handleTaskReorder}
+                                    zoom={zoom}
+                                />
+                            )}
+                        </div>
                     </div>
                 )}
             </div>

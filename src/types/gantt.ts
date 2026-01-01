@@ -62,6 +62,7 @@ export interface GanttChartProps {
     links?: GanttLink[];
     onTaskChange?: (event: GanttChangeEvent) => void;
     onLinkChange?: (event: GanttChangeEvent) => void;
+    onTaskReorder?: (tasks: GanttTask[]) => void;
     readOnly?: boolean;
     height?: string;
     zoom?: 'day' | 'week' | 'month' | 'year' | 'quarter_day' | 'alternate_day';
