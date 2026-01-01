@@ -731,3 +731,14 @@ body.gantt-export-mode {
     padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem) !important;
   }
 }
+
+/* Hide Vercel Toolbar */
+vercel-live-feedback,
+#vercel-toolbar,
+[data-vercel-toolbar] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
