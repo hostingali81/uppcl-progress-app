@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import CapacitorAppHooks from "@/components/CapacitorAppHooks";
+import PWARegister from "@/components/PWARegister";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -60,6 +61,7 @@ export default function RootLayout({
       >
         {children}
         <CapacitorAppHooks />
+        <PWARegister />
         <Toaster position="top-right" richColors />
       </body>
     </html>
