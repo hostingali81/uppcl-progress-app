@@ -124,13 +124,13 @@ export function Header({ userDetails }: { userDetails: UserDetails }) {
 
           {/* Pragati Logo - Center-Left */}
           <Link href="/" className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-wide ml-1">
-            Pragati
+            DVVNL Prgati
           </Link>
 
           <SheetContent side="left" className="flex flex-col w-80 bg-white border-r border-slate-200 z-[60]">
             <SheetHeader className="border-b border-slate-200 px-6 py-4 bg-slate-50" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}>
               <SheetTitle className="text-left">
-                <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-wide" onClick={() => setIsOpen(false)}>Pragati Menu</Link>
+                <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-wide" onClick={() => setIsOpen(false)}>DVVNL Prgati Menu</Link>
               </SheetTitle>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto bg-white">

@@ -2,11 +2,11 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.uppcl.progresstracker',
-  appName: 'Pragati App',
+  appName: 'DVVNL Prgati',
   webDir: 'public',
   server: {
     androidScheme: 'https',
-    url: 'https://dvvnl.vercel.app', // Production URL
+    url: 'https://progressdvvnl.vercel.app/', // Production URL
 
     cleartext: true
   },

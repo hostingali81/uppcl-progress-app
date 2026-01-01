@@ -1,7 +1,7 @@
 {
-    "name": "UPPCL Progress Tracker",
-    "short_name": "UPPCL",
-    "description": "Track work progress offline and sync when online",
+    "name": "DVVNL Prgati",
+    "short_name": "DVVNL",
+    "description": "Project Management and Tracker",
     "start_url": "/",
     "scope": "/",
     "display": "standalone",

@@ -25,13 +25,13 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "UPPCL Progress Tracker - Offline-First PWA",
-  description: "Track work progress offline and sync when online",
+  title: "DVVNL Prgati - Project Management and Tracker",
+  description: "Project Management and Tracker",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "UPPCL"
+    title: "DVVNL Prgati"
   },
   icons: {
     icon: [

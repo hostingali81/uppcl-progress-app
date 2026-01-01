@@ -119,7 +119,7 @@ export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
       <aside className="hidden md:flex md:flex-col md:w-64 border-r border-slate-200 bg-white shadow-sm sticky top-0 h-screen">
         <div className="flex h-20 items-center justify-center border-b border-slate-200 px-6">
           <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 bg-clip-text text-transparent tracking-tight">
-            Pragati
+            DVVNL Prgati
           </Link>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -154,7 +154,7 @@ export function Sidebar({ userDetails }: { userDetails: UserDetails }) {
           href="/"
           className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 bg-clip-text text-transparent tracking-tight hover:scale-105 transition-transform"
         >
-          Pragati
+          DVVNL Prgati
         </Link>
       </div>
 

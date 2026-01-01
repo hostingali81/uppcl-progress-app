@@ -37,7 +37,7 @@ export default function Login() {
         setIsLoading(false);
         return;
       }
-      
+
       // After login, fetch user and profile role to route appropriately
       const { data: { user: signedInUser } } = await supabase.auth.getUser();
       let destination = "/dashboard";
@@ -70,9 +70,9 @@ export default function Login() {
             <Shield className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Pragati Platform
+            DVVNL Prgati
           </h1>
-          <p className="text-slate-600 mt-2">Project Management System</p>
+          <p className="text-slate-600 mt-2">Project Management and Tracker</p>
         </div>
 
         <Card className="border-slate-200 shadow-xl">
@@ -86,30 +86,30 @@ export default function Login() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium text-slate-700">Email Address</Label>
-                <Input 
-                  id="email" 
-                  name="email" 
-                  type="email" 
-                  placeholder="name@example.com" 
-                  required 
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  required
                   disabled={isLoading}
                   className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 h-11 placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-medium text-slate-700">Password</Label>
-                <Input 
-                  id="password" 
-                  name="password" 
-                  type="password" 
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
                   placeholder="Enter your password"
-                  required 
+                  required
                   disabled={isLoading}
                   className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 h-11 placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
-              <EnhancedButton 
-                type="submit" 
+              <EnhancedButton
+                type="submit"
                 disabled={isLoading}
                 className={`w-full bg-blue-600 hover:bg-blue-700 text-white h-11 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ${isLoading ? 'btn-loading' : ''}`}
               >
