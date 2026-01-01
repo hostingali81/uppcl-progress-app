@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'public',
   server: {
     androidScheme: 'https',
-    url: 'https://progressdvvnl.vercel.app/', // Production URL
+    url: 'https://civilprogress.vercel.app/', // Production URL
 
     cleartext: true
   },

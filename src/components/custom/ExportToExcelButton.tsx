@@ -2,7 +2,7 @@ import { useTransition, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { exportToExcel } from "@/app/(main)/dashboard/actions";
 import { Download, Loader2 } from "lucide-react";
-import ExcelJS from "exceljs";
+import ExcelJS, { Cell } from "exceljs";
 import { generateSummaryData } from "@/lib/reportUtils";
 import {
   Dialog,
@@ -164,7 +164,7 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
         headerRow.getCell(1).value = 'S.No.';
         headerRow.getCell(2).value = enableSecondaryGroup ? `${primaryGroupLabel} / ${secondaryGroupLabel}` : primaryGroupLabel;
 
-        selectedMetrics.forEach((metric, idx) => {
+        selectedMetrics.forEach((metric: string, idx: number) => {
           const metricLabel = dynamicExportData.selectedMetrics.includes(metric)
             ? (metric === 'count' ? 'Total Works Count' :
               metric === 'nitPublished' ? 'NIT Published' :
@@ -186,7 +186,7 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
           headerRow.getCell(3 + idx).value = metricLabel;
         });
 
-        headerRow.eachCell((cell) => {
+        headerRow.eachCell((cell: Cell) => {
           cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
           cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -196,17 +196,17 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
         let currentRow = 5;
         let srNo = 1;
 
-        sortedPrimaryGroups.forEach((primaryKey) => {
+        sortedPrimaryGroups.forEach((primaryKey: string) => {
           const groupData = summaryData.groups[primaryKey];
 
           // Primary row
           const primaryRow = worksheet.getRow(currentRow);
           primaryRow.getCell(1).value = srNo++;
           primaryRow.getCell(2).value = primaryKey;
-          selectedMetrics.forEach((metric, idx) => {
+          selectedMetrics.forEach((metric: string, idx: number) => {
             primaryRow.getCell(3 + idx).value = groupData.metrics[metric];
           });
-          primaryRow.eachCell((cell) => {
+          primaryRow.eachCell((cell: Cell) => {
             cell.font = { bold: true };
             cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
           });
@@ -215,14 +215,14 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
           // Secondary rows
           if (enableSecondaryGroup) {
             const secondaryKeys = Object.keys(groupData.secondary).sort();
-            secondaryKeys.forEach((secondaryKey, secIdx) => {
+            secondaryKeys.forEach((secondaryKey: string, secIdx: number) => {
               const secRow = worksheet.getRow(currentRow);
               secRow.getCell(1).value = `${srNo - 1}.${secIdx + 1}`;
               secRow.getCell(2).value = `  ${secondaryKey}`;
-              selectedMetrics.forEach((metric, idx) => {
+              selectedMetrics.forEach((metric: string, idx: number) => {
                 secRow.getCell(3 + idx).value = groupData.secondary[secondaryKey].metrics[metric];
               });
-              secRow.eachCell((cell) => {
+              secRow.eachCell((cell: Cell) => {
                 cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
               });
               currentRow++;
@@ -234,10 +234,10 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
         const grandRow = worksheet.getRow(currentRow);
         grandRow.getCell(1).value = '';
         grandRow.getCell(2).value = 'Grand Total';
-        selectedMetrics.forEach((metric, idx) => {
+        selectedMetrics.forEach((metric: string, idx: number) => {
           grandRow.getCell(3 + idx).value = summaryData.grandTotal.metrics[metric];
         });
-        grandRow.eachCell((cell) => {
+        grandRow.eachCell((cell: Cell) => {
           cell.font = { bold: true };
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
           cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
@@ -333,7 +333,7 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
           'Work Started'
         ];
 
-        headers.forEach((header, index) => {
+        headers.forEach((header: string, index: number) => {
           const cell = headerRow.getCell(index + 1);
           cell.value = header;
           cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
@@ -354,7 +354,7 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
         let currentRow = 7;
         let srNo = 1;
 
-        sortedGroups.forEach((groupName) => {
+        sortedGroups.forEach((groupName: string) => {
           const groupData = summaryData.groups[groupName];
           const categories = Object.keys(groupData.categories).sort();
 
@@ -365,7 +365,7 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
           for (let i = 3; i <= 9; i++) {
             groupRow.getCell(i).value = '';
           }
-          groupRow.eachCell((cell) => {
+          groupRow.eachCell((cell: Cell) => {
             cell.font = { bold: true };
             cell.border = {
               top: { style: 'thin' },
@@ -377,7 +377,7 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
           currentRow++;
 
           // Categories
-          categories.forEach((category, index) => {
+          categories.forEach((category: string, index: number) => {
             const catData = groupData.categories[category];
             const catRow = worksheet.getRow(currentRow);
             catRow.getCell(1).value = index + 1;
@@ -390,7 +390,7 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
             catRow.getCell(8).value = catData.agreementSigned;
             catRow.getCell(9).value = catData.workStarted;
 
-            catRow.eachCell((cell) => {
+            catRow.eachCell((cell: Cell) => {
               cell.alignment = { vertical: 'middle' };
               cell.border = {
                 top: { style: 'thin' },
@@ -414,7 +414,7 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
           totalRow.getCell(8).value = groupData.totals.agreementSigned;
           totalRow.getCell(9).value = groupData.totals.workStarted;
 
-          totalRow.eachCell((cell) => {
+          totalRow.eachCell((cell: Cell) => {
             cell.font = { bold: true };
             cell.alignment = { vertical: 'middle' };
             cell.border = {
@@ -439,7 +439,7 @@ export function ExportToExcelButton({ selectedScheme, filteredWorks, isSummary, 
         grandTotalRow.getCell(8).value = summaryData.grandTotal.agreementSigned;
         grandTotalRow.getCell(9).value = summaryData.grandTotal.workStarted;
 
-        grandTotalRow.eachCell((cell) => {
+        grandTotalRow.eachCell((cell: Cell) => {
           cell.font = { bold: true };
           cell.alignment = { vertical: 'middle' };
           cell.fill = {
