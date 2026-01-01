@@ -1,6 +1,7 @@
 {
     "name": "DVVNL Prgati",
     "short_name": "DVVNL",
+    "id": "/",
     "description": "Project Management and Tracker",
     "start_url": "/",
     "scope": "/",
