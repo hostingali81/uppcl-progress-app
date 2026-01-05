@@ -42,7 +42,6 @@ export function ActivityProgressForm({ workId, onProgressUpdate }: ActivityProgr
       console.log('[ActivityProgressForm] Initialize result:', initResult);
       
       if (initResult.success) {
-        // Reload activities after initialization
         const reloadResult = await getWorkActivities(workId);
         if (reloadResult.success && reloadResult.data) {
           console.log('[ActivityProgressForm] Activities loaded after init:', reloadResult.data.length);
@@ -62,8 +61,34 @@ export function ActivityProgressForm({ workId, onProgressUpdate }: ActivityProgr
     
     if (result.success && result.data) {
       console.log('[ActivityProgressForm] Activities loaded:', result.data.length);
+      
+      // Check if all activities are marked as editable (no parent-child relationships)
+      const hasParentChild = result.data.some((a: WorkActivity) => a.parent_activity_id !== null);
+      
+      if (!hasParentChild && result.data.length > 0) {
+        console.log('[ActivityProgressForm] No parent-child relationships found, re-initializing...');
+        const response = await fetch('/api/reinitialize-activities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workId })
+        });
+        
+        if (response.ok) {
+          const reloadResult = await getWorkActivities(workId);
+          if (reloadResult.success && reloadResult.data) {
+            setActivities(reloadResult.data);
+            const initialUpdates: Record<string, number> = {};
+            reloadResult.data.forEach((activity: WorkActivity) => {
+              initialUpdates[activity.activity_code] = Math.round(activity.progress_percentage);
+            });
+            setUpdates(initialUpdates);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+      
       setActivities(result.data);
-      // Initialize updates with current progress
       const initialUpdates: Record<string, number> = {};
       result.data.forEach((activity: WorkActivity) => {
         console.log('[ActivityProgressForm] Activity:', activity.activity_code, 'Progress:', activity.progress_percentage);

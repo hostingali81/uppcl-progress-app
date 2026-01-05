@@ -119,34 +119,36 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
 
     // Handle task changes
     const handleTaskChange = useCallback((event: GanttChangeEvent) => {
+        console.log('[handleTaskChange] Event:', event.type, event.task?.id);
+        
         setPendingChanges(prev => [...prev, event]);
 
         if (event.type === 'add' && event.task) {
-            setCustomTasks(prev => [...prev, event.task!]);
+            // Check for duplicates before adding
+            setCustomTasks(prev => {
+                const exists = prev.some(t => t.id === event.task!.id);
+                if (exists) {
+                    console.log('[handleTaskChange] Task already exists, skipping add:', event.task!.id);
+                    return prev;
+                }
+                console.log('[handleTaskChange] Adding new task:', event.task!.id);
+                return [...prev, event.task!];
+            });
         } else if (event.type === 'update' && event.task) {
-            // Update both customTasks and baseTasks
-            setCustomTasks(prev =>
-                prev.map(t => t.id === event.task!.id ? event.task! : t)
-            );
-            // Force re-render by updating the task in allTasks
-            const taskId = event.task.id;
-            const isBaseTask = baseTasks.some(t => t.id === taskId);
-            if (isBaseTask) {
-                // Store the update for base tasks too
-                setCustomTasks(prev => {
-                    const existing = prev.find(t => t.id === taskId);
-                    if (existing) {
-                        return prev.map(t => t.id === taskId ? event.task! : t);
-                    } else {
-                        return [...prev, event.task!];
-                    }
-                });
-            }
+            setCustomTasks(prev => {
+                const exists = prev.some(t => t.id === event.task!.id);
+                if (exists) {
+                    return prev.map(t => t.id === event.task!.id ? event.task! : t);
+                } else {
+                    // If updating a base task that's not in customTasks yet, add it
+                    return [...prev, event.task!];
+                }
+            });
         } else if (event.type === 'delete' && event.taskId) {
             setCustomTasks(prev => prev.filter(t => t.id !== event.taskId));
             setDeletedTaskIds(prev => new Set(prev).add(String(event.taskId)));
         }
-    }, [baseTasks]);
+    }, []);
 
     // Handle task Link changes
     const handleLinkChange = useCallback((event: GanttChangeEvent) => {
@@ -170,12 +172,28 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
 
     // Add new main activity
     const handleAddMainActivity = useCallback(() => {
-        const newId = `main-${Date.now()}`;
+        // Find the next available letter code
+        const existingMainActivities = customTasks.filter(t => t.isMainActivity || t.type === 'project');
+        const existingCodes = existingMainActivities
+            .map(t => t.id)
+            .filter(id => typeof id === 'string' && /^[a-z]$/i.test(id))
+            .map(id => id.toString().toLowerCase());
+        
+        // Find next available letter (a, b, c, ...)
+        let nextCode = 'a';
+        for (let i = 0; i < 26; i++) {
+            const code = String.fromCharCode(97 + i); // 97 is 'a'
+            if (!existingCodes.includes(code)) {
+                nextCode = code;
+                break;
+            }
+        }
+        
         const today = new Date().toISOString().split('T')[0];
         const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
         const newTask: GanttTask = {
-            id: newId,
+            id: nextCode,
             text: 'New Main Activity',
             start_date: today,
             end_date: endDate,
@@ -185,7 +203,16 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
             isMainActivity: true
         };
 
-        setCustomTasks(prev => [...prev, newTask]);
+        // Check if task already exists
+        setCustomTasks(prev => {
+            const exists = prev.some(t => t.id === nextCode);
+            if (exists) {
+                toast.error('Activity with this code already exists');
+                return prev;
+            }
+            return [...prev, newTask];
+        });
+        
         setPendingChanges(prev => [...prev, {
             type: 'add',
             task: newTask,
@@ -193,18 +220,32 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
         }]);
 
         toast.success('Added new main activity');
-    }, []);
+    }, [customTasks]);
 
     // Add new sub-activity
     const handleAddSubActivity = useCallback(() => {
         // Find first main activity to be parent
-        const parentTask = allTasks.find(t => t.isMainActivity || t.type === 'project');
+        const parentTask = customTasks.find(t => t.isMainActivity || t.type === 'project');
         if (!parentTask) {
             toast.error('Please add a main activity first');
             return;
         }
 
-        const newId = `sub-${Date.now()}`;
+        // Find existing sub-activities for this parent
+        const existingSubActivities = customTasks.filter(t => t.parent === parentTask.id);
+        const parentCode = String(parentTask.id).toLowerCase();
+        
+        // Find next available number for this parent
+        const existingNumbers = existingSubActivities
+            .map(t => {
+                const match = String(t.id).match(new RegExp(`^${parentCode}(\\d+)$`));
+                return match ? parseInt(match[1]) : 0;
+            })
+            .filter(n => n > 0);
+        
+        const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
+        const newId = `${parentCode}${nextNumber}`;
+        
         const today = new Date().toISOString().split('T')[0];
         const endDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
@@ -218,7 +259,16 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
             isMainActivity: false
         };
 
-        setCustomTasks(prev => [...prev, newTask]);
+        // Check if task already exists
+        setCustomTasks(prev => {
+            const exists = prev.some(t => t.id === newId);
+            if (exists) {
+                toast.error('Activity with this code already exists');
+                return prev;
+            }
+            return [...prev, newTask];
+        });
+        
         setPendingChanges(prev => [...prev, {
             type: 'add',
             task: newTask,
@@ -226,7 +276,7 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
         }]);
 
         toast.success('Added new sub-activity');
-    }, [allTasks]);
+    }, [customTasks]);
 
     // Reset to original data
     const handleReset = useCallback(() => {
@@ -252,8 +302,22 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
             console.log('[SchedulePageClient] allTasks:', allTasks.length);
             console.log('[SchedulePageClient] deletedTaskIds:', Array.from(deletedTaskIds));
 
+            // Create a clean copy of tasks to save
+            const tasksToSave = allTasks.map(task => ({
+                id: task.id,
+                text: task.text,
+                start_date: task.start_date,
+                end_date: task.end_date,
+                duration: task.duration,
+                progress: task.progress,
+                parent: task.parent,
+                open: task.open,
+                type: task.type,
+                isMainActivity: task.isMainActivity
+            }));
+
             const scheduleData = JSON.stringify({
-                customTasks: allTasks,
+                customTasks: tasksToSave,
                 deletedTaskIds: [] // We don't need to persist these as they are baked into customTasks
             });
 
@@ -299,8 +363,13 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
                     });
                 }
 
+                // Clear pending changes and deleted IDs
                 setPendingChanges([]);
                 setDeletedTaskIds(new Set());
+                
+                // Update customTasks to match saved state
+                setCustomTasks(tasksToSave);
+                
                 toast.success('Schedule saved successfully!');
             } else {
                 const errorMsg = result.error || 'Failed to save';
@@ -312,7 +381,7 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
             console.error('Save failed:', errorMsg);
             toast.error(`Save failed: ${errorMsg}`);
         }
-    }, [pendingChanges, customTasks, deletedTaskIds, work]);
+    }, [pendingChanges, allTasks, deletedTaskIds, work]);
 
     // Helper to safely parse dates
     const parseDate = (dateStr: string | Date | undefined | null): Date | null => {
@@ -321,7 +390,13 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
             return isNaN(dateStr.getTime()) ? null : dateStr;
         }
 
-        // Try standard Date constructor first
+        // Handle YYYY-MM-DD format - append T00:00:00 to force local timezone
+        if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            const date = new Date(dateStr + 'T00:00:00');
+            if (!isNaN(date.getTime())) return date;
+        }
+
+        // Try standard Date constructor for other formats
         let date = new Date(dateStr);
         if (!isNaN(date.getTime())) return date;
 
@@ -748,8 +823,8 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
 
                 {/* Toolbar */}
                 <div className="px-4 sm:px-6 pb-4 space-y-3">
-                    {/* Add buttons row */}
-                    <div className="flex flex-wrap items-center gap-2">
+                    {/* Add buttons row - Hidden on mobile */}
+                    <div className="hidden md:flex flex-wrap items-center gap-2">
                         <Button
                             variant="outline"
                             size="sm"
@@ -774,8 +849,8 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
 
                     {/* Zoom and action buttons row */}
                     <div className="flex flex-wrap items-center gap-2">
-                        {/* Zoom controls - Fixed position */}
-                        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+                        {/* Zoom controls - Hidden on mobile */}
+                        <div className="hidden md:flex items-center gap-1 bg-slate-100 rounded-lg p-1">
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -826,7 +901,7 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
                             size="sm"
                             onClick={handleSave}
                             disabled={pendingChanges.length === 0 && deletedTaskIds.size === 0}
-                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg disabled:opacity-50 text-xs sm:text-sm h-7 px-2 sm:px-3"
+                            className="hidden md:inline-flex bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg disabled:opacity-50 text-xs sm:text-sm h-7 px-2 sm:px-3"
                         >
                             <Save className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
                             <span className="hidden sm:inline">Save</span>
@@ -837,155 +912,157 @@ export function SchedulePageClient({ work, userName = 'User' }: SchedulePageClie
 
             {/* Gantt Chart or Mobile View */}
             <div className="flex-1 p-2 sm:p-4 md:p-6 min-h-[400px] sm:min-h-[500px] md:min-h-[600px]">
-                {showMobileView ? (
-                    <div className="space-y-4">
-                        {/* Add Activity Buttons */}
-                        <div className="bg-white rounded-xl shadow-lg border border-slate-200/60 p-4">
-                            <h3 className="text-lg font-bold text-slate-900 mb-3">Manage Activities</h3>
-                            <div className="flex gap-2">
-                                <Button
-                                    onClick={handleAddMainActivity}
-                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                                >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Add Main Activity
-                                </Button>
-                                <Button
-                                    onClick={handleAddSubActivity}
-                                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-                                >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Add Sub-Activity
-                                </Button>
+                <div className="space-y-4">
+                    {showMobileView ? (
+                        <>
+                            {/* Manage Activities - Hidden on mobile */}
+                            <div className="hidden md:block bg-white rounded-xl shadow-lg border border-slate-200/60 p-4">
+                                <h3 className="text-lg font-bold text-slate-900 mb-3">Manage Activities</h3>
+                                <div className="flex gap-2">
+                                    <Button
+                                        onClick={handleAddMainActivity}
+                                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Add Main Activity
+                                    </Button>
+                                    <Button
+                                        onClick={handleAddSubActivity}
+                                        className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                                    >
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Add Sub-Activity
+                                    </Button>
+                                </div>
+                                {pendingChanges.length > 0 && (
+                                    <Button
+                                        onClick={handleSave}
+                                        className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white"
+                                    >
+                                        <Save className="h-4 w-4 mr-2" />
+                                        Save Changes ({pendingChanges.length})
+                                    </Button>
+                                )}
                             </div>
-                            {pendingChanges.length > 0 && (
-                                <Button
-                                    onClick={handleSave}
-                                    className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white"
-                                >
-                                    <Save className="h-4 w-4 mr-2" />
-                                    Save Changes ({pendingChanges.length})
-                                </Button>
-                            )}
-                        </div>
 
-                        {/* Activities List */}
-                        <div className="bg-white rounded-xl shadow-lg border border-slate-200/60 p-4">
-                            <h3 className="text-lg font-bold text-slate-900 mb-4">Activities</h3>
-                            <div className="space-y-3">
-                                {allTasks.filter(t => t.isMainActivity || t.type === 'project').map(mainTask => (
-                                    <div key={mainTask.id} className="border border-slate-200 rounded-lg p-4">
-                                        <div className="font-semibold text-slate-900 mb-2">{mainTask.text}</div>
-                                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-2">
-                                            <div>Start: {mainTask.start_date ? new Date(mainTask.start_date).toLocaleDateString('en-GB') : '-'}</div>
-                                            <div>End: {mainTask.end_date ? new Date(mainTask.end_date).toLocaleDateString('en-GB') : '-'}</div>
-                                        </div>
-                                        <div className="w-full bg-slate-200 rounded-full h-2">
-                                            <div
-                                                className="bg-teal-500 h-2 rounded-full"
-                                                style={{ width: `${Math.round((mainTask.progress || 0) * 100)}%` }}
-                                            />
-                                        </div>
-                                        <div className="text-xs text-slate-600 mt-1 text-right">
-                                            {Math.round((mainTask.progress || 0) * 100)}%
-                                        </div>
-                                        {allTasks.filter(t => t.parent === mainTask.id).length > 0 && (
-                                            <div className="mt-3 pl-4 space-y-2 border-l-2 border-slate-200">
-                                                {allTasks.filter(t => t.parent === mainTask.id).map(subTask => (
-                                                    <div key={subTask.id} className="text-sm">
-                                                        <div className="text-slate-700 mb-1">• {subTask.text}</div>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="flex-1 bg-slate-100 rounded-full h-1.5">
-                                                                <div
-                                                                    className="bg-blue-500 h-1.5 rounded-full"
-                                                                    style={{ width: `${Math.round((subTask.progress || 0) * 100)}%` }}
-                                                                />
-                                                            </div>
-                                                            <span className="text-xs text-slate-600">
-                                                                {Math.round((subTask.progress || 0) * 100)}%
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                            {/* Activities List */}
+                            <div className="bg-white rounded-xl shadow-lg border border-slate-200/60 p-4">
+                                <h3 className="text-lg font-bold text-slate-900 mb-4">Activities</h3>
+                                <div className="space-y-3">
+                                    {allTasks.filter(t => t.isMainActivity || t.type === 'project').map(mainTask => (
+                                        <div key={mainTask.id} className="border border-slate-200 rounded-lg p-4">
+                                            <div className="font-semibold text-slate-900 mb-2">{mainTask.text}</div>
+                                            <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-2">
+                                                <div>Start: {mainTask.start_date ? new Date(mainTask.start_date).toLocaleDateString('en-GB') : '-'}</div>
+                                                <div>End: {mainTask.end_date ? new Date(mainTask.end_date).toLocaleDateString('en-GB') : '-'}</div>
                                             </div>
-                                        )}
-                                    </div>
-                                ))}
+                                            <div className="w-full bg-slate-200 rounded-full h-2">
+                                                <div
+                                                    className="bg-teal-500 h-2 rounded-full"
+                                                    style={{ width: `${Math.round((mainTask.progress || 0) * 100)}%` }}
+                                                />
+                                            </div>
+                                            <div className="text-xs text-slate-600 mt-1 text-right">
+                                                {Math.round((mainTask.progress || 0) * 100)}%
+                                            </div>
+                                            {allTasks.filter(t => t.parent === mainTask.id).length > 0 && (
+                                                <div className="mt-3 pl-4 space-y-2 border-l-2 border-slate-200">
+                                                    {allTasks.filter(t => t.parent === mainTask.id).map(subTask => (
+                                                        <div key={subTask.id} className="text-sm">
+                                                            <div className="text-slate-700 mb-1">• {subTask.text}</div>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="flex-1 bg-slate-100 rounded-full h-1.5">
+                                                                    <div
+                                                                        className="bg-blue-500 h-1.5 rounded-full"
+                                                                        style={{ width: `${Math.round((subTask.progress || 0) * 100)}%` }}
+                                                                    />
+                                                                </div>
+                                                                <span className="text-xs text-slate-600">
+                                                                    {Math.round((subTask.progress || 0) * 100)}%
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-h-[500px] flex flex-col relative h-full">
+                            <div className="flex-1 w-full min-h-0 relative" ref={ganttContainerRef}>
+                                {!isLoading && (
+                                    <GanttChartWrapper
+                                        tasks={allTasks}
+                                        onTaskChange={handleTaskChange}
+                                        onLinkChange={handleLinkChange}
+                                        onTaskReorder={handleTaskReorder}
+                                        zoom={zoom}
+                                    />
+                                )}
                             </div>
                         </div>
+                    )}
 
-                        {/* Timeline Information Card */}
-                        <div className="bg-white rounded-xl shadow-lg border border-slate-200/60 p-6">
-                            <div className="flex items-start gap-4 mb-6">
-                                <div className="w-12 h-12 rounded-full bg-teal-500 flex items-center justify-center flex-shrink-0">
-                                    <Calendar className="h-6 w-6 text-white" />
-                                </div>
-                                <div className="flex-1">
-                                    <h2 className="text-lg font-bold text-slate-900">Timeline Information</h2>
-                                    <p className="text-sm text-slate-600 mt-1">Project schedule and milestones</p>
-                                </div>
-                                <Button
-                                    size="sm"
-                                    className="bg-teal-600 hover:bg-teal-700 text-white"
-                                    onClick={handleExportPDF}
-                                >
-                                    Detailed Schedule
-                                </Button>
+                    {/* Timeline Information Card - Shows on both mobile and desktop */}
+                    <div className="bg-white rounded-xl shadow-lg border border-slate-200/60 p-6">
+                        <div className="flex items-start gap-4 mb-6">
+                            <div className="w-12 h-12 rounded-full bg-teal-500 flex items-center justify-center flex-shrink-0">
+                                <Calendar className="h-6 w-6 text-white" />
                             </div>
+                            <div className="flex-1">
+                                <h2 className="text-lg font-bold text-slate-900">Timeline Information</h2>
+                                <p className="text-sm text-slate-600 mt-1">Project schedule and milestones</p>
+                            </div>
+                            <Button
+                                size="sm"
+                                className="bg-teal-600 hover:bg-teal-700 text-white"
+                                onClick={handleExportPDF}
+                            >
+                                Detailed Schedule
+                            </Button>
+                        </div>
 
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center py-3 border-b border-slate-100">
-                                    <span className="text-sm text-slate-600">Date of Start</span>
-                                    <span className="text-sm font-semibold text-slate-900">
-                                        {work.wom_date ? new Date(work.wom_date).toLocaleDateString('en-GB') : '-'}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center py-3 border-b border-slate-100">
-                                    <span className="text-sm text-slate-600">Scheduled Date of Completion</span>
-                                    <span className="text-sm font-semibold text-slate-900">
-                                        {work.expected_completion_date ? new Date(work.expected_completion_date).toLocaleDateString('en-GB') : '-'}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center py-3 border-b border-slate-100">
-                                    <span className="text-sm text-slate-600">Expected Date of Completion</span>
-                                    <span className="text-sm font-semibold text-slate-900">
-                                        {work.expected_completion_date ? new Date(work.expected_completion_date).toLocaleDateString('en-GB') : '-'}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center py-3 border-b border-slate-100">
-                                    <span className="text-sm text-slate-600">Actual Date of Completion</span>
-                                    <span className="text-sm font-semibold text-slate-900">
-                                        {work.completion_date ? new Date(work.completion_date).toLocaleDateString('en-GB') : '-'}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center py-3 border-b border-slate-100">
-                                    <span className="text-sm text-slate-600">Current Progress</span>
-                                    <span className="text-sm font-semibold text-teal-600">
-                                        {allTasks.length > 0 ? Math.round(allTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / allTasks.length * 100) : 0}%
-                                    </span>
-                                </div>
-                                <div className="pt-3">
-                                    <span className="text-sm text-slate-600 block mb-2">Remark</span>
-                                    <p className="text-sm text-slate-900">{work.reason || 'Work has been started'}</p>
-                                </div>
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                                <span className="text-sm text-slate-600">Date of Start</span>
+                                <span className="text-sm font-semibold text-slate-900">
+                                    {work.wom_date ? new Date(work.wom_date).toLocaleDateString('en-GB') : '-'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                                <span className="text-sm text-slate-600">Scheduled Date of Completion</span>
+                                <span className="text-sm font-semibold text-slate-900">
+                                    {work.expected_completion_date ? new Date(work.expected_completion_date).toLocaleDateString('en-GB') : '-'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                                <span className="text-sm text-slate-600">Expected Date of Completion</span>
+                                <span className="text-sm font-semibold text-slate-900">
+                                    {work.expected_completion_date ? new Date(work.expected_completion_date).toLocaleDateString('en-GB') : '-'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                                <span className="text-sm text-slate-600">Actual Date of Completion</span>
+                                <span className="text-sm font-semibold text-slate-900">
+                                    {work.completion_date ? new Date(work.completion_date).toLocaleDateString('en-GB') : '-'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                                <span className="text-sm text-slate-600">Current Progress</span>
+                                <span className="text-sm font-semibold text-teal-600">
+                                    {work.latest_progress ?? (allTasks.length > 0 ? Math.round(allTasks.reduce((acc, t) => acc + (t.progress || 0), 0) / allTasks.length * 100) : 0)}%
+                                </span>
+                            </div>
+                            <div className="pt-3">
+                                <span className="text-sm text-slate-600 block mb-2">Remark</span>
+                                <p className="text-sm text-slate-900">{work.latest_remark || 'No updates yet'}</p>
                             </div>
                         </div>
                     </div>
-                ) : (
-                    <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-h-[500px] flex flex-col relative h-full">
-                        <div className="flex-1 w-full min-h-0 relative" ref={ganttContainerRef}>
-                            {!isLoading && (
-                                <GanttChartWrapper
-                                    tasks={allTasks}
-                                    onTaskChange={handleTaskChange}
-                                    onLinkChange={handleLinkChange}
-                                    onTaskReorder={handleTaskReorder}
-                                    zoom={zoom}
-                                />
-                            )}
-                        </div>
-                    </div>
-                )}
+                </div>
             </div>
 
             {/* Instructions */}

@@ -198,7 +198,7 @@ export async function initializeActivitiesFromSchedule(workId: number) {
                 activity_code: String(task.id),
                 activity_name: task.text,
                 parent_activity_id: null,
-                is_main_activity: task.type === 'project' || task.isMainActivity || false,
+                is_main_activity: false, // Will be updated based on parent-child relationships
                 start_date: task.start_date || null,
                 end_date: task.end_date || null,
                 duration: task.duration || null,
@@ -222,8 +222,10 @@ export async function initializeActivitiesFromSchedule(workId: number) {
         
         console.log('[initializeActivitiesFromSchedule] Inserted:', inserted?.length);
         
-        // Update parent relationships
+        // Update parent relationships and mark parents as main activities
         if (inserted) {
+            const parentIds = new Set<number>();
+            
             for (const task of tasksToSync) {
                 if (task.parent) {
                     const child = inserted.find(a => a.activity_code === String(task.id));
@@ -232,10 +234,23 @@ export async function initializeActivitiesFromSchedule(workId: number) {
                     if (child && parent) {
                         await admin
                             .from('work_activities')
-                            .update({ parent_activity_id: parent.id })
+                            .update({ 
+                                parent_activity_id: parent.id,
+                                is_main_activity: false 
+                            })
                             .eq('id', child.id);
+                        
+                        parentIds.add(parent.id);
                     }
                 }
+            }
+            
+            // Mark all parents as main activities
+            if (parentIds.size > 0) {
+                await admin
+                    .from('work_activities')
+                    .update({ is_main_activity: true })
+                    .in('id', Array.from(parentIds));
             }
         }
         

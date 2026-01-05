@@ -760,36 +760,43 @@ export function DhtmlxGanttChart({
   // Update data when tasks change
   useEffect(() => {
     const gantt = ganttRef.current;
-    if (gantt && !isLoading && tasks.length > 0) {
-      // Simple deep comparison to avoid unnecessary re-renders
-      const currentDataString = JSON.stringify({ tasks, links });
-      if (prevDataRef.current === currentDataString) {
+    if (gantt && !isLoading) {
+      // Create stable comparison key using sorted IDs and key properties
+      const createDataKey = (tasks: GanttTask[]) => {
+        return tasks.map(t => `${t.id}:${t.text}:${t.start_date}:${t.end_date}:${t.progress}`).sort().join('|');
+      };
+      
+      const currentDataKey = createDataKey(tasks);
+      if (prevDataRef.current === currentDataKey && !isZoomChangeRef.current) {
         return;
       }
-      prevDataRef.current = currentDataString;
+      prevDataRef.current = currentDataKey;
 
       try {
-        // Clear all data and cache
+        // Clear all data and cache completely
         gantt.clearAll();
-        gantt.resetLayout();
+        
+        if (tasks.length > 0) {
+          // Normalize progress values before loading
+          const normalizedTasks = tasks.map(task => ({
+            ...task,
+            progress: task.progress > 1 ? task.progress / 100 : task.progress
+          }));
+          
+          // Parse fresh data
+          gantt.parse({ data: normalizedTasks, links });
 
-        // Normalize progress values before loading
-        const normalizedTasks = tasks.map(task => ({
-          ...task,
-          progress: task.progress > 1 ? task.progress / 100 : task.progress
-        }));
-        gantt.parse({ data: normalizedTasks, links });
+          // Force complete re-render
+          gantt.render();
 
-        // Force render to ensure fresh data
-        gantt.render();
-
-        // Only restore open state if not a zoom change
-        if (!isZoomChangeRef.current) {
-          openTasksRef.current.forEach((taskId) => {
-            if (gantt.isTaskExists(taskId)) {
-              gantt.open(taskId);
-            }
-          });
+          // Restore open state if not a zoom change
+          if (!isZoomChangeRef.current) {
+            openTasksRef.current.forEach((taskId) => {
+              if (gantt.isTaskExists(taskId)) {
+                gantt.open(taskId);
+              }
+            });
+          }
         }
 
         isZoomChangeRef.current = false;
